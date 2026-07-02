@@ -80,3 +80,26 @@ export async function storageListKeys(prefix, shared) {
     return [];
   }
 }
+
+/**
+ * 구글 시트의 jobs/contents/characters/applications 탭에서 사람이 직접 고친
+ * 내용을 읽어서, kv의 guild-config / rep:* 항목에 덮어씁니다.
+ * [Unverified] 이 함수를 호출한 뒤 실제로 화면에 반영되는지는 매번 실제
+ * 환경에서 확인이 필요합니다 — 여기서는 요청이 성공했는지만 알려줍니다.
+ */
+export async function pullFromSheets() {
+  try {
+    assertConfigured();
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "pullFromSheets", token: API_TOKEN }),
+    });
+    const data = await res.json();
+    if (data.error) { console.error("pullFromSheets error:", data.error); return false; }
+    return true;
+  } catch (e) {
+    console.error("pullFromSheets failed:", e);
+    return false;
+  }
+}

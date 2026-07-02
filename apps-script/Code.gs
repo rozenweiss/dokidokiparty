@@ -24,6 +24,15 @@
  *    VITE_STORAGE_API_TOKEN=위에서 설정한 ACCESS_TOKEN과 동일한 값
  *
  * ------------------------------------------------------------
+ * 구조화된 시트 탭 (직업 관리 / 콘텐츠 관리 / 전체 캐릭터 / 신청 현황)
+ * ------------------------------------------------------------
+ * kv 탭 외에 "jobs", "contents", "characters", "applications" 탭이
+ * 자동으로 생성됩니다. 앱이 데이터를 저장할 때마다 이 탭들에도 자동으로
+ * 복사(미러링)되어서, 시트에서 사람이 읽기 편한 표 형태로 볼 수 있습니다.
+ * 시트를 직접 손으로 고친 내용을 앱에 반영하려면, 관리자 화면의
+ * "구글 시트에서 다시 불러오기" 버튼을 눌러야 합니다 (자동 반영 아님).
+ *
+ * ------------------------------------------------------------
  * 보안에 대한 중요한 안내
  * ------------------------------------------------------------
  * ACCESS_TOKEN은 브라우저(클라이언트) 코드에 그대로 포함되기 때문에,
@@ -80,6 +89,186 @@ function findRow_(sheet, key, shared) {
   return -1;
 }
 
+/* ================================================================
+ * 구조화된 시트 탭 (직업 관리 / 콘텐츠 관리 / 전체 캐릭터 / 신청 현황)
+ * ================================================================
+ * kv 시트는 그대로 key-value 저장소로 남아있고, 아래 4개 탭은
+ * "사람이 보기 편한 사본"입니다. kv에 값을 저장(set)할 때마다
+ * 자동으로 이 탭들에도 반영됩니다 (mirrorToTables_).
+ *
+ * 반대 방향(시트를 손으로 고친 내용을 앱에 반영)은 자동으로 되지 않고,
+ * 관리자 화면의 "구글 시트에서 다시 불러오기" 버튼을 눌러야 반영됩니다
+ * (pullFromSheets_). 자동 양방향 동기화는 동시 편집 시 데이터가 서로
+ * 덮어써질 위험이 있어서, 명시적으로 당겨오는 방식을 선택했습니다.
+ * [Inference] 이건 설계상의 판단이며, 유일한 정답은 아닙니다.
+ */
+var TABLES = {
+  jobs: ["id", "name", "role", "keywords", "order", "active"],
+  contents: ["id", "name", "pressure", "requiredResist", "partySize", "interval", "startTime", "endTime", "active"],
+  characters: ["repName", "id", "nickname", "jobId", "jobName", "role", "power", "resist", "penalty", "active", "updatedAt"],
+  applications: ["repName", "id", "contentId", "contentName", "type", "characterIds", "times", "status", "appliedAt"]
+};
+
+function getTableSheet_(name) {
+  var headers = TABLES[name];
+  if (!headers) throw new Error("unknown table: " + name);
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(name);
+  if (!sheet) {
+    sheet = ss.insertSheet(name);
+    sheet.appendRow(headers);
+  }
+  return sheet;
+}
+
+function writeTable_(name, rows) {
+  var headers = TABLES[name];
+  var sheet = getTableSheet_(name);
+  sheet.clearContents();
+  sheet.appendRow(headers);
+  if (rows && rows.length) {
+    var values = rows.map(function (r) {
+      return headers.map(function (h) {
+        var v = r[h];
+        return v === undefined || v === null ? "" : v;
+      });
+    });
+    sheet.getRange(2, 1, values.length, headers.length).setValues(values);
+  }
+}
+
+function readTable_(name) {
+  var headers = TABLES[name];
+  var sheet = getTableSheet_(name);
+  var data = sheet.getDataRange().getValues();
+  var rows = [];
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    var empty = row.every(function (c) { return c === "" || c === null; });
+    if (empty) continue;
+    var obj = {};
+    for (var c = 0; c < headers.length; c++) obj[headers[c]] = row[c];
+    rows.push(obj);
+  }
+  return rows;
+}
+
+/* kv에 값이 저장될 때 관련 구조화 시트에 자동으로 반영(미러링)합니다. */
+function mirrorToTables_(key, valueStr) {
+  try {
+    if (key === "guild-config") {
+      var cfg = JSON.parse(valueStr);
+      writeTable_("jobs", cfg.jobs || []);
+      writeTable_("contents", cfg.contents || []);
+    } else if (String(key).indexOf("rep:") === 0) {
+      syncCharacterAndApplicationTables_();
+    }
+  } catch (e) {
+    // 미러링이 실패해도 원래 kv 저장 자체는 이미 성공했으므로 막지 않습니다.
+  }
+}
+
+/* 모든 rep:* kv 항목을 훑어서 characters / applications 탭 전체를 다시 만듭니다. */
+function syncCharacterAndApplicationTables_() {
+  var sheet = getSheet_();
+  var data = sheet.getDataRange().getValues();
+  var chars = [];
+  var apps = [];
+  for (var i = 1; i < data.length; i++) {
+    var key = data[i][0];
+    var shared = String(data[i][1]) === "true";
+    if (!shared || String(key).indexOf("rep:") !== 0) continue;
+    var repName = String(key).slice(4);
+    var val;
+    try { val = JSON.parse(data[i][2]); } catch (e) { continue; }
+    (val.subs || []).forEach(function (c) {
+      chars.push({
+        repName: repName, id: c.id, nickname: c.nickname, jobId: c.jobId, jobName: c.jobName,
+        role: c.role, power: c.power, resist: c.resist, penalty: c.penalty || 0,
+        active: c.active !== false, updatedAt: c.updatedAt || ""
+      });
+    });
+    (val.applications || []).forEach(function (a) {
+      apps.push({
+        repName: repName, id: a.id, contentId: a.contentId, contentName: a.contentName || "",
+        type: a.type, characterIds: (a.characterIds || []).join(","), times: (a.times || []).join(","),
+        status: a.status, appliedAt: a.appliedAt || ""
+      });
+    });
+  }
+  writeTable_("characters", chars);
+  writeTable_("applications", apps);
+}
+
+/* 관리자가 "구글 시트에서 다시 불러오기"를 눌렀을 때 실행됩니다.
+ * jobs/contents/characters/applications 탭의 현재 내용을 읽어서
+ * kv의 guild-config, rep:* 항목에 덮어씁니다. */
+function pullFromSheets_() {
+  var kvSheet = getSheet_();
+
+  // 1) jobs, contents -> guild-config
+  var jobs = readTable_("jobs").map(function (j) {
+    return {
+      id: String(j.id), name: j.name, role: j.role, keywords: j.keywords || "",
+      order: Number(j.order) || 1,
+      active: j.active === true || String(j.active).toLowerCase() === "true"
+    };
+  });
+  var contents = readTable_("contents").map(function (c) {
+    return {
+      id: String(c.id), name: c.name,
+      pressure: Number(c.pressure) || 0, requiredResist: Number(c.requiredResist) || 0,
+      partySize: Number(c.partySize) || 2, interval: Number(c.interval) || 30,
+      startTime: c.startTime, endTime: c.endTime,
+      active: c.active === true || String(c.active).toLowerCase() === "true"
+    };
+  });
+  var cfgRow = findRow_(kvSheet, "guild-config", true);
+  var cfg = cfgRow === -1 ? {} : JSON.parse(kvSheet.getRange(cfgRow, 3).getValue());
+  cfg.jobs = jobs;
+  cfg.contents = contents;
+  if (cfgRow === -1) kvSheet.appendRow(["guild-config", "true", JSON.stringify(cfg)]);
+  else kvSheet.getRange(cfgRow, 3).setValue(JSON.stringify(cfg));
+
+  // 2) characters, applications -> rep:* (대표 캐릭터별로 묶어서 저장)
+  var chars = readTable_("characters");
+  var apps = readTable_("applications");
+  var repNames = {};
+  chars.forEach(function (c) { repNames[c.repName] = true; });
+  apps.forEach(function (a) { repNames[a.repName] = true; });
+  // 캐릭터/신청이 하나도 없는 기존 대표 캐릭터도 보존
+  var data = kvSheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    var key = data[i][0];
+    if (String(key).indexOf("rep:") === 0) repNames[String(key).slice(4)] = true;
+  }
+
+  Object.keys(repNames).forEach(function (repName) {
+    var subs = chars.filter(function (c) { return c.repName === repName; }).map(function (c) {
+      return {
+        id: String(c.id), nickname: c.nickname, jobId: c.jobId, jobName: c.jobName, role: c.role,
+        power: Number(c.power) || 0, resist: Number(c.resist) || 0, penalty: Number(c.penalty) || 0,
+        active: c.active === true || String(c.active).toLowerCase() === "true",
+        updatedAt: c.updatedAt || Date.now()
+      };
+    });
+    var repApps = apps.filter(function (a) { return a.repName === repName; }).map(function (a) {
+      return {
+        id: String(a.id), contentId: a.contentId, contentName: a.contentName,
+        type: a.type,
+        characterIds: String(a.characterIds || "").split(",").filter(String),
+        times: String(a.times || "").split(",").filter(String),
+        status: a.status, appliedAt: a.appliedAt || Date.now()
+      };
+    });
+    var repKey = "rep:" + repName;
+    var existingRow = findRow_(kvSheet, repKey, true);
+    var value = JSON.stringify({ subs: subs, applications: repApps });
+    if (existingRow === -1) kvSheet.appendRow([repKey, "true", value]);
+    else kvSheet.getRange(existingRow, 3).setValue(value);
+  });
+}
+
 /* ---------------- GET: get / list ---------------- */
 function doGet(e) {
   var params = (e && e.parameter) || {};
@@ -131,12 +320,18 @@ function doPost(e) {
     } else {
       sheet.getRange(row, 3).setValue(body.value);
     }
+    if (shared) mirrorToTables_(body.key, body.value);
     return jsonOut_({ ok: true });
   }
 
   if (body.action === "delete") {
     var row2 = findRow_(sheet, body.key, shared);
     if (row2 !== -1) sheet.deleteRow(row2);
+    return jsonOut_({ ok: true });
+  }
+
+  if (body.action === "pullFromSheets") {
+    pullFromSheets_();
     return jsonOut_({ ok: true });
   }
 

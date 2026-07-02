@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { storageGet, storageSet, storageDelete, storageListKeys } from "./lib/storage";
+import { storageGet, storageSet, storageDelete, storageListKeys, pullFromSheets } from "./lib/storage";
 
 /* ============================================================
    길드 파티 매칭 툴 — 관리자 화면 프로토타입
@@ -1354,8 +1354,10 @@ function AllCharactersSection({ reps, jobs, onUpdateCharacter, onDeleteCharacter
 function DataView({ contents, jobs, resultsMeta, reps, onUpdateCharacter, onDeleteCharacter, onToast, onAfterDelete }) {
   const [busyId, setBusyId] = useState(null);
   const [seeding, setSeeding] = useState(false);
+  const [pulling, setPulling] = useState(false);
   const [confirmDeleteContent, setConfirmDeleteContent] = useState(null);
   const [confirmSeed, setConfirmSeed] = useState(false);
+  const [confirmPull, setConfirmPull] = useState(false);
 
   async function doDeleteContentData(content) {
     setBusyId(content.id);
@@ -1376,9 +1378,30 @@ function DataView({ contents, jobs, resultsMeta, reps, onUpdateCharacter, onDele
     onAfterDelete();
   }
 
+  async function doPullFromSheets() {
+    setPulling(true);
+    const ok = await pullFromSheets();
+    setPulling(false);
+    if (ok) {
+      onToast("구글 시트 내용을 불러왔습니다. [Unverified] 시트에 남겨둔 형식이 어긋난 값이 있으면 일부 필드가 예상과 다르게 반영될 수 있습니다 — 불러온 뒤 직업/콘텐츠/캐릭터 목록을 확인해보세요.");
+    } else {
+      onToast("구글 시트 불러오기에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    }
+    onAfterDelete();
+  }
+
   return (
     <div>
       <div className="gpa-section-title"><div><h2>데이터 관리</h2><div className="gpa-section-desc">콘텐츠별 신청 및 매칭 데이터를 수동으로 삭제할 수 있습니다. 자동 매칭 실행 후 48시간이 지나면 자동으로 삭제됩니다.</div></div></div>
+
+      <div className="gpa-card">
+        <div className="gpa-section-title"><h2 style={{ fontSize: 14 }}>구글 시트 연동</h2></div>
+        <div className="gpa-hint" style={{ marginBottom: 14 }}>
+          직업/콘텐츠/캐릭터/신청 데이터는 앱에서 저장할 때마다 구글 시트의 "jobs" · "contents" · "characters" · "applications" 탭에 자동으로 복사됩니다.
+          시트에서 직접 값을 고쳤다면, 아래 버튼을 눌러야 이 앱에 반영됩니다 (자동으로는 반영되지 않습니다).
+        </div>
+        <button className="gpa-btn gpa-btn-primary gpa-btn-sm" disabled={pulling} onClick={() => setConfirmPull(true)}>{pulling ? "불러오는 중..." : "구글 시트에서 다시 불러오기"}</button>
+      </div>
 
       <AllCharactersSection reps={reps} jobs={jobs} onUpdateCharacter={onUpdateCharacter} onDeleteCharacter={onDeleteCharacter} />
 
@@ -1411,6 +1434,16 @@ function DataView({ contents, jobs, resultsMeta, reps, onUpdateCharacter, onDele
           </table>
         </div>
       </div>
+
+      {confirmPull && (
+        <ConfirmModal
+          title="구글 시트에서 다시 불러오기"
+          message={"구글 시트의 jobs / contents / characters / applications 탭 내용으로 이 앱의 직업, 콘텐츠, 캐릭터, 신청 데이터를 덮어씁니다.\n앱에서 마지막으로 저장한 이후 시트에서 직접 고친 내용이 있다면 반영되고, 이 앱에서만 있던 최신 변경사항은 시트에 없다면 사라질 수 있습니다.\n계속할까요?"}
+          confirmLabel="불러오기"
+          onConfirm={async () => { setConfirmPull(false); await doPullFromSheets(); }}
+          onCancel={() => setConfirmPull(false)}
+        />
+      )}
 
       {confirmSeed && (
         <ConfirmModal
