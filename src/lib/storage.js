@@ -67,6 +67,11 @@ export async function storageDelete(key, shared) {
   }
 }
 
+/**
+ * storageListKeys + storageGet을 여러 번 반복하는 대신, prefix에 맞는 모든
+ * 행의 key/value를 한 번의 요청으로 가져옵니다. rep:* 처럼 개수가 많은
+ * 키를 다룰 때, 요청 수만큼 느려지거나 응답이 멈추는 문제를 피하기 위해 씁니다.
+ */
 export async function storageListKeys(prefix, shared) {
   try {
     assertConfigured();
@@ -77,6 +82,25 @@ export async function storageListKeys(prefix, shared) {
     return data.keys || [];
   } catch (e) {
     console.error("storageListKeys failed:", e);
+    return [];
+  }
+}
+
+/**
+ * storageListKeys + storageGet을 여러 번 반복하는 대신, prefix에 맞는 모든
+ * 행의 key/value를 한 번의 요청으로 가져옵니다. rep:* 처럼 개수가 많은
+ * 키를 다룰 때, 요청 수만큼 느려지거나 응답이 멈추는 문제를 피하기 위해 씁니다.
+ */
+export async function storageListWithValues(prefix, shared) {
+  try {
+    assertConfigured();
+    const url = `${API_URL}?action=listWithValues&prefix=${encodeURIComponent(prefix)}&shared=${!!shared}&token=${encodeURIComponent(API_TOKEN)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.error) { console.error("storageListWithValues error:", data.error); return []; }
+    return data.rows || [];
+  } catch (e) {
+    console.error("storageListWithValues failed:", e);
     return [];
   }
 }

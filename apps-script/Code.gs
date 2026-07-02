@@ -203,6 +203,14 @@ function syncCharacterAndApplicationTables_() {
 /* 관리자가 "구글 시트에서 다시 불러오기"를 눌렀을 때 실행됩니다.
  * jobs/contents/characters/applications 탭의 현재 내용을 읽어서
  * kv의 guild-config, rep:* 항목에 덮어씁니다. */
+/* 시트의 시간 형식 셀은 문자열이 아니라 Date 객체로 넘어오므로 "HH:mm" 문자열로 변환합니다. */
+function coerceTimeStr_(v) {
+  if (v instanceof Date) {
+    return Utilities.formatDate(v, Session.getScriptTimeZone(), "HH:mm");
+  }
+  return v;
+}
+
 function pullFromSheets_() {
   var kvSheet = getSheet_();
 
@@ -219,7 +227,7 @@ function pullFromSheets_() {
       id: String(c.id), name: c.name,
       pressure: Number(c.pressure) || 0, requiredResist: Number(c.requiredResist) || 0,
       partySize: Number(c.partySize) || 2, interval: Number(c.interval) || 30,
-      startTime: c.startTime, endTime: c.endTime,
+      startTime: coerceTimeStr_(c.startTime), endTime: coerceTimeStr_(c.endTime),
       active: c.active === true || String(c.active).toLowerCase() === "true"
     };
   });
@@ -297,6 +305,24 @@ function doGet(e) {
       if (s === sharedList && String(k).indexOf(prefix) === 0) keys.push(k);
     }
     return jsonOut_({ keys: keys });
+  }
+
+  // list와 동일하지만, 값(value)도 한 번에 같이 돌려줍니다.
+  // rep:* 처럼 개수가 많은 키를 하나씩 get으로 반복 조회하면 매번 왕복이 필요해
+  // 느려지므로(요청 수만큼 느려짐), 이 액션으로 한 번에 가져옵니다.
+  if (action === "listWithValues") {
+    var prefix2 = params.prefix || "";
+    var sharedList2 = params.shared === "true";
+    var data2 = sheet.getDataRange().getValues();
+    var rows = [];
+    for (var j = 1; j < data2.length; j++) {
+      var k2 = data2[j][0];
+      var s2 = String(data2[j][1]) === "true";
+      if (s2 === sharedList2 && String(k2).indexOf(prefix2) === 0) {
+        rows.push({ key: k2, value: String(data2[j][2]) });
+      }
+    }
+    return jsonOut_({ rows: rows });
   }
 
   return jsonOut_({ error: "unknown action" });

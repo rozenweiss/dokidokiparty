@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { storageGet, storageSet, storageDelete, storageListKeys, pullFromSheets } from "./lib/storage";
+import { storageGet, storageSet, storageDelete, storageListWithValues, pullFromSheets } from "./lib/storage";
 
 /* ============================================================
    길드 파티 매칭 툴 — 관리자 화면 프로토타입
@@ -188,13 +188,12 @@ async function loadGuildConfig() {
 }
 
 async function loadAllReps() {
-  const keys = await storageListKeys("rep:", true);
+  const rows = await storageListWithValues("rep:", true);
   const reps = {};
-  for (const k of keys) {
-    const name = k.slice("rep:".length);
-    const raw = await storageGet(k, true);
-    if (!raw) continue;
-    try { reps[name] = JSON.parse(raw); } catch (e) { /* skip */ }
+  for (const row of rows) {
+    const name = row.key.slice("rep:".length);
+    if (!row.value) continue;
+    try { reps[name] = JSON.parse(row.value); } catch (e) { /* skip */ }
   }
   return reps;
 }
@@ -216,13 +215,13 @@ function formatRemaining(ms) {
 
 /* 콘텐츠 하나의 신청/매칭 데이터를 정리 (수동 삭제·자동 삭제 공용) */
 async function purgeContentData(content) {
-  const keys = await storageListKeys("rep:", true);
-  for (const k of keys) {
-    const raw = await storageGet(k, true);
-    if (!raw) continue;
-    const data = JSON.parse(raw);
+  const rows = await storageListWithValues("rep:", true);
+  for (const row of rows) {
+    if (!row.value) continue;
+    let data;
+    try { data = JSON.parse(row.value); } catch (e) { continue; }
     const apps = (data.applications || []).filter((a) => a.contentId !== content.id);
-    if (apps.length !== (data.applications || []).length) await storageSet(k, { ...data, applications: apps }, true);
+    if (apps.length !== (data.applications || []).length) await storageSet(row.key, { ...data, applications: apps }, true);
   }
   await storageDelete(`results:${content.id}`, true);
 }
@@ -860,17 +859,17 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
   }
 
   async function setApplicationStatusForContent(status) {
-    const keys = await storageListKeys("rep:", true);
-    for (const k of keys) {
-      const raw = await storageGet(k, true);
-      if (!raw) continue;
-      const data = JSON.parse(raw);
+    const rows = await storageListWithValues("rep:", true);
+    for (const row of rows) {
+      if (!row.value) continue;
+      let data;
+      try { data = JSON.parse(row.value); } catch (e) { continue; }
       let changed = false;
       const apps = (data.applications || []).map((a) => {
         if (a.contentId === content.id && a.status !== "cancelled") { changed = true; return { ...a, status }; }
         return a;
       });
-      if (changed) await storageSet(k, { ...data, applications: apps }, true);
+      if (changed) await storageSet(row.key, { ...data, applications: apps }, true);
     }
   }
 
