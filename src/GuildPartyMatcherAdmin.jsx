@@ -360,8 +360,12 @@ function AdminGate({ config, onEnter }) {
   const [pw, setPw] = useState("");
   const [error, setError] = useState("");
   function submit() {
-    if (pw === config.adminPassword) onEnter();
-    else setError("관리자 비밀번호가 올바르지 않습니다.");
+    if (pw === config.adminPassword) {
+      try { sessionStorage.setItem("gpa-admin-authed", "true"); } catch (e) { /* 세션 저장이 안 되면 그냥 이번 새로고침까지만 유지됩니다 */ }
+      onEnter();
+    } else {
+      setError("관리자 비밀번호가 올바르지 않습니다.");
+    }
   }
   return (
     <div className="gpa-gate-wrap">
@@ -1523,6 +1527,7 @@ function AdminShell({ config, setConfig }) {
           <span className="gpa-brand-badge">ADMIN</span>
           <span className="gpa-brand-title">길드 파티 매칭 · 관리자</span>
         </div>
+        <a href="/" className="gpa-btn gpa-btn-ghost gpa-btn-sm" style={{ textDecoration: "none" }}>← 사용자 화면</a>
       </div>
       <div className="gpa-nav">
         {NAV_ITEMS.map((n) => <button key={n.key} className={`gpa-nav-item ${view === n.key ? "active" : ""}`} onClick={() => setView(n.key)}>{n.label}</button>)}
@@ -1542,7 +1547,9 @@ function AdminShell({ config, setConfig }) {
 
 export default function GuildPartyMatcherAdmin() {
   const [config, setConfig] = useState(null);
-  const [authed, setAuthed] = useState(false);
+  const [authed, setAuthed] = useState(() => {
+    try { return sessionStorage.getItem("gpa-admin-authed") === "true"; } catch (e) { return false; }
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

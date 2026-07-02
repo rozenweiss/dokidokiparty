@@ -369,7 +369,10 @@ function JobCombo({ jobs, value, onChange }) {
    1.3 + 1.4 — 길드 입장 & 대표 캐릭터 입력 (게이트)
    ============================================================ */
 function GateFlow({ config, onEnter }) {
-  const [step, setStep] = useState(1); // 1: 길드 비번, 2: 대표 캐릭터
+  const alreadyAuthed = (() => {
+    try { return sessionStorage.getItem("gpm-guild-authed") === "true"; } catch (e) { return false; }
+  })();
+  const [step, setStep] = useState(alreadyAuthed ? 2 : 1); // 1: 길드 비번, 2: 대표 캐릭터
   const [pw, setPw] = useState("");
   const [pwError, setPwError] = useState("");
   const [repInput, setRepInput] = useState("");
@@ -386,6 +389,7 @@ function GateFlow({ config, onEnter }) {
 
   function submitPw() {
     if (pw === config.password) {
+      try { sessionStorage.setItem("gpm-guild-authed", "true"); } catch (e) { /* 세션 저장이 안 되면 그냥 이번 새로고침까지만 유지됩니다 */ }
       setStep(2);
       setPwError("");
     } else {
@@ -1121,11 +1125,14 @@ function AppShell({ repName, repData, setRepData, config }) {
             <span className="gpm-brand-sub">GUILD PARTY MATCHING LEDGER</span>
           </div>
         </div>
-        <div className="gpm-rep-badge">
-          <div className="gpm-rep-avatar">{repName.slice(0, 1)}</div>
-          <div>
-            <div className="gpm-rep-name">{repName}</div>
-            <div className="gpm-rep-tag">대표 캐릭터</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <a href="/admin.html" className="gpm-btn gpm-btn-ghost gpm-btn-sm" style={{ textDecoration: "none" }}>관리자 화면 →</a>
+          <div className="gpm-rep-badge">
+            <div className="gpm-rep-avatar">{repName.slice(0, 1)}</div>
+            <div>
+              <div className="gpm-rep-name">{repName}</div>
+              <div className="gpm-rep-tag">대표 캐릭터</div>
+            </div>
           </div>
         </div>
       </div>
