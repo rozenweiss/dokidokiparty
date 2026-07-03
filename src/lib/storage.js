@@ -127,3 +127,24 @@ export async function pullFromSheets() {
     return false;
   }
 }
+
+/**
+ * kv 탭 전체를 타임스탬프가 붙은 새 탭으로 복제해 백업을 만듭니다.
+ * 일괄 작업처럼 되돌리기 어려운 변경을 하기 전에 호출합니다.
+ */
+export async function backupKv() {
+  try {
+    assertConfigured();
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "backupKv", token: API_TOKEN }),
+    });
+    const data = await res.json();
+    if (data.error) { console.error("backupKv error:", data.error); return { ok: false }; }
+    return { ok: true, name: data.name };
+  } catch (e) {
+    console.error("backupKv failed:", e);
+    return { ok: false };
+  }
+}
