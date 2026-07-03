@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { storageGet, storageSet } from "./lib/storage";
+import { storageGet, storageSet, storageGetSafe } from "./lib/storage";
 
 /* ============================================================
    길드 파티 매칭 툴 — 사용자 화면 프로토타입
@@ -1246,39 +1246,63 @@ export default function GuildPartyMatcher() {
   const [config, setConfig] = useState(null);
   const [rep, setRep] = useState(null); // { name, data }
   const [loading, setLoading] = useState(true);
+  const [retryTick, setRetryTick] = useState(0);
 
   useEffect(() => {
-    let done = false;
+    let cancelled = false;
     const fallback = setTimeout(() => {
-      if (!done) {
-        done = true;
-        setConfig({ password: "1234", jobs: DEFAULT_JOBS, contents: DEFAULT_CONTENTS });
+      // 4초 안에 응답이 없으면 스피너만 해제하고, 늦게 도착하는 진짜 결과는
+      // 아래 (async () => {...})()가 나중에 덮어씁니다 — 조용히 버리지 않습니다.
+      if (!cancelled) {
+        setConfig((prev) => prev || { password: "1234", jobs: DEFAULT_JOBS, contents: DEFAULT_CONTENTS, _loadFailed: true });
         setLoading(false);
       }
     }, 4000);
     (async () => {
-      let cfg = await storageGet("guild-config", true);
-      if (!cfg) {
+      const result = await storageGetSafe("guild-config", true);
+      let cfg;
+      if (result.failed) {
+        // 조회 자체가 실패한 경우입니다 — 값이 원래 없는 것인지 알 수 없으므로 절대 덮어쓰지 않습니다.
+        // [Unverified] 아래는 화면을 막기 위한 임시값이며, 저장(overwrite)은 하지 않습니다.
+        cfg = { password: "1234", jobs: DEFAULT_JOBS, contents: DEFAULT_CONTENTS, _loadFailed: true };
+      } else if (result.value === null) {
+        // 진짜로 처음 만드는 경우에만 기본값을 시드로 저장합니다.
         cfg = { password: "1234", jobs: DEFAULT_JOBS, contents: DEFAULT_CONTENTS };
-        storageSet("guild-config", cfg, true);
+        await storageSet("guild-config", cfg, true);
       } else {
-        try { cfg = JSON.parse(cfg); } catch (e) { cfg = { password: "1234", jobs: DEFAULT_JOBS, contents: DEFAULT_CONTENTS }; }
+        try { cfg = JSON.parse(result.value); } catch (e) { cfg = { password: "1234", jobs: DEFAULT_JOBS, contents: DEFAULT_CONTENTS, _loadFailed: true }; }
       }
-      if (!done) {
-        done = true;
+      if (!cancelled) {
         clearTimeout(fallback);
         setConfig(cfg);
         setLoading(false);
       }
     })();
-    return () => clearTimeout(fallback);
-  }, []);
+    return () => { cancelled = true; clearTimeout(fallback); };
+  }, [retryTick]);
 
   if (loading || !config) {
     return (
       <div className="gpm-root">
         <GlobalStyle />
         <div className="gpm-gate-wrap"><div style={{ color: "var(--text-dim)", fontSize: 13 }}>불러오는 중...</div></div>
+      </div>
+    );
+  }
+
+  if (config._loadFailed) {
+    // 실제 설정을 못 받아온 상태입니다. 이대로 진행하면 임시 기본값(직업/콘텐츠 목록 등)을
+    // 보게 되므로, 혼란을 막기 위해 여기서 화면을 막습니다.
+    return (
+      <div className="gpm-root">
+        <GlobalStyle />
+        <div className="gpm-gate-wrap">
+          <div className="gpm-gate-card" style={{ textAlign: "center" }}>
+            <h1 className="gpm-gate-title">불러오지 못했습니다</h1>
+            <p className="gpm-gate-desc">길드 설정을 정상적으로 불러오지 못했습니다. 네트워크 상태를 확인하고 다시 시도해주세요.</p>
+            <button type="button" className="gpm-btn gpm-btn-primary gpm-btn-block" onClick={() => { setConfig(null); setLoading(true); setRetryTick((x) => x + 1); }}>다시 시도</button>
+          </div>
+        </div>
       </div>
     );
   }

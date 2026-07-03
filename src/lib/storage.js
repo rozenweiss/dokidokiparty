@@ -32,6 +32,27 @@ export async function storageGet(key, shared) {
   }
 }
 
+/**
+ * storageGet과 달리 "값이 원래 없음"과 "요청 자체가 실패함"을 구분해서 알려줍니다.
+ * 최초 시드값을 잘못 덮어쓰면 안 되는 곳(예: guild-config 최초 로드)에서만 사용하세요.
+ * 일반 storageGet은 이 둘을 구분하지 않고 둘 다 null로 반환하므로, 그 결과만 보고
+ * "요청이 실패했을 뿐인데 값이 원래 없다"고 잘못 판단해 기본값으로 덮어쓰는 사고가
+ * 날 수 있습니다 (실제로 발생했던 문제).
+ */
+export async function storageGetSafe(key, shared) {
+  try {
+    assertConfigured();
+    const url = `${API_URL}?action=get&key=${encodeURIComponent(key)}&shared=${!!shared}&token=${encodeURIComponent(API_TOKEN)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.error) { console.error("storageGetSafe error:", data.error); return { failed: true, value: null }; }
+    return { failed: false, value: data.value ?? null };
+  } catch (e) {
+    console.error("storageGetSafe failed:", e);
+    return { failed: true, value: null };
+  }
+}
+
 export async function storageSet(key, value, shared) {
   try {
     assertConfigured();

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import html2canvas from "html2canvas";
-import { storageGet, storageSet, storageDelete, storageListWithValues, pullFromSheets, backupKv } from "./lib/storage";
+import { storageGet, storageSet, storageDelete, storageListWithValues, storageGetSafe, pullFromSheets, backupKv } from "./lib/storage";
 
 /* ============================================================
    길드 파티 매칭 툴 — 관리자 화면 프로토타입
@@ -203,12 +203,23 @@ function charFinalPower(char, content) {
 
 
 async function loadGuildConfig() {
-  let cfg = await storageGet("guild-config", true);
-  if (!cfg) {
-    cfg = { password: "1234", adminPassword: "admin1234", jobs: DEFAULT_JOBS, contents: DEFAULT_CONTENTS };
+  const result = await storageGetSafe("guild-config", true);
+  const defaults = { password: "1234", adminPassword: "admin1234", jobs: DEFAULT_JOBS, contents: DEFAULT_CONTENTS };
+
+  if (result.failed) {
+    // 조회 자체가 실패한 경우입니다 — 값이 원래 없는 것인지 알 수 없으므로 절대 덮어쓰지 않습니다.
+    // [Unverified] 아래는 화면에 임시로 기본값을 보여주는 예상 동작이며, 저장(overwrite)은 하지 않습니다.
+    // 실제로 guild-config가 사라진 것인지는 이 결과만으로 확정할 수 없습니다.
+    return { ...defaults, _loadFailed: true };
+  }
+
+  let cfg;
+  if (result.value === null) {
+    // 진짜로 처음 만드는 경우에만 기본값을 시드로 저장합니다.
+    cfg = { ...defaults };
     await storageSet("guild-config", cfg, true);
   } else {
-    try { cfg = JSON.parse(cfg); } catch (e) { cfg = { password: "1234", adminPassword: "admin1234", jobs: DEFAULT_JOBS, contents: DEFAULT_CONTENTS }; }
+    try { cfg = JSON.parse(result.value); } catch (e) { cfg = { ...defaults }; }
   }
   if (!cfg.adminPassword) cfg.adminPassword = "admin1234";
   return cfg;
@@ -1862,6 +1873,7 @@ function AdminShell({ config, setConfig }) {
 
   function updateConfig(patch) {
     const next = { ...config, ...patch };
+    delete next._loadFailed; // 저장용 값에는 내부 상태 표시가 섞이면 안 됩니다.
     setConfig(next);
     storageSet("guild-config", next, true);
   }
@@ -1929,21 +1941,51 @@ export default function GuildPartyMatcherAdmin() {
     try { return sessionStorage.getItem("gpa-admin-authed") === "true"; } catch (e) { return false; }
   });
   const [loading, setLoading] = useState(true);
+  const [retryTick, setRetryTick] = useState(0);
 
   useEffect(() => {
-    let done = false;
+    let cancelled = false;
     const fallback = setTimeout(() => {
-      if (!done) { done = true; setConfig({ password: "1234", adminPassword: "admin1234", jobs: DEFAULT_JOBS, contents: DEFAULT_CONTENTS }); setLoading(false); }
+      // 4초 안에 응답이 없으면 일단 화면은 띄우되(스피너만 해제), 실제 결과가 오면
+      // 아래 (async () => {...})()가 나중에 도착해서 이 임시값을 덮어씁니다 — 늦게 온
+      // 진짜 결과를 조용히 버리지 않습니다.
+      if (!cancelled) {
+        setConfig((prev) => prev || { password: "1234", adminPassword: "admin1234", jobs: DEFAULT_JOBS, contents: DEFAULT_CONTENTS, _loadFailed: true });
+        setLoading(false);
+      }
     }, 4000);
     (async () => {
       const cfg = await loadGuildConfig();
-      if (!done) { done = true; clearTimeout(fallback); setConfig(cfg); setLoading(false); }
+      if (!cancelled) {
+        clearTimeout(fallback);
+        setConfig(cfg);
+        setLoading(false);
+      }
     })();
-    return () => clearTimeout(fallback);
-  }, []);
+    return () => { cancelled = true; clearTimeout(fallback); };
+  }, [retryTick]);
 
   if (loading || !config) {
     return <div className="gpa-root"><GlobalStyle /><div className="gpa-gate-wrap"><div style={{ color: "var(--text-dim)", fontSize: 13 }}>불러오는 중...</div></div></div>;
+  }
+
+  if (config._loadFailed) {
+    // 실제 설정을 못 받아온 상태입니다. 여기서 화면을 계속 쓰게 두면, 임시 기본값을
+    // 보면서 저장 버튼을 눌러 실제 데이터를 덮어쓸 위험이 있으므로 아예 막습니다.
+    return (
+      <div className="gpa-root">
+        <GlobalStyle />
+        <div className="gpa-gate-wrap">
+          <div className="gpa-gate-card" style={{ textAlign: "center" }}>
+            <h1 className="gpa-gate-title">설정을 불러오지 못했습니다</h1>
+            <p className="gpa-gate-desc">
+              구글 시트 연결이 일시적으로 실패한 것 같습니다. 이 상태로 진행하면 실제 저장된 직업·콘텐츠 설정 대신 임시 기본값이 보일 수 있어 화면을 막아뒀습니다.
+            </p>
+            <button type="button" className="gpa-btn gpa-btn-primary" style={{ width: "100%" }} onClick={() => { setConfig(null); setLoading(true); setRetryTick((x) => x + 1); }}>다시 시도</button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
