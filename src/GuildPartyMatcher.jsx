@@ -708,7 +708,7 @@ function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onS
   const [contentId, setContentId] = useState(initialContentId || editingApp?.contentId || contents[0]?.id || "");
   const [selectedChars, setSelectedChars] = useState(new Set(editingApp?.characterIds || []));
   const [selectedTimes, setSelectedTimes] = useState(new Set(editingApp?.times || []));
-  const [appType, setAppType] = useState(editingApp?.type || "");
+  const [isSupport, setIsSupport] = useState(editingApp?.type === "support");
 
   const content = contents.find((c) => c.id === contentId);
   const slots = useMemo(() => (content ? timeSlots(content.startTime, content.endTime, content.interval) : []), [content]);
@@ -725,8 +725,12 @@ function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onS
     next.has(t) ? next.delete(t) : next.add(t);
     setSelectedTimes(next);
   }
+  function selectAllChars() {
+    const selectable = activeChars.filter((c) => !(content.requiredResist > 0 && c.resist < content.requiredResist));
+    setSelectedChars(new Set(selectable.map((c) => c.id)));
+  }
 
-  const canSubmit = content && selectedChars.size > 0 && selectedTimes.size > 0 && appType;
+  const canSubmit = content && selectedChars.size > 0 && selectedTimes.size > 0;
 
   if (!content) {
     return <div className="gpm-card"><div className="gpm-empty"><div className="gpm-empty-title">신청 가능한 콘텐츠가 없습니다.</div></div></div>;
@@ -744,7 +748,7 @@ function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onS
           </div>
           <div className="gpm-review-block">
             <div className="gpm-review-label">신청 유형</div>
-            <div className="gpm-review-value">{appType === "normal" ? "일반 신청" : "지원 신청"}</div>
+            <div className="gpm-review-value">{isSupport ? "지원 신청" : "일반 신청"}</div>
           </div>
           <div className="gpm-review-block">
             <div className="gpm-review-label">선택 캐릭터 ({chosenChars.length}명)</div>
@@ -781,7 +785,7 @@ function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onS
               id: editingApp?.id || uid(),
               contentId,
               contentName: content.name,
-              type: appType,
+              type: isSupport ? "support" : "normal",
               characterIds: [...selectedChars],
               times: [...selectedTimes],
               status: editingApp?.status || "applied",
@@ -818,7 +822,12 @@ function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onS
       </div>
 
       <div className="gpm-card">
-        <div className="gpm-label" style={{ marginBottom: 12 }}>참여 캐릭터 선택</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <div className="gpm-label" style={{ marginBottom: 0 }}>참여 캐릭터 선택</div>
+          {activeChars.length > 0 && (
+            <button type="button" className="gpm-btn gpm-btn-ghost gpm-btn-sm" onClick={selectAllChars}>내 캐릭터 전체 선택</button>
+          )}
+        </div>
         {activeChars.length === 0 ? (
           <div className="gpm-empty"><div className="gpm-empty-desc">활성화된 캐릭터가 없습니다. 먼저 캐릭터를 등록해주세요.</div></div>
         ) : (
@@ -864,16 +873,14 @@ function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onS
 
       <div className="gpm-card">
         <div className="gpm-label" style={{ marginBottom: 12 }}>신청 유형</div>
-        <div className="gpm-type-grid">
-          <button className={`gpm-type-card ${appType === "normal" ? "checked" : ""}`} onClick={() => setAppType("normal")}>
-            <div className="gpm-type-title"><Checkbox checked={appType === "normal"} /> 일반 신청</div>
-            <div className="gpm-type-desc">선택한 각 캐릭터는 최대 한 번만 배정됩니다.<br />동일 대표 캐릭터는 같은 시간에 한 캐릭터만 배정됩니다.</div>
-          </button>
-          <button className={`gpm-type-card ${appType === "support" ? "checked" : ""}`} onClick={() => setAppType("support")}>
-            <div className="gpm-type-title"><Checkbox checked={appType === "support"} /> 지원 신청</div>
-            <div className="gpm-type-desc">부족한 역할과 빈자리 보완에 사용됩니다.<br />서로 다른 시간에는 같은 캐릭터가 반복 배정될 수 있습니다.</div>
-          </button>
-        </div>
+        <button type="button" className={`gpm-type-card ${isSupport ? "checked" : ""}`} style={{ width: "100%" }} onClick={() => setIsSupport(!isSupport)}>
+          <div className="gpm-type-title"><Checkbox checked={isSupport} /> 지원 신청으로 전환</div>
+          <div className="gpm-type-desc">
+            {isSupport
+              ? "지원 신청입니다. 부족한 역할과 빈자리 보완에 사용되며, 서로 다른 시간에 같은 캐릭터가 반복 배정될 수 있습니다 (0회~여러 번)."
+              : "기본값인 일반 신청입니다. 선택한 각 캐릭터는 최대 한 번만 배정됩니다. 동일 대표 캐릭터는 같은 시간에 한 캐릭터만 배정됩니다."}
+          </div>
+        </button>
       </div>
 
       <div className="gpm-summary-bar">

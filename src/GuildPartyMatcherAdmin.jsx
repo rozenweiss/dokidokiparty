@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import html2canvas from "html2canvas";
 import { storageGet, storageSet, storageDelete, storageListWithValues, pullFromSheets, backupKv } from "./lib/storage";
 
 /* ============================================================
@@ -625,14 +626,26 @@ function ContentModal({ initial, onClose, onSave }) {
   );
 }
 
-function ContentsView({ contents, onChange }) {
+function ContentsView({ contents, onChange, onToast, onAfterDelete }) {
   const [modal, setModal] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
   function saveContent(c) {
     const exists = contents.some((x) => x.id === c.id);
     onChange(exists ? contents.map((x) => (x.id === c.id ? c : x)) : [...contents, c]);
     setModal(null);
   }
   function toggleActive(c) { onChange(contents.map((x) => (x.id === c.id ? { ...x, active: !x.active } : x))); }
+
+  async function doDelete(content) {
+    setDeleting(true);
+    await purgeContentData(content); // 이 콘텐츠에 딸린 신청 내역·매칭 결과도 함께 정리합니다.
+    onChange(contents.filter((x) => x.id !== content.id));
+    setDeleting(false);
+    onToast(`'${content.name}' 콘텐츠를 삭제했습니다. (관련 신청 내역·매칭 결과도 함께 삭제됨)`);
+    if (onAfterDelete) onAfterDelete();
+  }
 
   return (
     <div>
@@ -655,9 +668,10 @@ function ContentsView({ contents, onChange }) {
                   <td>{c.interval}분</td>
                   <td><span className={`gpa-badge ${c.active ? "on" : "off"}`}>{c.active ? "신청가능" : "마감"}</span></td>
                   <td>
-                    <div className="gpa-row">
+                    <div className="gpa-row" style={{ flexWrap: "wrap" }}>
                       <button className="gpa-btn gpa-btn-ghost gpa-btn-sm" onClick={() => setModal(c)}>수정</button>
                       <button className="gpa-btn gpa-btn-ghost gpa-btn-sm" onClick={() => toggleActive(c)}>{c.active ? "마감" : "재개"}</button>
+                      <button className="gpa-btn gpa-btn-danger gpa-btn-sm" disabled={deleting} onClick={() => setConfirmDelete(c)}>삭제</button>
                     </div>
                   </td>
                 </tr>
@@ -667,6 +681,16 @@ function ContentsView({ contents, onChange }) {
         </div>
       </div>
       {modal && <ContentModal initial={modal === "new" ? null : modal} onClose={() => setModal(null)} onSave={saveContent} />}
+      {confirmDelete && (
+        <ConfirmModal
+          title="콘텐츠 삭제"
+          message={`'${confirmDelete.name}' 콘텐츠를 삭제하시겠습니까?\n이 콘텐츠에 신청된 내역과 매칭 결과도 함께 삭제됩니다.\n삭제된 정보는 복구할 수 없습니다.`}
+          confirmLabel="삭제"
+          danger
+          onConfirm={async () => { const c = confirmDelete; setConfirmDelete(null); await doDelete(c); }}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
     </div>
   );
 }
@@ -842,6 +866,8 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
   const [dragItem, setDragItem] = useState(null); // { kind:'slot', partyIdx, slotIdx, role } | { kind:'unassigned', candidate, role }
   const [dragOverKey, setDragOverKey] = useState(null);
   const [clockTick, setClockTick] = useState(0);
+  const [downloadingImage, setDownloadingImage] = useState(false);
+  const resultsRef = useRef(null);
 
   useEffect(() => {
     const t = setInterval(() => setClockTick((x) => x + 1), 30000);
@@ -909,6 +935,35 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
     await saveResult(next);
     await setApplicationStatusForContent(next.published ? "revealed" : "matched");
     onToast(next.published ? "결과를 공개했습니다." : "결과를 비공개로 전환했습니다.");
+  }
+
+  // 현재 화면에 보이는 "결과 편집" 영역을 그대로 캡처해서 PNG로 다운로드합니다.
+  // [Unverified] html2canvas로 DOM을 캡처하는 방식은 대부분의 경우 화면과 비슷하게
+  // 나오지만, 드래그 중 상태나 일부 CSS 효과는 캡처 결과에 정확히 반영되지
+  // 않을 수 있습니다 — 이는 기대되는 동작이며 모든 환경에서 보장되지는 않습니다.
+  async function downloadResultsImage() {
+    if (!resultsRef.current) return;
+    setDownloadingImage(true);
+    try {
+      const canvas = await html2canvas(resultsRef.current, {
+        backgroundColor: "#F7F5F0",
+        scale: 2,
+      });
+      const dataUrl = canvas.toDataURL("image/png");
+      const ts = new Date().toISOString().replace(/[:.]/g, "-");
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = `매칭결과_${content?.name || "콘텐츠"}_${ts}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      onToast("매칭 결과 이미지를 다운로드했습니다.");
+    } catch (e) {
+      console.error("downloadResultsImage failed:", e);
+      onToast("이미지 다운로드에 실패했습니다.");
+    } finally {
+      setDownloadingImage(false);
+    }
   }
 
   // 슬롯 클릭은 JSX에서 setEditSlot({ partyIdx, slotIdx, role })로 직접 처리합니다.
@@ -1034,6 +1089,9 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
           {matchData && (
             <button className="gpa-btn gpa-btn-ghost" onClick={togglePublish}>{matchData.published ? "결과 비공개로 전환" : "결과 공개하기"}</button>
           )}
+          {matchData && matchData.parties.length > 0 && (
+            <button className="gpa-btn gpa-btn-ghost" onClick={downloadResultsImage} disabled={downloadingImage}>{downloadingImage ? "이미지 생성 중..." : "이미지로 다운로드"}</button>
+          )}
         </div>
       </div>
 
@@ -1042,7 +1100,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
       ) : !matchData || matchData.parties.length === 0 ? (
         <div className="gpa-card"><div className="gpa-empty">아직 실행된 매칭 결과가 없습니다.</div></div>
       ) : (
-        <div className="gpa-card">
+        <div className="gpa-card" ref={resultsRef}>
           <div className="gpa-section-title">
             <h2 style={{ fontSize: 14 }}>결과 편집 {matchData.published ? <span className="gpa-badge on" style={{ marginLeft: 8 }}>공개됨</span> : <span className="gpa-badge off" style={{ marginLeft: 8 }}>비공개</span>}</h2>
             <div className="gpa-section-desc">슬롯을 드래그해서 옮기거나, 클릭해서 임시 캐릭터 입력·비우기를 할 수 있습니다. (같은 역할 슬롯끼리만 이동 가능)</div>
@@ -1338,6 +1396,88 @@ function AllCharactersSection({ reps, jobs, onUpdateCharacter, onDeleteCharacter
 }
 
 /* ============================================================
+   비밀번호 관리
+   ============================================================ */
+function PasswordView({ config, onChange, onToast }) {
+  const [guildPw, setGuildPw] = useState(config.password || "");
+  const [adminPw, setAdminPw] = useState(config.adminPassword || "");
+  const [guildError, setGuildError] = useState("");
+  const [adminError, setAdminError] = useState("");
+  const [confirmSave, setConfirmSave] = useState(null); // 'guild' | 'admin' | null
+
+  function saveGuildPw() {
+    if (!guildPw.trim()) { setGuildError("빈 값으로는 저장할 수 없습니다."); return; }
+    setGuildError("");
+    setConfirmSave("guild");
+  }
+  function saveAdminPw() {
+    if (!adminPw.trim()) { setAdminError("빈 값으로는 저장할 수 없습니다."); return; }
+    setAdminError("");
+    setConfirmSave("admin");
+  }
+  function doSave() {
+    if (confirmSave === "guild") {
+      onChange({ password: guildPw.trim() });
+      onToast("길드 공용 비밀번호를 변경했습니다.");
+    } else if (confirmSave === "admin") {
+      onChange({ adminPassword: adminPw.trim() });
+      onToast("관리자 비밀번호를 변경했습니다.");
+    }
+    setConfirmSave(null);
+  }
+
+  return (
+    <div>
+      <div className="gpa-section-title"><div><h2>비밀번호 관리</h2><div className="gpa-section-desc">길드 입장 비밀번호와 관리자 비밀번호를 확인하고 변경합니다.</div></div></div>
+
+      <div className="gpa-card">
+        <div className="gpa-section-title"><h2 style={{ fontSize: 14 }}>길드 공용 비밀번호</h2></div>
+        <div className="gpa-hint" style={{ marginBottom: 12 }}>사용자 화면의 길드 입장 화면에서 길드원이 입력하는 비밀번호입니다.</div>
+        <div className="gpa-row" style={{ alignItems: "flex-start" }}>
+          <div style={{ flex: 1 }}>
+            <input className="gpa-input" value={guildPw} onChange={(e) => { setGuildPw(e.target.value); setGuildError(""); }} placeholder="길드 공용 비밀번호" />
+            {guildError && <div className="gpa-error">{guildError}</div>}
+          </div>
+          <button className="gpa-btn gpa-btn-primary gpa-btn-sm" onClick={saveGuildPw} disabled={guildPw === config.password}>저장</button>
+        </div>
+      </div>
+
+      <div className="gpa-card">
+        <div className="gpa-section-title"><h2 style={{ fontSize: 14 }}>관리자 비밀번호</h2></div>
+        <div className="gpa-hint" style={{ marginBottom: 12 }}>
+          이 관리자 화면 로그인에 쓰이는 비밀번호입니다. 변경해도 지금 로그인된 세션은 유지되지만, 이후 새로 로그인하는 관리자는 새 비밀번호를 입력해야 합니다.
+        </div>
+        <div className="gpa-row" style={{ alignItems: "flex-start" }}>
+          <div style={{ flex: 1 }}>
+            <input className="gpa-input" value={adminPw} onChange={(e) => { setAdminPw(e.target.value); setAdminError(""); }} placeholder="관리자 비밀번호" />
+            {adminError && <div className="gpa-error">{adminError}</div>}
+          </div>
+          <button className="gpa-btn gpa-btn-primary gpa-btn-sm" onClick={saveAdminPw} disabled={adminPw === config.adminPassword}>저장</button>
+        </div>
+      </div>
+
+      <div className="gpa-hint" style={{ marginTop: 4 }}>
+        이 비밀번호들은 강력한 보안 수단이 아니라 최소한의 잠금장치입니다. 값은 배포된 코드/네트워크 요청을 통해 확인 가능한 형태로 저장되므로, 민감한 용도로는 적합하지 않습니다.
+      </div>
+
+      {confirmSave && (
+        <ConfirmModal
+          title={confirmSave === "guild" ? "길드 비밀번호 변경" : "관리자 비밀번호 변경"}
+          message={
+            confirmSave === "guild"
+              ? "길드 공용 비밀번호를 변경하시겠습니까?\n변경 후에는 길드원들에게 새 비밀번호를 다시 공유해주셔야 합니다."
+              : "관리자 비밀번호를 변경하시겠습니까?\n변경 후에는 다른 관리자에게 새 비밀번호를 다시 공유해주셔야 합니다."
+          }
+          confirmLabel="변경"
+          onConfirm={doSave}
+          onCancel={() => setConfirmSave(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
    데이터 관리
    ============================================================ */
 function DataView({ contents, jobs, reps, onUpdateCharacter, onDeleteCharacter, resultsMeta, onToast, onAfterDelete }) {
@@ -1489,6 +1629,7 @@ const NAV_ITEMS = [
   { key: "applications", label: "신청 현황" },
   { key: "matching", label: "자동 매칭" },
   { key: "data", label: "데이터 관리" },
+  { key: "password", label: "비밀번호 관리" },
 ];
 
 function AdminShell({ config, setConfig }) {
@@ -1578,10 +1719,11 @@ function AdminShell({ config, setConfig }) {
 
       {view === "dashboard" && <Dashboard config={config} reps={reps} resultsMeta={resultsMeta} onRefresh={refresh} refreshing={refreshing} />}
       {view === "jobs" && <JobsView jobs={config.jobs} onChange={(jobs) => updateConfig({ jobs })} />}
-      {view === "contents" && <ContentsView contents={config.contents} onChange={(contents) => updateConfig({ contents })} />}
+      {view === "contents" && <ContentsView contents={config.contents} onChange={(contents) => updateConfig({ contents })} onToast={showToast} onAfterDelete={refresh} />}
       {view === "applications" && <ApplicationsView contents={config.contents} reps={reps} onExcludeCharacter={excludeCharacter} />}
       {view === "matching" && <MatchingView contents={config.contents} reps={reps} onToast={showToast} onDataChanged={refresh} />}
       {view === "data" && <DataView contents={config.contents} jobs={config.jobs} resultsMeta={resultsMeta} reps={reps} onUpdateCharacter={updateCharacterAdmin} onDeleteCharacter={deleteCharacterAdmin} onToast={showToast} onAfterDelete={refresh} />}
+      {view === "password" && <PasswordView config={config} onChange={updateConfig} onToast={showToast} />}
 
       <Toast message={toast} />
     </div>

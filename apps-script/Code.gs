@@ -211,6 +211,17 @@ function coerceTimeStr_(v) {
   return v;
 }
 
+/* 일괄 작업 전에 kv 탭 전체를 타임스탬프가 붙은 새 탭으로 복제합니다. */
+function backupKv_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var kv = getSheet_();
+  var ts = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMdd_HHmmss");
+  var name = "kv_backup_" + ts;
+  var copy = kv.copyTo(ss);
+  copy.setName(name);
+  return name;
+}
+
 function pullFromSheets_() {
   var kvSheet = getSheet_();
 
@@ -359,6 +370,11 @@ function doPost(e) {
   if (body.action === "pullFromSheets") {
     pullFromSheets_();
     return jsonOut_({ ok: true });
+  }
+
+  if (body.action === "backupKv") {
+    var backupName = backupKv_();
+    return jsonOut_({ ok: true, name: backupName });
   }
 
   return jsonOut_({ error: "unknown action" });
