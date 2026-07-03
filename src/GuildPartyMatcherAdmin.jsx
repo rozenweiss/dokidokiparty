@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { storageGet, storageSet, storageDelete, storageListWithValues, pullFromSheets } from "./lib/storage";
+import { storageGet, storageSet, storageDelete, storageListWithValues, pullFromSheets, backupKv } from "./lib/storage";
 
 /* ============================================================
    길드 파티 매칭 툴 — 관리자 화면 프로토타입
@@ -174,6 +174,21 @@ function finalPower(basePower, pressure) {
   return Math.round(basePower * (1 + pressure / 1000));
 }
 
+/**
+ * 캐릭터의 "최종 전투력"을 화면 전체에서 일관되게 계산하는 단일 함수입니다.
+ * - content가 주어지면: 압력 보정 후 패널티 차감 (콘텐츠 맥락이 있는 화면: 신청 현황, 자동 매칭)
+ * - content가 없으면: 압력 보정 없이 패널티만 차감 (콘텐츠 맥락이 없는 화면: 전체 캐릭터 목록)
+ * 두 경우 모두 결과는 0 미만으로 내려가지 않습니다(음수 없음).
+ * [Inference] 향후 저항-압력 기반 공식으로 finalPower가 재설계되어도, 패널티는
+ * "보정이 끝난 값에서 마지막에 차감 후 0 클램프"라는 위치를 유지하는 것이 사용자가
+ * 정한 "보정 후 차감" 규칙과 맞습니다 — 이 함수 안쪽만 바꾸면 됩니다.
+ */
+function charFinalPower(char, content) {
+  const base = content ? finalPower(char.power, content.pressure) : char.power;
+  const penalty = char.penalty || 0;
+  return Math.max(0, base - penalty);
+}
+
 
 async function loadGuildConfig() {
   let cfg = await storageGet("guild-config", true);
@@ -274,11 +289,11 @@ function runAutoMatch(content, reps) {
     pool.forEach((c) => {
       const cur = byRep[c.repName];
       if (!cur) { byRep[c.repName] = c; return; }
-      const score = (x) => (x.type === "normal" ? 1000000 : 0) + finalPower(x.char.power, content.pressure);
+      const score = (x) => (x.type === "normal" ? 1000000 : 0) + charFinalPower(x.char, content);
       if (score(c) > score(cur)) byRep[c.repName] = c;
     });
     const picked = Object.values(byRep);
-    const byRole = (role) => picked.filter((c) => c.char.role === role).sort((a, b) => finalPower(b.char.power, content.pressure) - finalPower(a.char.power, content.pressure));
+    const byRole = (role) => picked.filter((c) => c.char.role === role).sort((a, b) => charFinalPower(b.char, content) - charFinalPower(a.char, content));
     const tanks = byRole("tank"), supports = byRole("support"), dealers = byRole("dealer");
 
     const partiesCount = Math.max(
@@ -761,7 +776,7 @@ function ApplicationsView({ contents, reps, onExcludeCharacter }) {
                       <td><span className={`gpa-badge ${app.type === "normal" ? "normal" : "supportApp"}`}>{app.type === "normal" ? "일반" : "지원"}</span></td>
                       <td style={{ fontFamily: "var(--font-mono)" }}>{char.power.toLocaleString()}</td>
                       <td style={{ fontFamily: "var(--font-mono)", color: short ? "var(--danger)" : "var(--text)" }}>{char.resist.toLocaleString()}{short && " (미달)"}</td>
-                      <td style={{ fontFamily: "var(--font-mono)" }}>{content ? finalPower(char.power, content.pressure).toLocaleString() : "-"}</td>
+                      <td style={{ fontFamily: "var(--font-mono)" }}>{content ? charFinalPower(char, content).toLocaleString() : "-"}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontSize: 11.5 }}>{app.times.slice().sort().join(", ")}</td>
                       <td>{APP_STATUS_LABEL[app.status] || app.status}</td>
                       <td><button className="gpa-btn gpa-btn-danger gpa-btn-sm" onClick={() => onExcludeCharacter(repName, app.id, char.id)}>캐릭터 제외</button></td>
@@ -1124,148 +1139,63 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
   );
 }
 
-/* 테스트용 더미 데이터 생성 (대표 4명 × 캐릭터 2명 = 총 8명: 탱커2·서포터2·딜러4) */
-function buildDummySeed(jobs, contents) {
-  const jobByName = (name) => jobs.find((j) => j.name === name) || jobs[0];
-  const mkChar = (nickname, jobName, power, resist) => {
-    const job = jobByName(jobName);
-    return { id: uid(), nickname, jobId: job.id, jobName: job.name, role: job.role, power, resist, active: true, penalty: 0, updatedAt: Date.now() };
-  };
-  const c1 = contents.find((c) => c.name.includes("협곡")) || contents[0];
-  const c2 = contents.find((c) => c.name.includes("심연")) || contents[1] || contents[0];
-  const t1 = c1 ? timeSlots(c1.startTime, c1.endTime, c1.interval) : [];
-  const t2 = c2 ? timeSlots(c2.startTime, c2.endTime, c2.interval) : [];
-  const qualifies = (char, content) => !content || (content.requiredResist || 0) <= 0 || char.resist >= content.requiredResist;
-  const mkApp = (contentId, type, characterIds, times) => ({
-    id: uid(), contentId, contentName: (contents.find((c) => c.id === contentId) || {}).name || "",
-    type, characterIds, times, status: "applied", appliedAt: Date.now(),
+/**
+ * 테스트용 일괄 신청 데이터를 만듭니다.
+ * - 이미 등록된 모든 캐릭터가 대상 (새 캐릭터를 만들지 않음)
+ * - 활성화된 모든 콘텐츠에 각각 신청
+ * - 콘텐츠의 필요 마도 저항을 충족하는 캐릭터만 포함 (실제 신청 화면과 동일한 규칙)
+ * - 신청 유형은 캐릭터×콘텐츠 조합마다 일반/지원 중 무작위
+ * - 신청 시간은 콘텐츠의 가능한 시간대 중 2~3개를 무작위로 선택
+ * 반환값: { [repName]: 그 대표 캐릭터에 새로 추가할 신청 배열 }
+ */
+function pickRandomTimes(slots, min, max) {
+  if (slots.length === 0) return [];
+  const count = Math.min(slots.length, min + Math.floor(Math.random() * (max - min + 1)));
+  const pool = [...slots];
+  const picked = [];
+  while (picked.length < count && pool.length > 0) {
+    const idx = Math.floor(Math.random() * pool.length);
+    picked.push(pool.splice(idx, 1)[0]);
+  }
+  return picked;
+}
+
+function buildBulkTestApplications(reps, contents) {
+  const activeContents = contents.filter((c) => c.active);
+  const byRep = {};
+  let totalApps = 0;
+
+  Object.entries(reps).forEach(([repName, data]) => {
+    (data.subs || []).forEach((char) => {
+      if (char.active === false) return;
+      activeContents.forEach((content) => {
+        const qualifies = (content.requiredResist || 0) <= 0 || char.resist >= content.requiredResist;
+        if (!qualifies) return;
+        const slots = timeSlots(content.startTime, content.endTime, content.interval);
+        const times = pickRandomTimes(slots, 2, 3);
+        if (times.length === 0) return;
+        const type = Math.random() < 0.5 ? "normal" : "support";
+        const app = {
+          id: uid(), contentId: content.id, contentName: content.name,
+          type, characterIds: [char.id], times, status: "applied", appliedAt: Date.now(),
+        };
+        if (!byRep[repName]) byRep[repName] = [];
+        byRep[repName].push(app);
+        totalApps++;
+      });
+    });
   });
 
-  const reps = {};
-
-  // 대표 1: 탱커 + 딜러
-  const A = mkChar("서리한", "전사", 12000, 1700);       // tank
-  const B = mkChar("불꽃술사", "마법사", 15000, 1800);   // dealer
-  const r1apps = [];
-  if (c1) r1apps.push(mkApp(c1.id, "normal", [A.id, B.id], t1.slice(0, 2)));
-  if (c2) {
-    const ids = [A, B].filter((c) => qualifies(c, c2)).map((c) => c.id);
-    if (ids.length) r1apps.push(mkApp(c2.id, "normal", ids, t2.slice(0, 1)));
-  }
-  reps["달빛여행자"] = { subs: [A, B], applications: r1apps };
-
-  // 대표 2: 탱커 + 딜러
-  const C = mkChar("대검전사", "대검전사", 13500, 1650); // tank
-  const D = mkChar("바람의궁수", "궁수", 14200, 1400);    // dealer
-  const r2apps = [];
-  if (c1) r2apps.push(mkApp(c1.id, "normal", [C.id, D.id], [t1[0], t1[2]].filter(Boolean)));
-  if (c2) {
-    const ids = [C, D].filter((c) => qualifies(c, c2)).map((c) => c.id);
-    if (ids.length) r2apps.push(mkApp(c2.id, "support", ids, t2.slice(0, 2)));
-  }
-  reps["빛나는칼날"] = { subs: [C, D], applications: r2apps };
-
-  // 대표 3: 서포터 + 딜러
-  const E = mkChar("은빛기도", "힐러", 9000, 1500);       // support
-  const F = mkChar("그림자도적", "도적", 13800, 1550);    // dealer
-  const r3apps = [];
-  if (c1) r3apps.push(mkApp(c1.id, "support", [E.id, F.id], t1.slice(0, 3)));
-  if (c2) {
-    const ids = [E, F].filter((c) => qualifies(c, c2)).map((c) => c.id);
-    if (ids.length) r3apps.push(mkApp(c2.id, "normal", ids, t2.slice(0, 1)));
-  }
-  reps["고요한바람"] = { subs: [E, F], applications: r3apps };
-
-  // 대표 4: 서포터 + 딜러
-  const G = mkChar("음유시인나래", "음유시인", 8700, 1900); // support
-  const H = mkChar("주먹왕", "격투가", 12900, 1300);         // dealer
-  const r4apps = [];
-  if (c1) r4apps.push(mkApp(c1.id, "support", [G.id, H.id], [t1[1]].filter(Boolean)));
-  if (c2) {
-    const ids = [G, H].filter((c) => qualifies(c, c2)).map((c) => c.id);
-    if (ids.length) r4apps.push(mkApp(c2.id, "normal", ids, t2.slice(0, 1)));
-  }
-  reps["붉은노을"] = { subs: [G, H], applications: r4apps };
-
-  return reps;
+  return { byRep, totalApps };
 }
 
 /* ============================================================
    전체 캐릭터 목록 (데이터 관리 하위)
    ============================================================ */
-function AdminCharacterEditModal({ jobs, repName, initial, onClose, onSave, onDelete }) {
-  const [nickname, setNickname] = useState(initial.nickname || "");
-  const [jobId, setJobId] = useState(initial.jobId || "");
-  const [power, setPower] = useState(initial.power ?? 0);
-  const [resist, setResist] = useState(initial.resist ?? 0);
-  const [penalty, setPenalty] = useState(initial.penalty ?? 0);
-  const [active, setActive] = useState(initial.active ?? true);
-  const [error, setError] = useState("");
-
-  function save() {
-    if (!nickname.trim()) { setError("캐릭터 닉네임을 입력해주세요."); return; }
-    if (!jobId) { setError("직업을 선택해주세요."); return; }
-    if (Number(power) < 0 || Number(resist) < 0 || Number(penalty) < 0) { setError("숫자 값은 0 이상이어야 합니다."); return; }
-    const job = jobs.find((j) => j.id === jobId);
-    onSave({
-      ...initial,
-      nickname: nickname.trim(),
-      jobId,
-      jobName: job?.name,
-      role: job?.role,
-      power: Number(power),
-      resist: Number(resist),
-      penalty: Number(penalty),
-      active,
-      updatedAt: Date.now(),
-    });
-  }
-
-  return (
-    <div className="gpa-modal-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="gpa-modal">
-        <h3 className="gpa-modal-title">캐릭터 정보 수정</h3>
-        <div className="gpa-field">
-          <label className="gpa-label">대표 캐릭터</label>
-          <input className="gpa-input" value={repName} disabled style={{ opacity: 0.6 }} />
-          <div className="gpa-hint">대표 캐릭터는 이 화면에서 변경할 수 없습니다.</div>
-        </div>
-        <div className="gpa-field">
-          <label className="gpa-label">캐릭터 닉네임</label>
-          <input className="gpa-input" value={nickname} onChange={(e) => setNickname(e.target.value)} />
-        </div>
-        <div className="gpa-field">
-          <label className="gpa-label">직업 {jobId && <span style={{ marginLeft: 6 }}><RoleBadge role={jobs.find((j) => j.id === jobId)?.role} /></span>}</label>
-          <select className="gpa-input" value={jobId} onChange={(e) => setJobId(e.target.value)}>
-            <option value="">직업 선택</option>
-            {jobs.filter((j) => j.active !== false || j.id === jobId).map((j) => <option key={j.id} value={j.id}>{j.name}</option>)}
-          </select>
-        </div>
-        <div className="gpa-row">
-          <div className="gpa-field" style={{ flex: 1 }}><label className="gpa-label">기본 전투력</label><input className="gpa-input" type="number" min="0" value={power} onChange={(e) => setPower(e.target.value)} /></div>
-          <div className="gpa-field" style={{ flex: 1 }}><label className="gpa-label">마도 저항</label><input className="gpa-input" type="number" min="0" value={resist} onChange={(e) => setResist(e.target.value)} /></div>
-        </div>
-        <div className="gpa-field">
-          <label className="gpa-label">패널티</label>
-          <input className="gpa-input" type="number" min="0" value={penalty} onChange={(e) => setPenalty(e.target.value)} />
-          <div className="gpa-hint">최종 전투력 = 기본 전투력 − 패널티. 이 캐릭터가 어느 파티·콘텐츠·시간대에 배정되든 동일하게 적용됩니다.</div>
-        </div>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", marginBottom: 8 }} onClick={() => setActive(!active)}>
-          <input type="checkbox" checked={active} readOnly /> 활성화 상태
-        </label>
-        {error && <div className="gpa-error">{error}</div>}
-        <div className="gpa-modal-actions">
-          <button className="gpa-btn gpa-btn-danger" onClick={onDelete}>삭제</button>
-          <button className="gpa-btn gpa-btn-ghost" style={{ flex: 1 }} onClick={onClose}>취소</button>
-          <button className="gpa-btn gpa-btn-primary" style={{ flex: 1 }} onClick={save}>저장</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function AllCharactersSection({ reps, jobs, onUpdateCharacter, onDeleteCharacter }) {
-  const [editing, setEditing] = useState(null); // { repName, char }
+  const [editingKey, setEditingKey] = useState(null); // `${repName}:${char.id}`
+  const [draft, setDraft] = useState(null);
+  const [rowError, setRowError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(null); // { repName, char }
 
   const rows = useMemo(() => {
@@ -1276,12 +1206,51 @@ function AllCharactersSection({ reps, jobs, onUpdateCharacter, onDeleteCharacter
     return out.sort((a, b) => (b.char.updatedAt || 0) - (a.char.updatedAt || 0));
   }, [reps]);
 
+  function startEdit(repName, char) {
+    setEditingKey(`${repName}:${char.id}`);
+    setRowError("");
+    setDraft({
+      nickname: char.nickname,
+      jobId: char.jobId || "",
+      power: char.power,
+      resist: char.resist,
+      penalty: char.penalty || 0,
+      active: char.active !== false,
+    });
+  }
+  function cancelEdit() {
+    setEditingKey(null);
+    setDraft(null);
+    setRowError("");
+  }
+  function saveEdit(repName, char) {
+    if (!draft.nickname.trim()) { setRowError("캐릭터 닉네임을 입력해주세요."); return; }
+    if (!draft.jobId) { setRowError("직업을 선택해주세요."); return; }
+    if (Number(draft.power) < 0 || Number(draft.resist) < 0 || Number(draft.penalty) < 0) { setRowError("숫자 값은 0 이상이어야 합니다."); return; }
+    const job = jobs.find((j) => j.id === draft.jobId);
+    onUpdateCharacter(repName, {
+      ...char,
+      nickname: draft.nickname.trim(),
+      jobId: draft.jobId,
+      jobName: job?.name,
+      role: job?.role,
+      power: Number(draft.power),
+      resist: Number(draft.resist),
+      penalty: Number(draft.penalty),
+      active: draft.active,
+      updatedAt: Date.now(),
+    });
+    setEditingKey(null);
+    setDraft(null);
+    setRowError("");
+  }
+
   return (
     <div className="gpa-card">
       <div className="gpa-section-title">
         <div>
           <h2 style={{ fontSize: 14 }}>전체 캐릭터 목록</h2>
-          <div className="gpa-section-desc">지금까지 등록된 적이 있는 모든 캐릭터입니다. 최종 전투력 = 기본 전투력 − 패널티 (이 화면은 콘텐츠에 종속되지 않으므로 마도 저항 기반 보정은 적용하지 않습니다).</div>
+          <div className="gpa-section-desc">지금까지 등록된 적이 있는 모든 캐릭터입니다. "수정"을 누르면 이 자리에서 바로 값을 고칠 수 있습니다.</div>
         </div>
       </div>
       {rows.length === 0 ? (
@@ -1291,26 +1260,58 @@ function AllCharactersSection({ reps, jobs, onUpdateCharacter, onDeleteCharacter
           <table className="gpa-table">
             <thead>
               <tr>
-                <th>대표캐릭터</th><th>캐릭터</th><th>역할</th><th>기본전투력</th><th>마도저항</th><th>패널티</th><th>최종전투력</th><th>업데이트 일자</th><th></th>
+                <th>대표캐릭터</th><th>캐릭터</th><th>역할</th><th>기본전투력</th><th>마도저항</th><th>패널티</th><th>활성화</th><th>업데이트 일자</th><th></th>
               </tr>
             </thead>
             <tbody>
               {rows.map(({ repName, char }) => {
-                const penalty = char.penalty || 0;
-                const finalP = char.power - penalty;
+                const key = `${repName}:${char.id}`;
+                const isEditing = editingKey === key;
+
+                if (isEditing) {
+                  return (
+                    <tr key={key}>
+                      <td>{repName}</td>
+                      <td><input className="gpa-input" style={{ minWidth: 100 }} value={draft.nickname} onChange={(e) => setDraft({ ...draft, nickname: e.target.value })} /></td>
+                      <td>
+                        <select className="gpa-input" style={{ minWidth: 100 }} value={draft.jobId} onChange={(e) => setDraft({ ...draft, jobId: e.target.value })}>
+                          <option value="">직업 선택</option>
+                          {jobs.filter((j) => j.active !== false || j.id === draft.jobId).map((j) => <option key={j.id} value={j.id}>{j.name} ({ROLE_LABEL[j.role]})</option>)}
+                        </select>
+                      </td>
+                      <td><input className="gpa-input" style={{ width: 90 }} type="number" min="0" value={draft.power} onChange={(e) => setDraft({ ...draft, power: e.target.value })} /></td>
+                      <td><input className="gpa-input" style={{ width: 90 }} type="number" min="0" value={draft.resist} onChange={(e) => setDraft({ ...draft, resist: e.target.value })} /></td>
+                      <td><input className="gpa-input" style={{ width: 80 }} type="number" min="0" value={draft.penalty} onChange={(e) => setDraft({ ...draft, penalty: e.target.value })} /></td>
+                      <td>
+                        <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} onClick={() => setDraft({ ...draft, active: !draft.active })}>
+                          <input type="checkbox" checked={draft.active} readOnly />
+                        </label>
+                      </td>
+                      <td style={{ fontSize: 11.5, color: "var(--text-faint)" }}>{char.updatedAt ? formatDateTime(char.updatedAt) : "-"}</td>
+                      <td>
+                        <div className="gpa-row" style={{ flexWrap: "wrap" }}>
+                          <button className="gpa-btn gpa-btn-primary gpa-btn-sm" onClick={() => saveEdit(repName, char)}>수정 완료</button>
+                          <button className="gpa-btn gpa-btn-ghost gpa-btn-sm" onClick={cancelEdit}>취소</button>
+                        </div>
+                        {rowError && <div className="gpa-error" style={{ marginTop: 6 }}>{rowError}</div>}
+                      </td>
+                    </tr>
+                  );
+                }
+
                 return (
-                  <tr key={`${repName}:${char.id}`}>
+                  <tr key={key}>
                     <td>{repName}</td>
-                    <td>{char.nickname}{char.active === false && <span style={{ color: "var(--text-faint)" }}> · 비활성</span>}</td>
+                    <td>{char.nickname}</td>
                     <td><RoleBadge role={char.role} /></td>
                     <td style={{ fontFamily: "var(--font-mono)" }}>{char.power.toLocaleString()}</td>
                     <td style={{ fontFamily: "var(--font-mono)" }}>{char.resist.toLocaleString()}</td>
-                    <td style={{ fontFamily: "var(--font-mono)" }}>{penalty > 0 ? penalty.toLocaleString() : "-"}</td>
-                    <td style={{ fontFamily: "var(--font-mono)", color: "var(--accent-soft)" }}>{finalP.toLocaleString()}</td>
+                    <td style={{ fontFamily: "var(--font-mono)" }}>{(char.penalty || 0) > 0 ? char.penalty.toLocaleString() : "-"}</td>
+                    <td><span className={`gpa-badge ${char.active !== false ? "on" : "off"}`}>{char.active !== false ? "활성" : "비활성"}</span></td>
                     <td style={{ fontSize: 11.5, color: "var(--text-faint)" }}>{char.updatedAt ? formatDateTime(char.updatedAt) : "-"}</td>
                     <td>
                       <div className="gpa-row">
-                        <button className="gpa-btn gpa-btn-ghost gpa-btn-sm" onClick={() => setEditing({ repName, char })}>수정</button>
+                        <button className="gpa-btn gpa-btn-ghost gpa-btn-sm" onClick={() => startEdit(repName, char)}>수정</button>
                         <button className="gpa-btn gpa-btn-danger gpa-btn-sm" onClick={() => setConfirmDelete({ repName, char })}>삭제</button>
                       </div>
                     </td>
@@ -1320,17 +1321,6 @@ function AllCharactersSection({ reps, jobs, onUpdateCharacter, onDeleteCharacter
             </tbody>
           </table>
         </div>
-      )}
-
-      {editing && (
-        <AdminCharacterEditModal
-          jobs={jobs}
-          repName={editing.repName}
-          initial={editing.char}
-          onClose={() => setEditing(null)}
-          onSave={(next) => { onUpdateCharacter(editing.repName, next); setEditing(null); }}
-          onDelete={() => { setConfirmDelete(editing); setEditing(null); }}
-        />
       )}
 
       {confirmDelete && (
@@ -1350,12 +1340,12 @@ function AllCharactersSection({ reps, jobs, onUpdateCharacter, onDeleteCharacter
 /* ============================================================
    데이터 관리
    ============================================================ */
-function DataView({ contents, jobs, resultsMeta, reps, onUpdateCharacter, onDeleteCharacter, onToast, onAfterDelete }) {
+function DataView({ contents, jobs, reps, onUpdateCharacter, onDeleteCharacter, resultsMeta, onToast, onAfterDelete }) {
   const [busyId, setBusyId] = useState(null);
-  const [seeding, setSeeding] = useState(false);
+  const [bulkApplying, setBulkApplying] = useState(false);
   const [pulling, setPulling] = useState(false);
   const [confirmDeleteContent, setConfirmDeleteContent] = useState(null);
-  const [confirmSeed, setConfirmSeed] = useState(false);
+  const [confirmBulkApply, setConfirmBulkApply] = useState(false);
   const [confirmPull, setConfirmPull] = useState(false);
 
   async function doDeleteContentData(content) {
@@ -1366,14 +1356,32 @@ function DataView({ contents, jobs, resultsMeta, reps, onUpdateCharacter, onDele
     onAfterDelete();
   }
 
-  async function doSeedDummy() {
-    setSeeding(true);
-    const reps = buildDummySeed(jobs, contents);
-    for (const [name, data] of Object.entries(reps)) {
-      await storageSet(`rep:${name}`, data, true);
+  async function doBulkTestApply() {
+    setBulkApplying(true);
+
+    const backup = await backupKv();
+    if (!backup.ok) {
+      setBulkApplying(false);
+      onToast("구글 시트 백업에 실패해서 일괄 신청을 진행하지 않았습니다. 잠시 후 다시 시도해주세요.");
+      return;
     }
-    setSeeding(false);
-    onToast("더미 데이터를 생성했습니다. 대표 캐릭터: 달빛여행자 / 빛나는칼날 / 고요한바람 / 붉은노을 (각 2명, 총 8명)");
+
+    const { byRep, totalApps } = buildBulkTestApplications(reps, contents);
+    const repNames = Object.keys(byRep);
+    if (repNames.length === 0) {
+      setBulkApplying(false);
+      onToast(`백업(${backup.name})은 만들었지만, 신청 가능한 활성 콘텐츠나 조건에 맞는 캐릭터가 없어 신청은 생성되지 않았습니다.`);
+      return;
+    }
+
+    for (const repName of repNames) {
+      const data = reps[repName];
+      const next = { ...data, applications: [...(data.applications || []), ...byRep[repName]] };
+      await storageSet(`rep:${repName}`, next, true);
+    }
+
+    setBulkApplying(false);
+    onToast(`백업(${backup.name})을 만든 뒤, 대표 캐릭터 ${repNames.length}명에 걸쳐 총 ${totalApps}건의 테스트 신청을 생성했습니다.`);
     onAfterDelete();
   }
 
@@ -1382,7 +1390,7 @@ function DataView({ contents, jobs, resultsMeta, reps, onUpdateCharacter, onDele
     const ok = await pullFromSheets();
     setPulling(false);
     if (ok) {
-      onToast("구글 시트 내용을 불러왔습니다. [Unverified] 시트에 남겨둔 형식이 어긋난 값이 있으면 일부 필드가 예상과 다르게 반영될 수 있습니다 — 불러온 뒤 직업/콘텐츠/캐릭터 목록을 확인해보세요.");
+      onToast("구글 시트 내용을 불러왔습니다. 형식이 어긋난 값이 있으면 일부 필드가 다르게 반영될 수 있으니 직업/콘텐츠/캐릭터 목록을 확인해주세요.");
     } else {
       onToast("구글 시트 불러오기에 실패했습니다. 잠시 후 다시 시도해주세요.");
     }
@@ -1405,9 +1413,12 @@ function DataView({ contents, jobs, resultsMeta, reps, onUpdateCharacter, onDele
       <AllCharactersSection reps={reps} jobs={jobs} onUpdateCharacter={onUpdateCharacter} onDeleteCharacter={onDeleteCharacter} />
 
       <div className="gpa-card">
-        <div className="gpa-section-title"><h2 style={{ fontSize: 14 }}>테스트용 더미 데이터</h2></div>
-        <div className="gpa-hint" style={{ marginBottom: 14 }}>대표 캐릭터 4명 × 캐릭터 2명(총 8명)과 콘텐츠별 신청 내역을 한 번에 채워 넣습니다. 화면 확인용이며 실제 서비스에서는 사용하지 마세요.</div>
-        <button className="gpa-btn gpa-btn-primary gpa-btn-sm" disabled={seeding} onClick={() => setConfirmSeed(true)}>{seeding ? "생성 중..." : "더미 데이터 생성"}</button>
+        <div className="gpa-section-title"><h2 style={{ fontSize: 14 }}>테스트용 일괄 신청</h2></div>
+        <div className="gpa-hint" style={{ marginBottom: 14 }}>
+          현재 등록된 전체 캐릭터가, 활성화된 모든 콘텐츠에 각각 신청합니다. 캐릭터×콘텐츠 조합마다 신청 유형(일반/지원)은 무작위, 신청 시간은 해당 콘텐츠의 가능한 시간대 중 2~3개를 무작위로 선택합니다.
+          필요 마도 저항을 충족하지 못하는 조합은 제외됩니다. 실행 전에 구글 시트의 kv 탭을 자동으로 백업합니다.
+        </div>
+        <button className="gpa-btn gpa-btn-primary gpa-btn-sm" disabled={bulkApplying} onClick={() => setConfirmBulkApply(true)}>{bulkApplying ? "처리 중..." : "테스트용 일괄 신청 실행"}</button>
       </div>
 
       <div className="gpa-card">
@@ -1444,13 +1455,13 @@ function DataView({ contents, jobs, resultsMeta, reps, onUpdateCharacter, onDele
         />
       )}
 
-      {confirmSeed && (
+      {confirmBulkApply && (
         <ConfirmModal
-          title="더미 데이터 생성"
-          message={"테스트용 대표 캐릭터 4명(달빛여행자·빛나는칼날·고요한바람·붉은노을), 각 2명씩 총 8명의 캐릭터와 신청 데이터를 생성합니다.\n동일한 이름이 이미 있으면 덮어씁니다. 계속할까요?"}
-          confirmLabel="생성"
-          onConfirm={async () => { setConfirmSeed(false); await doSeedDummy(); }}
-          onCancel={() => setConfirmSeed(false)}
+          title="테스트용 일괄 신청 실행"
+          message={"등록된 모든 캐릭터가 활성화된 모든 콘텐츠에 무작위 유형·무작위 시간으로 신청합니다.\n실행 전 구글 시트 kv 탭을 자동으로 백업합니다 (kv_backup_날짜시간 탭 생성).\n계속할까요?"}
+          confirmLabel="실행"
+          onConfirm={async () => { setConfirmBulkApply(false); await doBulkTestApply(); }}
+          onCancel={() => setConfirmBulkApply(false)}
         />
       )}
 

@@ -301,6 +301,14 @@ function finalPower(basePower, pressure) {
   return Math.round(basePower * (1 + pressure / 1000));
 }
 
+// 압력 보정 후 패널티를 차감한, 화면 전체에서 일관되게 쓰는 최종 전투력 계산입니다.
+// (관리자 화면의 charFinalPower와 동일한 규칙 — 결과는 0 미만으로 내려가지 않습니다.)
+function charFinalPower(char, content) {
+  const base = content ? finalPower(char.power, content.pressure) : char.power;
+  const penalty = char.penalty || 0;
+  return Math.max(0, base - penalty);
+}
+
 
 /* ---------------- 작은 컴포넌트 ---------------- */
 const Emblem = ({ size = 34 }) => (
@@ -749,7 +757,7 @@ function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onS
                     <span style={{ fontSize: 11.5, color: "var(--text-dim)" }}>{c.jobName}</span>
                   </div>
                   <span style={{ fontFamily: "var(--font-mono)", fontSize: 12.5, color: "var(--gold-soft)" }}>
-                    최종 {finalPower(c.power, content.pressure).toLocaleString()}
+                    최종 {charFinalPower(c, content).toLocaleString()}
                   </span>
                 </div>
               ))}
@@ -834,7 +842,7 @@ function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onS
                     )}
                   </div>
                   <div>
-                    <span className="gpm-select-power">{finalPower(c.power, content.pressure).toLocaleString()}</span>
+                    <span className="gpm-select-power">{charFinalPower(c, content).toLocaleString()}</span>
                     <span className="gpm-select-power-label">최종 전투력</span>
                   </div>
                 </div>
