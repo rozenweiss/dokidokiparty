@@ -182,6 +182,7 @@ const GlobalStyle = () => (
     .gpm-type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .gpm-type-card { border: 1px solid var(--border); background: var(--bg-elev); border-radius: 12px; padding: 16px; text-align: left; }
     .gpm-type-card.checked { border-color: var(--gold); background: rgba(193,95,60,0.08); }
+    .gpm-type-card:disabled { opacity: 0.45; cursor: not-allowed; }
     .gpm-type-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 7px; }
     .gpm-type-desc { font-size: 11.5px; color: var(--text-dim); line-height: 1.6; }
 
@@ -274,6 +275,10 @@ const DEFAULT_CONTENTS = [
 ];
 
 const ROLE_LABEL = { tank: "탱커", support: "서포터", dealer: "딜러" };
+// 신청 유형: "normal" | "support" | "both" (일반+지원, 12.4절). 기존 데이터는 normal/support만 가짐(하위 호환).
+const APP_TYPE_LABEL = { normal: "일반 신청", support: "지원 신청", both: "일반 신청 + 지원 신청" };
+const appliesNormal = (type) => type === "normal" || type === "both";
+const appliesSupport = (type) => type === "support" || type === "both";
 
 /* ---------------- 유틸 ---------------- */
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -713,11 +718,15 @@ function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onS
   const [contentId, setContentId] = useState(initialContentId || editingApp?.contentId || contents[0]?.id || "");
   const [selectedChars, setSelectedChars] = useState(new Set(editingApp?.characterIds || []));
   const [selectedTimes, setSelectedTimes] = useState(new Set(editingApp?.times || []));
-  const [isSupport, setIsSupport] = useState(editingApp?.type === "support");
+  const [wantNormal, setWantNormal] = useState(appliesNormal(editingApp?.type || "normal"));
+  const [wantSupport, setWantSupport] = useState(appliesSupport(editingApp?.type || ""));
+  const [comboBlockedMsg, setComboBlockedMsg] = useState("");
 
   const content = contents.find((c) => c.id === contentId);
   const slots = useMemo(() => (content ? timeSlots(content.startTime, content.endTime, content.interval) : []), [content]);
   const activeChars = subs.filter((c) => c.active !== false);
+  // "일반+지원" 동시 선택 조건 (12.2절): 신청 시간 수가 신청 캐릭터 수보다 많아야 함
+  const comboAllowed = selectedTimes.size > selectedChars.size;
 
   function toggleChar(id, disabled) {
     if (disabled) return;
@@ -734,8 +743,18 @@ function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onS
     const selectable = activeChars.filter((c) => !(content.requiredResist > 0 && c.resist < content.requiredResist));
     setSelectedChars(new Set(selectable.map((c) => c.id)));
   }
+  function toggleNormal() {
+    setComboBlockedMsg("");
+    if (!wantNormal && wantSupport && !comboAllowed) { setComboBlockedMsg("일반+지원을 함께 선택하려면 신청 시간 수가 신청 캐릭터 수보다 많아야 합니다."); return; }
+    setWantNormal(!wantNormal);
+  }
+  function toggleSupport() {
+    setComboBlockedMsg("");
+    if (!wantSupport && wantNormal && !comboAllowed) { setComboBlockedMsg("일반+지원을 함께 선택하려면 신청 시간 수가 신청 캐릭터 수보다 많아야 합니다."); return; }
+    setWantSupport(!wantSupport);
+  }
 
-  const canSubmit = content && selectedChars.size > 0 && selectedTimes.size > 0;
+  const canSubmit = content && selectedChars.size > 0 && selectedTimes.size > 0 && (wantNormal || wantSupport);
 
   if (!content) {
     return <div className="gpm-card"><div className="gpm-empty"><div className="gpm-empty-title">신청 가능한 콘텐츠가 없습니다.</div></div></div>;
@@ -753,7 +772,7 @@ function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onS
           </div>
           <div className="gpm-review-block">
             <div className="gpm-review-label">신청 유형</div>
-            <div className="gpm-review-value">{isSupport ? "지원 신청" : "일반 신청"}</div>
+            <div className="gpm-review-value">{APP_TYPE_LABEL[wantNormal && wantSupport ? "both" : wantNormal ? "normal" : "support"]}</div>
           </div>
           <div className="gpm-review-block">
             <div className="gpm-review-label">선택 캐릭터 ({chosenChars.length}명)</div>
@@ -790,7 +809,7 @@ function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onS
               id: editingApp?.id || uid(),
               contentId,
               contentName: content.name,
-              type: isSupport ? "support" : "normal",
+              type: wantNormal && wantSupport ? "both" : wantNormal ? "normal" : "support",
               characterIds: [...selectedChars],
               times: [...selectedTimes],
               status: editingApp?.status || "applied",
@@ -877,15 +896,24 @@ function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onS
       </div>
 
       <div className="gpm-card">
-        <div className="gpm-label" style={{ marginBottom: 12 }}>신청 유형</div>
-        <button type="button" className={`gpm-type-card ${isSupport ? "checked" : ""}`} style={{ width: "100%" }} onClick={() => setIsSupport(!isSupport)}>
-          <div className="gpm-type-title"><Checkbox checked={isSupport} /> 지원 신청으로 전환</div>
-          <div className="gpm-type-desc">
-            {isSupport
-              ? "지원 신청입니다. 부족한 역할과 빈자리 보완에 사용되며, 서로 다른 시간에 같은 캐릭터가 반복 배정될 수 있습니다 (0회~여러 번)."
-              : "기본값인 일반 신청입니다. 선택한 각 캐릭터는 최대 한 번만 배정됩니다. 동일 대표 캐릭터는 같은 시간에 한 캐릭터만 배정됩니다."}
-          </div>
-        </button>
+        <div className="gpm-label" style={{ marginBottom: 12 }}>신청 유형 (동시 선택 가능)</div>
+        <div className="gpm-type-grid">
+          <button type="button" className={`gpm-type-card ${wantNormal ? "checked" : ""}`} onClick={toggleNormal} disabled={wantSupport && !wantNormal && !comboAllowed}>
+            <div className="gpm-type-title"><Checkbox checked={wantNormal} /> 일반 신청</div>
+            <div className="gpm-type-desc">선택한 각 캐릭터는 최대 한 번만 배정됩니다.<br />동일 대표 캐릭터는 같은 시간에 한 캐릭터만 배정됩니다.</div>
+          </button>
+          <button type="button" className={`gpm-type-card ${wantSupport ? "checked" : ""}`} onClick={toggleSupport} disabled={wantNormal && !wantSupport && !comboAllowed}>
+            <div className="gpm-type-title"><Checkbox checked={wantSupport} /> 지원 신청</div>
+            <div className="gpm-type-desc">부족한 역할과 빈자리 보완에 사용됩니다.<br />서로 다른 시간에는 같은 캐릭터가 반복 배정될 수 있습니다 (0회~여러 번).</div>
+          </button>
+        </div>
+        {wantNormal && wantSupport && (
+          <div className="gpm-hint" style={{ marginTop: 10 }}>일반+지원 조합: 신청 시간 중 1개는 일반으로 필수 배정되고, 나머지 시간에는 지원으로 0회~여러 번 배정될 수 있습니다.</div>
+        )}
+        {comboBlockedMsg && <div className="gpm-error-text" style={{ marginTop: 10 }}>{comboBlockedMsg}</div>}
+        {!comboAllowed && !(wantNormal && wantSupport) && (
+          <div className="gpm-hint" style={{ marginTop: 10 }}>일반+지원을 함께 선택하려면 신청 시간 수가 신청 캐릭터 수보다 많아야 합니다. (현재 캐릭터 {selectedChars.size}명 · 시간 {selectedTimes.size}개)</div>
+        )}
       </div>
 
       <div className="gpm-summary-bar">
@@ -909,7 +937,7 @@ function ApplyDoneView({ app, onGoHistory, onGoContents }) {
           <div><div className="gpm-done-stat-num">{app.contentName}</div><div className="gpm-done-stat-label">콘텐츠</div></div>
           <div><div className="gpm-done-stat-num">{app.characterIds.length}</div><div className="gpm-done-stat-label">신청 캐릭터 수</div></div>
           <div><div className="gpm-done-stat-num">{app.times.length}</div><div className="gpm-done-stat-label">신청 시간 수</div></div>
-          <div><div className="gpm-done-stat-num">{app.type === "normal" ? "일반" : "지원"}</div><div className="gpm-done-stat-label">신청 유형</div></div>
+          <div><div className="gpm-done-stat-num">{app.type === "both" ? "일반+지원" : app.type === "normal" ? "일반" : "지원"}</div><div className="gpm-done-stat-label">신청 유형</div></div>
         </div>
         <div className="gpm-row">
           <button className="gpm-btn gpm-btn-ghost" style={{ flex: 1 }} onClick={onGoContents}>콘텐츠 목록으로</button>
@@ -953,7 +981,7 @@ function HistoryView({ applications, contents, subs, onEdit, onCancel }) {
               <div className="gpm-app-top">
                 <div>
                   <div className="gpm-app-content">{a.contentName}</div>
-                  <div className="gpm-app-meta">{a.type === "normal" ? "일반 신청" : "지원 신청"} · {new Date(a.appliedAt).toLocaleString("ko-KR")}</div>
+                  <div className="gpm-app-meta">{APP_TYPE_LABEL[a.type] || a.type} · {new Date(a.appliedAt).toLocaleString("ko-KR")}</div>
                 </div>
                 <span className={`gpm-status-tag ${a.status}`}>{STATUS_LABEL[a.status] || a.status}</span>
               </div>

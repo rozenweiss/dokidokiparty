@@ -101,6 +101,7 @@ const GlobalStyle = () => (
     .gpa-badge.off { background: rgba(143,138,126,0.2); color: var(--text-faint); }
     .gpa-badge.normal { background: rgba(76,113,150,0.15); color: var(--tank); }
     .gpa-badge.supportApp { background: rgba(181,140,74,0.15); color: var(--warn); }
+    .gpa-badge.combo { background: linear-gradient(90deg, rgba(76,113,150,0.18), rgba(181,140,74,0.18)); color: var(--text); }
 
     .gpa-empty { text-align: center; padding: 40px 16px; color: var(--text-faint); font-size: 13px; }
 
@@ -156,6 +157,10 @@ const DEFAULT_CONTENTS = [
   { id: "c3", name: "폐허의 감시탑", pressure: 0, requiredResist: 0, partySize: 6, interval: 60, startTime: "21:00", endTime: "23:00", active: false },
 ];
 const ROLE_LABEL = { tank: "탱커", support: "서포터", dealer: "딜러" };
+// 신청 유형: "normal" | "support" | "both" (일반+지원, 12.4절). 기존 데이터는 normal/support만 가짐(하위 호환).
+const APP_TYPE_LABEL = { normal: "일반", support: "지원", both: "일반+지원" };
+const appliesNormal = (type) => type === "normal" || type === "both";
+const appliesSupport = (type) => type === "support" || type === "both";
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
 function timeSlots(start, end, interval) {
@@ -322,8 +327,8 @@ function runAutoMatch(content, reps) {
   const candidates = buildCandidates(content, reps);
   const unassigned = [];
 
-  const normalChars = groupCandidatesByChar(candidates.filter((c) => c.type === "normal"));
-  const supportChars = groupCandidatesByChar(candidates.filter((c) => c.type === "support"));
+  const normalChars = groupCandidatesByChar(candidates.filter((c) => appliesNormal(c.type)));
+  const supportCandidatesRaw = candidates.filter((c) => appliesSupport(c.type));
 
   /* ---- 1단계: 일반 신청 캐릭터의 시간 배정 (역할별 시간대 부하 분산, 신청한 시간 범위 안에서만) ---- */
   const roleCountAtTime = {};
@@ -344,6 +349,18 @@ function runAutoMatch(content, reps) {
     repTimeUsed[repName].add(time);
     placedNormal.push({ repName, char, role: char.role, time, allowedTimes: times });
   });
+
+  /* 일반+지원(both) 캐릭터는 1단계에서 배정된 시간을 제외한 나머지 신청 시간만
+     지원 후보로 남습니다 (12.3절). 1단계에서 아예 배정 실패한 both 캐릭터는
+     신청한 시간 전체가 지원 후보로 남습니다. [Inference] 이 경우는 문서에 명시되지
+     않아 제가 추론한 처리입니다. */
+  const supportChars = groupCandidatesByChar(supportCandidatesRaw)
+    .map((sc) => {
+      const normalPlacement = placedNormal.find((p) => p.repName === sc.repName && p.char.id === sc.char.id);
+      if (normalPlacement) return { ...sc, times: sc.times.filter((t) => t !== normalPlacement.time) };
+      return sc;
+    })
+    .filter((sc) => sc.times.length > 0);
 
   /* ---- 2단계: 딜러 신청 수 기준 시간대별 파티 수 산정 (10.3.1절) ---- */
   const partyCountAtTime = {};
@@ -576,16 +593,18 @@ function AdminGate({ config, onEnter }) {
 function Dashboard({ config, reps, resultsMeta, onRefresh, refreshing }) {
   const stats = useMemo(() => {
     const repNames = Object.keys(reps);
-    let subCount = 0, appCount = 0, normalCount = 0, supportCount = 0;
+    let subCount = 0, appCount = 0, normalCount = 0, supportCount = 0, comboCount = 0;
     repNames.forEach((n) => {
       subCount += (reps[n].subs || []).length;
       (reps[n].applications || []).forEach((a) => {
         if (a.status === "cancelled") return;
         appCount++;
-        if (a.type === "normal") normalCount++; else supportCount++;
+        if (appliesNormal(a.type)) normalCount++;
+        if (appliesSupport(a.type)) supportCount++;
+        if (a.type === "both") comboCount++;
       });
     });
-    return { repCount: repNames.length, subCount, appCount, normalCount, supportCount };
+    return { repCount: repNames.length, subCount, appCount, normalCount, supportCount, comboCount };
   }, [reps]);
 
   const perContent = config.contents.map((c) => {
@@ -605,8 +624,9 @@ function Dashboard({ config, reps, resultsMeta, onRefresh, refreshing }) {
         <div className="gpa-stat-card"><div className="gpa-stat-num">{stats.subCount}</div><div className="gpa-stat-label">등록된 하위 캐릭터</div></div>
         <div className="gpa-stat-card"><div className="gpa-stat-num">{config.contents.filter((c) => c.active).length}</div><div className="gpa-stat-label">활성 콘텐츠</div></div>
         <div className="gpa-stat-card"><div className="gpa-stat-num">{stats.appCount}</div><div className="gpa-stat-label">전체 신청 건수</div></div>
-        <div className="gpa-stat-card"><div className="gpa-stat-num">{stats.normalCount}</div><div className="gpa-stat-label">일반 신청</div></div>
-        <div className="gpa-stat-card"><div className="gpa-stat-num">{stats.supportCount}</div><div className="gpa-stat-label">지원 신청</div></div>
+        <div className="gpa-stat-card"><div className="gpa-stat-num">{stats.normalCount}</div><div className="gpa-stat-label">일반 신청 (일반+지원 포함)</div></div>
+        <div className="gpa-stat-card"><div className="gpa-stat-num">{stats.supportCount}</div><div className="gpa-stat-label">지원 신청 (일반+지원 포함)</div></div>
+        <div className="gpa-stat-card"><div className="gpa-stat-num">{stats.comboCount}</div><div className="gpa-stat-label">일반+지원 조합</div></div>
       </div>
 
       <div className="gpa-card" style={{ marginTop: 14 }}>
@@ -894,7 +914,9 @@ function ApplicationsView({ contents, reps, onExcludeCharacter }) {
 
   const rows = useMemo(() => {
     return allRows.filter((r) => {
-      if (typeFilter !== "all" && r.app.type !== typeFilter) return false;
+      if (typeFilter === "normal" && !appliesNormal(r.app.type)) return false;
+      if (typeFilter === "support" && !appliesSupport(r.app.type)) return false;
+      if (typeFilter === "both" && r.app.type !== "both") return false;
       if (roleFilter !== "all" && r.char.role !== roleFilter) return false;
       if (timeFilter !== "all" && !r.app.times.includes(timeFilter)) return false;
       if (resistFilter !== "all" && content) {
@@ -908,13 +930,14 @@ function ApplicationsView({ contents, reps, onExcludeCharacter }) {
 
   const counts = useMemo(() => ({
     total: allRows.length,
-    normal: allRows.filter((r) => r.app.type === "normal").length,
-    support: allRows.filter((r) => r.app.type === "support").length,
+    normal: allRows.filter((r) => appliesNormal(r.app.type)).length,
+    support: allRows.filter((r) => appliesSupport(r.app.type)).length,
+    both: allRows.filter((r) => r.app.type === "both").length,
   }), [allRows]);
 
   return (
     <div>
-      <div className="gpa-section-title"><div><h2>신청 현황</h2><div className="gpa-section-desc">콘텐츠별 신청 데이터를 캐릭터 단위로 확인합니다. (전체 {counts.total}건 · 일반 {counts.normal} · 지원 {counts.support})</div></div></div>
+      <div className="gpa-section-title"><div><h2>신청 현황</h2><div className="gpa-section-desc">콘텐츠별 신청 데이터를 캐릭터 단위로 확인합니다. (전체 {counts.total}건 · 일반 {counts.normal} · 지원 {counts.support} · 일반+지원 {counts.both})</div></div></div>
       <div className="gpa-content-pick">
         {contents.map((c) => (
           <button key={c.id} className={`gpa-content-chip ${c.id === contentId ? "active" : ""}`} onClick={() => { setContentId(c.id); setTimeFilter("all"); }}>{c.name}</button>
@@ -926,7 +949,7 @@ function ApplicationsView({ contents, reps, onExcludeCharacter }) {
           <div style={{ minWidth: 120 }}>
             <label className="gpa-label">신청 유형</label>
             <select className="gpa-input" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-              <option value="all">전체</option><option value="normal">일반</option><option value="support">지원</option>
+              <option value="all">전체</option><option value="normal">일반 (일반+지원 포함)</option><option value="support">지원 (일반+지원 포함)</option><option value="both">일반+지원만</option>
             </select>
           </div>
           <div style={{ minWidth: 120 }}>
@@ -966,7 +989,7 @@ function ApplicationsView({ contents, reps, onExcludeCharacter }) {
                       <td>{repName}</td>
                       <td>{char.nickname}</td>
                       <td><RoleBadge role={char.role} /></td>
-                      <td><span className={`gpa-badge ${app.type === "normal" ? "normal" : "supportApp"}`}>{app.type === "normal" ? "일반" : "지원"}</span></td>
+                      <td><span className={`gpa-badge ${app.type === "both" ? "combo" : app.type === "normal" ? "normal" : "supportApp"}`}>{APP_TYPE_LABEL[app.type] || app.type}</span></td>
                       <td style={{ fontFamily: "var(--font-mono)" }}>{char.power.toLocaleString()}</td>
                       <td style={{ fontFamily: "var(--font-mono)", color: short ? "var(--danger)" : "var(--text)" }}>{char.resist.toLocaleString()}{short && " (미달)"}</td>
                       <td style={{ fontFamily: "var(--font-mono)" }}>{content ? charFinalPower(char, content).toLocaleString() : "-"}</td>
@@ -1003,7 +1026,7 @@ function SlotPickModal({ role, unassigned, onPick, onTemp, onClear, onClose }) {
             {roleCandidates.map((c, i) => (
               <button key={i} className="gpa-pick-btn" onClick={() => onPick(c)}>
                 <span>{c.char.nickname} <span style={{ color: "var(--text-faint)" }}>({c.repName})</span></span>
-                <span style={{ color: "var(--text-faint)" }}>{c.type === "normal" ? "일반" : "지원"}</span>
+                <span style={{ color: "var(--text-faint)" }}>{APP_TYPE_LABEL[c.type] || c.type}</span>
               </button>
             ))}
           </div>
@@ -1047,8 +1070,8 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
     if (!content) return null;
     const candidates = buildCandidates(content, reps);
     const repSet = new Set(candidates.map((c) => c.repName));
-    const normal = candidates.filter((c) => c.type === "normal").length;
-    const support = candidates.filter((c) => c.type === "support").length;
+    const normal = candidates.filter((c) => appliesNormal(c.type)).length;
+    const support = candidates.filter((c) => appliesSupport(c.type)).length;
     return { repCount: repSet.size, candidateCount: candidates.length, normal, support };
   }, [content, reps]);
 
@@ -1250,8 +1273,8 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
         <div className="gpa-dash-grid">
           <div className="gpa-stat-card"><div className="gpa-stat-num">{preview.repCount}</div><div className="gpa-stat-label">신청 대표 캐릭터 수</div></div>
           <div className="gpa-stat-card"><div className="gpa-stat-num">{preview.candidateCount}</div><div className="gpa-stat-label">캐릭터×시간 후보 수</div></div>
-          <div className="gpa-stat-card"><div className="gpa-stat-num">{preview.normal}</div><div className="gpa-stat-label">일반 신청 후보</div></div>
-          <div className="gpa-stat-card"><div className="gpa-stat-num">{preview.support}</div><div className="gpa-stat-label">지원 신청 후보</div></div>
+          <div className="gpa-stat-card"><div className="gpa-stat-num">{preview.normal}</div><div className="gpa-stat-label">일반 신청 후보 (일반+지원 포함)</div></div>
+          <div className="gpa-stat-card"><div className="gpa-stat-num">{preview.support}</div><div className="gpa-stat-label">지원 신청 후보 (일반+지원 포함)</div></div>
         </div>
         <div className="gpa-row" style={{ marginTop: 16 }}>
           <button className="gpa-btn gpa-btn-primary" onClick={runMatch} disabled={preview.candidateCount === 0}>{matchData ? "재매칭 실행" : "자동 매칭 실행"}</button>
@@ -1401,7 +1424,8 @@ function buildBulkTestApplications(reps, contents) {
         const slots = timeSlots(content.startTime, content.endTime, content.interval);
         const times = pickRandomTimes(slots, 2, 3);
         if (times.length === 0) return;
-        const type = Math.random() < 0.5 ? "normal" : "support";
+        const typeRoll = Math.random();
+        const type = typeRoll < 0.34 ? "normal" : typeRoll < 0.67 ? "support" : "both";
         const app = {
           id: uid(), contentId: content.id, contentName: content.name,
           type, characterIds: [char.id], times, status: "applied", appliedAt: Date.now(),
@@ -1724,7 +1748,7 @@ function DataView({ contents, jobs, reps, onUpdateCharacter, onDeleteCharacter, 
       <div className="gpa-card">
         <div className="gpa-section-title"><h2 style={{ fontSize: 14 }}>테스트용 일괄 신청</h2></div>
         <div className="gpa-hint" style={{ marginBottom: 14 }}>
-          현재 등록된 전체 캐릭터가, 활성화된 모든 콘텐츠에 각각 신청합니다. 캐릭터×콘텐츠 조합마다 신청 유형(일반/지원)은 무작위, 신청 시간은 해당 콘텐츠의 가능한 시간대 중 2~3개를 무작위로 선택합니다.
+          현재 등록된 전체 캐릭터가, 활성화된 모든 콘텐츠에 각각 신청합니다. 캐릭터×콘텐츠 조합마다 신청 유형(일반/지원/일반+지원)은 무작위, 신청 시간은 해당 콘텐츠의 가능한 시간대 중 2~3개를 무작위로 선택합니다.
           필요 마도 저항을 충족하지 못하는 조합은 제외됩니다. 실행 전에 구글 시트의 kv 탭을 자동으로 백업합니다.
         </div>
         <button className="gpa-btn gpa-btn-primary gpa-btn-sm" disabled={bulkApplying} onClick={() => setConfirmBulkApply(true)}>{bulkApplying ? "처리 중..." : "테스트용 일괄 신청 실행"}</button>
