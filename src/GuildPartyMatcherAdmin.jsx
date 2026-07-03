@@ -170,22 +170,28 @@ function timeSlots(start, end, interval) {
   }
   return out;
 }
-function finalPower(basePower, pressure) {
-  if (!pressure || pressure <= 0) return basePower;
-  return Math.round(basePower * (1 + pressure / 1000));
+// [추정치 — 11.1절] 마도저항이 마도압력을 초과하는 1포인트당 약 0.015% 최종 전투력 증가(반대 방향도 동일)로
+// 추정한 값입니다. 확정된 게임 데이터가 아니므로, 실제 수치가 확인되면 이 상수만 바꾸면 됩니다.
+const RESIST_PRESSURE_RATIO = 0.00015;
+const RESIST_PRESSURE_CAP = 0.40; // ±40% 한도 (8.2/11.2절, 증폭·감소 양방향 동일)
+
+// 11.2절 공식: diff = 저항 - 압력, 보정률 = clamp(0.00015×diff, -40%, +40%)
+// 압력이 0인 콘텐츠에도 적용합니다 (게임 문서 근거, 11.2절) — 예전의 "압력 0이면 그냥 기본값 반환" 조기 반환은 폐기.
+function finalPower(basePower, pressure, resist) {
+  const diff = (resist || 0) - (pressure || 0);
+  const rate = Math.max(-RESIST_PRESSURE_CAP, Math.min(RESIST_PRESSURE_CAP, RESIST_PRESSURE_RATIO * diff));
+  return Math.round(basePower * (1 + rate));
 }
 
 /**
  * 캐릭터의 "최종 전투력"을 화면 전체에서 일관되게 계산하는 단일 함수입니다.
- * - content가 주어지면: 압력 보정 후 패널티 차감 (콘텐츠 맥락이 있는 화면: 신청 현황, 자동 매칭)
- * - content가 없으면: 압력 보정 없이 패널티만 차감 (콘텐츠 맥락이 없는 화면: 전체 캐릭터 목록)
- * 두 경우 모두 결과는 0 미만으로 내려가지 않습니다(음수 없음).
- * [Inference] 향후 저항-압력 기반 공식으로 finalPower가 재설계되어도, 패널티는
- * "보정이 끝난 값에서 마지막에 차감 후 0 클램프"라는 위치를 유지하는 것이 사용자가
- * 정한 "보정 후 차감" 규칙과 맞습니다 — 이 함수 안쪽만 바꾸면 됩니다.
+ * - content가 주어지면: 저항-압력 보정(11.2절) 후 패널티 차감 (콘텐츠 맥락이 있는 화면: 신청 현황, 자동 매칭)
+ * - content가 없으면: 보정 없이 패널티만 차감 (콘텐츠 맥락이 없는 화면: 전체 캐릭터 목록, 8.3/11.2절 근거)
+ * 두 경우 모두 결과는 0 미만으로 내려가지 않습니다(0 클램프).
+ * [Unverified] RESIST_PRESSURE_RATIO는 사용자가 스스로 "추정한다"고 밝힌 값이며 확정된 게임 데이터가 아닙니다.
  */
 function charFinalPower(char, content) {
-  const base = content ? finalPower(char.power, content.pressure) : char.power;
+  const base = content ? finalPower(char.power, content.pressure, char.resist) : char.power;
   const penalty = char.penalty || 0;
   return Math.max(0, base - penalty);
 }
@@ -273,75 +279,238 @@ function buildCandidates(content, reps) {
   return out;
 }
 
-/* 단순 휴리스틱 자동 매칭 (파일 상단 주석 참고) */
+/* (repName, 캐릭터) 단위로 후보를 묶어서, 그 캐릭터가 신청한 시간 목록을 만듭니다. */
+function groupCandidatesByChar(candidates) {
+  const map = new Map();
+  candidates.forEach((c) => {
+    const key = c.repName + ":" + c.char.id;
+    if (!map.has(key)) map.set(key, { repName: c.repName, char: c.char, times: new Set() });
+    map.get(key).times.add(c.time);
+  });
+  return [...map.values()].map((v) => ({ ...v, times: [...v.times] }));
+}
+
+function stdev(nums) {
+  if (nums.length === 0) return 0;
+  const mean = nums.reduce((a, b) => a + b, 0) / nums.length;
+  const variance = nums.reduce((a, b) => a + (b - mean) ** 2, 0) / nums.length;
+  return Math.sqrt(variance);
+}
+
+/**
+ * 자동 매칭 알고리즘 (요청 문서 5·6·10·11절 반영)
+ *
+ * [Inference/Unverified] 이 알고리즘은 최적해를 보장하지 않는 휴리스틱입니다.
+ * 길드원 50명 미만 소규모 운영을 기준으로, 정수계획법(ILP)이나 완전탐색 대신
+ * "그리디 배치 + 제한된 지역탐색(local search)"을 사용합니다. 아래는 기대되는
+ * 동작이며, 모든 신청 조합에서 전역 최적 균형을 보장하지는 않습니다.
+ *
+ * 처리 순서:
+ * 1) 일반 신청 캐릭터의 시간 배정을 역할별 시간대 부하 분산으로 1차 결정
+ *    (동일 대표 캐릭터는 같은 시간에 1명만 — 신청한 시간 범위 안에서만 배정)
+ * 2) 시간대별 파티 수 = ceil(그 시간대 일반 딜러 수 ÷ 딜러 슬롯 수) — 딜러 기준으로만 산정
+ * 3) 각 시간대 안에서, 전투력이 가장 낮은 파티부터 채우는 그리디 빈 패킹으로 배치
+ *    (탱커·서포터·딜러 모두 동일한 방식 적용). 초과 탱커는 딜러 자리로 합류, 초과 서포터는 미배정.
+ * 4) 같은 역할·서로 다른 시간 사이에서, 각 캐릭터가 실제로 신청한 시간 범위 안에서만
+ *    스왑을 시도해 파티 평균 전투력의 표준편차가 줄어들면 교환 (제한된 횟수)
+ * 5) 지원 신청자로 남은 빈자리를, 전체 평균에 가장 가깝게 만드는 자리부터 채움
+ */
 function runAutoMatch(content, reps) {
   const dealerSlots = Math.max(content.partySize - 2, 0);
   const slotOrder = ["tank", "support", ...Array(dealerSlots).fill("dealer")];
   const allTimes = timeSlots(content.startTime, content.endTime, content.interval);
   const candidates = buildCandidates(content, reps);
-  const usedNormal = new Set();
-  const parties = [];
   const unassigned = [];
 
+  const normalChars = groupCandidatesByChar(candidates.filter((c) => c.type === "normal"));
+  const supportChars = groupCandidatesByChar(candidates.filter((c) => c.type === "support"));
+
+  /* ---- 1단계: 일반 신청 캐릭터의 시간 배정 (역할별 시간대 부하 분산, 신청한 시간 범위 안에서만) ---- */
+  const roleCountAtTime = {};
+  allTimes.forEach((t) => (roleCountAtTime[t] = { tank: 0, support: 0, dealer: 0 }));
+  const repTimeUsed = {}; // repName -> Set(이미 배정된 시간)
+  const placedNormal = []; // {repName, char, role, time, allowedTimes}
+
+  [...normalChars].sort((a, b) => a.times.length - b.times.length).forEach(({ repName, char, times }) => {
+    if (!repTimeUsed[repName]) repTimeUsed[repName] = new Set();
+    const candidateTimes = times.filter((t) => !repTimeUsed[repName].has(t));
+    if (candidateTimes.length === 0) {
+      unassigned.push({ repName, char, type: "normal", time: times[0], reason: "동일 대표 캐릭터가 신청한 시간에 모두 이미 배정됨" });
+      return;
+    }
+    candidateTimes.sort((t1, t2) => roleCountAtTime[t1][char.role] - roleCountAtTime[t2][char.role]);
+    const time = candidateTimes[0];
+    roleCountAtTime[time][char.role]++;
+    repTimeUsed[repName].add(time);
+    placedNormal.push({ repName, char, role: char.role, time, allowedTimes: times });
+  });
+
+  /* ---- 2단계: 딜러 신청 수 기준 시간대별 파티 수 산정 (10.3.1절) ---- */
+  const partyCountAtTime = {};
   allTimes.forEach((t) => {
-    const pool = candidates.filter((c) => c.time === t && !(c.type === "normal" && usedNormal.has(c.char.id)));
-    if (pool.length === 0) return;
-    const byRep = {};
-    pool.forEach((c) => {
-      const cur = byRep[c.repName];
-      if (!cur) { byRep[c.repName] = c; return; }
-      const score = (x) => (x.type === "normal" ? 1000000 : 0) + charFinalPower(x.char, content);
-      if (score(c) > score(cur)) byRep[c.repName] = c;
-    });
-    const picked = Object.values(byRep);
-    const byRole = (role) => picked.filter((c) => c.char.role === role).sort((a, b) => charFinalPower(b.char, content) - charFinalPower(a.char, content));
-    const tanks = byRole("tank"), supports = byRole("support"), dealers = byRole("dealer");
+    const dealerCount = placedNormal.filter((p) => p.time === t && p.role === "dealer").length;
+    partyCountAtTime[t] = dealerCount > 0 ? Math.ceil(dealerCount / Math.max(dealerSlots, 1)) : 0;
+  });
 
-    const partiesCount = Math.max(
-      tanks.length, supports.length,
-      dealerSlots > 0 ? Math.ceil(dealers.length / dealerSlots) : 0,
-      (tanks.length + supports.length + dealers.length) > 0 ? 1 : 0
-    );
-    if (partiesCount === 0) return;
+  /* ---- 3단계: 시간대별 그리디 빈 패킹 배치 (전투력 낮은 파티부터 채움) ---- */
+  const partiesByKey = {}; // `${time}:${partyNumber}` -> party
+  const placedSlotOf = {}; // `${repName}:${characterId}` -> {time, partyNumber, slotIndex}
 
-    const timeParties = Array.from({ length: partiesCount }, (_, i) => ({
+  allTimes.forEach((t) => {
+    const partyCount = partyCountAtTime[t];
+    if (partyCount === 0) return;
+    const parties = Array.from({ length: partyCount }, (_, i) => ({
       time: t, partyNumber: i + 1,
       slots: slotOrder.map((role) => ({ role, nickname: null, repName: null, characterId: null, type: null })),
+      _powerSum: 0, _filledCount: 0,
     }));
+    parties.forEach((p) => (partiesByKey[`${t}:${p.partyNumber}`] = p));
 
-    tanks.slice(0, partiesCount).forEach((c, i) => { timeParties[i].slots[0] = { role: "tank", nickname: c.char.nickname, repName: c.repName, characterId: c.char.id, type: c.type }; });
-    tanks.slice(partiesCount).forEach((c) => unassigned.push({ ...c, reason: "역할 자리 부족" }));
-    supports.slice(0, partiesCount).forEach((c, i) => { timeParties[i].slots[1] = { role: "support", nickname: c.char.nickname, repName: c.repName, characterId: c.char.id, type: c.type }; });
-    supports.slice(partiesCount).forEach((c) => unassigned.push({ ...c, reason: "역할 자리 부족" }));
+    function placeInLowestParty(entry, slotRole, type) {
+      let best = -1, bestSum = Infinity;
+      parties.forEach((p, i) => {
+        const idx = p.slots.findIndex((s) => !s.nickname && s.role === slotRole);
+        if (idx === -1) return;
+        if (p._powerSum < bestSum) { bestSum = p._powerSum; best = i; }
+      });
+      if (best === -1) return false;
+      const p = parties[best];
+      const idx = p.slots.findIndex((s) => !s.nickname && s.role === slotRole);
+      const power = charFinalPower(entry.char, content);
+      p.slots[idx] = { role: slotRole, nickname: entry.char.nickname, repName: entry.repName, characterId: entry.char.id, type };
+      p._powerSum += power; p._filledCount++;
+      placedSlotOf[`${entry.repName}:${entry.char.id}`] = { time: t, partyNumber: p.partyNumber, slotIndex: idx };
+      return true;
+    }
 
-    // 딜러는 파티0→1→2→...→2→1→0 순서(스네이크 드래프트)로 한 자리씩 배분해
-    // 특정 파티에 고전투력 딜러가 몰리지 않도록 합니다. (dealers는 이미 전투력 내림차순 정렬됨)
-    let di = 0;
-    for (let s = 2; s < slotOrder.length && di < dealers.length; s++) {
-      const forward = (s - 2) % 2 === 0;
-      const order = forward ? [...Array(partiesCount).keys()] : [...Array(partiesCount).keys()].reverse();
-      for (const p of order) {
-        if (di >= dealers.length) break;
-        const c = dealers[di++];
-        timeParties[p].slots[s] = { role: "dealer", nickname: c.char.nickname, repName: c.repName, characterId: c.char.id, type: c.type };
+    const atTime = placedNormal.filter((p) => p.time === t);
+    const tanks = atTime.filter((p) => p.role === "tank").sort((a, b) => charFinalPower(b.char, content) - charFinalPower(a.char, content));
+    const supports = atTime.filter((p) => p.role === "support").sort((a, b) => charFinalPower(b.char, content) - charFinalPower(a.char, content));
+    const dealersRaw = atTime.filter((p) => p.role === "dealer");
+
+    // 탱커: 파티 수만큼만 우선 배정, 초과분은 딜러 풀로 이동 (10.3.1절 정정 반영)
+    const tankOverflow = [];
+    tanks.forEach((entry, i) => {
+      if (i < partyCount) { if (!placeInLowestParty(entry, "tank", "normal")) tankOverflow.push(entry); }
+      else tankOverflow.push(entry);
+    });
+
+    // 서포터: 파티 수만큼만 배정, 초과분은 미배정
+    supports.forEach((entry, i) => {
+      if (i < partyCount) { if (!placeInLowestParty(entry, "support", "normal")) unassigned.push({ ...entry, reason: "역할 자리 부족" }); }
+      else unassigned.push({ ...entry, reason: "역할 자리 부족" });
+    });
+
+    // 딜러 + 초과 탱커: 전투력 내림차순으로 정렬해 낮은 파티부터 채움
+    const dealerPool = [...dealersRaw, ...tankOverflow].sort((a, b) => charFinalPower(b.char, content) - charFinalPower(a.char, content));
+    dealerPool.forEach((entry) => {
+      if (!placeInLowestParty(entry, "dealer", "normal")) unassigned.push({ ...entry, reason: "역할 자리 부족" });
+    });
+  });
+
+  /* ---- 4단계: 같은 역할·서로 다른 시간 사이의 지역 탐색 (신청한 시간 범위 안에서만 스왑) ---- */
+  function partyAverages() {
+    return Object.values(partiesByKey).filter((p) => p._filledCount > 0).map((p) => p._powerSum / p._filledCount);
+  }
+  function objective() { return stdev(partyAverages()); }
+
+  const placedList = Object.entries(placedSlotOf).map(([key, loc]) => {
+    const [repName, characterId] = key.split(":");
+    const info = placedNormal.find((p) => p.repName === repName && p.char.id === characterId);
+    return { repName, characterId, role: info.char.role, loc, allowedTimes: info.allowedTimes, char: info.char };
+  });
+
+  const MAX_SWAP_ITER = 300;
+  let improved = true, iter = 0;
+  while (improved && iter < MAX_SWAP_ITER) {
+    improved = false;
+    iter++;
+    outer:
+    for (let i = 0; i < placedList.length; i++) {
+      for (let j = i + 1; j < placedList.length; j++) {
+        const a = placedList[i], b = placedList[j];
+        if (a.role !== b.role || a.loc.time === b.loc.time) continue;
+        if (!a.allowedTimes.includes(b.loc.time) || !b.allowedTimes.includes(a.loc.time)) continue;
+        const collideA = placedList.some((x) => x !== a && x.repName === a.repName && x.loc.time === b.loc.time);
+        const collideB = placedList.some((x) => x !== b && x.repName === b.repName && x.loc.time === a.loc.time);
+        if (collideA || collideB) continue;
+
+        const partyA = partiesByKey[`${a.loc.time}:${a.loc.partyNumber}`];
+        const partyB = partiesByKey[`${b.loc.time}:${b.loc.partyNumber}`];
+        const slotA = partyA.slots[a.loc.slotIndex];
+        const slotB = partyB.slots[b.loc.slotIndex];
+        const powerA = charFinalPower(a.char, content), powerB = charFinalPower(b.char, content);
+
+        const before = objective();
+        partyA.slots[a.loc.slotIndex] = slotB;
+        partyB.slots[b.loc.slotIndex] = slotA;
+        partyA._powerSum += powerB - powerA;
+        partyB._powerSum += powerA - powerB;
+        const after = objective();
+
+        if (after < before - 1e-9) {
+          const tmp = a.loc; a.loc = b.loc; b.loc = tmp;
+          improved = true;
+          break outer;
+        } else {
+          partyA.slots[a.loc.slotIndex] = slotA;
+          partyB.slots[b.loc.slotIndex] = slotB;
+          partyA._powerSum += powerA - powerB;
+          partyB._powerSum += powerB - powerA;
+        }
       }
     }
-    for (; di < dealers.length; di++) unassigned.push({ ...dealers[di], reason: "역할 자리 부족" });
+  }
 
-    timeParties.forEach((tp) => {
-      const missing = {};
-      tp.slots.forEach((s) => {
-        if (!s.nickname) missing[s.role] = (missing[s.role] || 0) + 1;
-        else if (s.type === "normal") usedNormal.add(s.characterId);
+  /* ---- 5단계: 지원 신청자로 남은 빈자리 채우기 (전체 평균에 가장 가까워지는 자리부터) ---- */
+  const repTimeOccupied = {}; // `${repName}:${time}` -> true
+  Object.values(partiesByKey).forEach((p) => {
+    p.slots.forEach((s) => { if (s.repName) repTimeOccupied[`${s.repName}:${p.time}`] = true; });
+  });
+
+  const emptySlots = [];
+  Object.values(partiesByKey).forEach((p) => {
+    p.slots.forEach((s, si) => { if (!s.nickname) emptySlots.push({ party: p, slotIndex: si, role: s.role }); });
+  });
+
+  let guard = 0;
+  while (guard < 2000) {
+    guard++;
+    const avgs = partyAverages();
+    const target = avgs.length ? avgs.reduce((a, b) => a + b, 0) / avgs.length : 0;
+    let bestChoice = null, bestScore = Infinity, bestSlotArrIdx = -1;
+    emptySlots.forEach((es, idx) => {
+      if (es.party.slots[es.slotIndex].nickname) return;
+      supportChars.forEach((sc) => {
+        if (sc.char.role !== es.role) return;
+        if (!sc.times.includes(es.party.time)) return;
+        if (repTimeOccupied[`${sc.repName}:${es.party.time}`]) return;
+        const power = charFinalPower(sc.char, content);
+        const newAvg = (es.party._powerSum + power) / (es.party._filledCount + 1);
+        const score = Math.abs(newAvg - target);
+        if (score < bestScore) { bestScore = score; bestChoice = { es, sc, power }; bestSlotArrIdx = idx; }
       });
+    });
+    if (!bestChoice) break;
+    const { es, sc, power } = bestChoice;
+    es.party.slots[es.slotIndex] = { role: es.role, nickname: sc.char.nickname, repName: sc.repName, characterId: sc.char.id, type: "support" };
+    es.party._powerSum += power; es.party._filledCount++;
+    repTimeOccupied[`${sc.repName}:${es.party.time}`] = true;
+    emptySlots.splice(bestSlotArrIdx, 1);
+  }
+
+  /* ---- 결과 정리 ---- */
+  const parties = Object.values(partiesByKey)
+    .map((p) => {
+      const missing = {};
+      p.slots.forEach((s) => { if (!s.nickname) missing[s.role] = (missing[s.role] || 0) + 1; });
       const parts = [];
       if (missing.tank) parts.push(`탱커 ${missing.tank}명 부족`);
       if (missing.support) parts.push(`서포터 ${missing.support}명 부족`);
       if (missing.dealer) parts.push(`딜러 ${missing.dealer}명 부족`);
-      tp.shortage = parts.length ? parts.join(" · ") : null;
-      parties.push(tp);
-    });
-  });
+      return { time: p.time, partyNumber: p.partyNumber, slots: p.slots, shortage: parts.length ? parts.join(" · ") : null };
+    })
+    .sort((a, b) => (a.time === b.time ? a.partyNumber - b.partyNumber : a.time < b.time ? -1 : 1));
 
   return { parties, unassigned, generatedAt: Date.now(), published: false };
 }

@@ -293,18 +293,23 @@ function timeSlots(start, end, interval) {
   return out;
 }
 
-// 최종 전투력 계산: 마도 압력이 1 이상이면 보정 적용.
-// 기획서에 정확한 보정 공식이 명시되어 있지 않아 임시 공식을 사용합니다.
-// (실제 서비스 적용 전 관리자/개발자가 공식을 확정해야 합니다.)
-function finalPower(basePower, pressure) {
-  if (!pressure || pressure <= 0) return basePower;
-  return Math.round(basePower * (1 + pressure / 1000));
+// [추정치 — 11.1절] 마도저항이 마도압력을 초과하는 1포인트당 약 0.015% 최종 전투력 증가(반대 방향도 동일)로
+// 추정한 값입니다. 확정된 게임 데이터가 아니므로, 실제 수치가 확인되면 이 상수만 바꾸면 됩니다.
+const RESIST_PRESSURE_RATIO = 0.00015;
+const RESIST_PRESSURE_CAP = 0.40; // ±40% 한도, 증폭·감소 양방향 동일
+
+// 11.2절 공식: diff = 저항 - 압력, 보정률 = clamp(0.00015×diff, -40%, +40%). 압력 0인 콘텐츠에도 적용합니다.
+function finalPower(basePower, pressure, resist) {
+  const diff = (resist || 0) - (pressure || 0);
+  const rate = Math.max(-RESIST_PRESSURE_CAP, Math.min(RESIST_PRESSURE_CAP, RESIST_PRESSURE_RATIO * diff));
+  return Math.round(basePower * (1 + rate));
 }
 
-// 압력 보정 후 패널티를 차감한, 화면 전체에서 일관되게 쓰는 최종 전투력 계산입니다.
+// 저항-압력 보정 후 패널티를 차감한, 화면 전체에서 일관되게 쓰는 최종 전투력 계산입니다.
 // (관리자 화면의 charFinalPower와 동일한 규칙 — 결과는 0 미만으로 내려가지 않습니다.)
+// [Unverified] RESIST_PRESSURE_RATIO는 사용자가 스스로 "추정한다"고 밝힌 값이며 확정된 게임 데이터가 아닙니다.
 function charFinalPower(char, content) {
-  const base = content ? finalPower(char.power, content.pressure) : char.power;
+  const base = content ? finalPower(char.power, content.pressure, char.resist) : char.power;
   const penalty = char.penalty || 0;
   return Math.max(0, base - penalty);
 }
