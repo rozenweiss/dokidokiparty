@@ -355,7 +355,7 @@ function runAutoMatch(content, reps) {
   const repTimeUsed = {}; // repName -> Set(이미 배정된 시간)
   const placedNormal = []; // {repName, char, role, time, allowedTimes, type}
 
-  function placeNormalTime({ repName, char, times, types }, preferredTimes) {
+  function placeNormalTime({ repName, char, times, types }, compareFn) {
     const appType = types.includes("both") ? "both" : "normal";
     if (!repTimeUsed[repName]) repTimeUsed[repName] = new Set();
     const candidateTimes = times.filter((t) => !repTimeUsed[repName].has(t));
@@ -363,13 +363,7 @@ function runAutoMatch(content, reps) {
       unassigned.push({ repName, char, type: appType, time: times[0], reason: "동일 대표 캐릭터가 신청한 시간에 모두 이미 배정됨" });
       return;
     }
-    candidateTimes.sort((t1, t2) => {
-      if (preferredTimes) {
-        const pri = (preferredTimes.has(t2) ? 1 : 0) - (preferredTimes.has(t1) ? 1 : 0);
-        if (pri !== 0) return pri;
-      }
-      return roleCountAtTime[t1][char.role] - roleCountAtTime[t2][char.role];
-    });
+    candidateTimes.sort(compareFn);
     const time = candidateTimes[0];
     roleCountAtTime[time][char.role]++;
     repTimeUsed[repName].add(time);
@@ -379,11 +373,43 @@ function runAutoMatch(content, reps) {
   const dealerNormals = normalChars.filter((c) => c.char.role === "dealer");
   const otherNormals = normalChars.filter((c) => c.char.role !== "dealer");
 
-  [...dealerNormals].sort((a, b) => a.times.length - b.times.length).forEach((c) => placeNormalTime(c, null));
+  /* 딜러 집중 배치 (지원강캐우선_딜러집중배치 통합 요청, 요청②): 새 시간대를 만들기보다
+     이미 딜러가 있고 파티가 덜 찬 시간대의 빈 딜러 슬롯을 먼저 채웁니다.
+     우선순위: 1) 부분 파티가 있는 시간(딜러 수 % 딜러슬롯 !== 0, 잔여 슬롯 적은 순)
+     2) 이미 딜러가 있는 시간(파티는 꽉 참) 3) 딜러가 아예 없는 시간(기존 부하 분산 유지).
+     dealerSlots가 0인 콘텐츠는 이 로직을 적용하지 않고 기존 방식을 그대로 씁니다. */
+  function dealerTimeCompare(t1, t2) {
+    if (dealerSlots === 0) return roleCountAtTime[t1].dealer - roleCountAtTime[t2].dealer;
+    const tierOf = (t) => {
+      const c = roleCountAtTime[t].dealer;
+      const r = c % dealerSlots;
+      if (c > 0 && r !== 0) return 1;
+      if (c > 0 && r === 0) return 2;
+      return 3;
+    };
+    const tier1 = tierOf(t1), tier2 = tierOf(t2);
+    if (tier1 !== tier2) return tier1 - tier2;
+    if (tier1 === 1) {
+      const remain1 = dealerSlots - (roleCountAtTime[t1].dealer % dealerSlots);
+      const remain2 = dealerSlots - (roleCountAtTime[t2].dealer % dealerSlots);
+      if (remain1 !== remain2) return remain1 - remain2;
+    }
+    return roleCountAtTime[t1].dealer - roleCountAtTime[t2].dealer;
+  }
+
+  [...dealerNormals].sort((a, b) => a.times.length - b.times.length).forEach((c) => placeNormalTime(c, dealerTimeCompare));
 
   const timesWithDealer = new Set(placedNormal.filter((p) => p.role === "dealer").map((p) => p.time));
 
-  [...otherNormals].sort((a, b) => a.times.length - b.times.length).forEach((c) => placeNormalTime(c, timesWithDealer));
+  function tankSupportTimeCompare(char) {
+    return (t1, t2) => {
+      const pri = (timesWithDealer.has(t2) ? 1 : 0) - (timesWithDealer.has(t1) ? 1 : 0);
+      if (pri !== 0) return pri;
+      return roleCountAtTime[t1][char.role] - roleCountAtTime[t2][char.role];
+    };
+  }
+
+  [...otherNormals].sort((a, b) => a.times.length - b.times.length).forEach((c) => placeNormalTime(c, tankSupportTimeCompare(c.char)));
 
   /* 일반+지원(both) 캐릭터는 1단계에서 배정된 시간을 제외한 나머지 신청 시간만
      지원 후보로 남습니다 (12.3절). 1단계에서 아예 배정 실패한 both 캐릭터는
@@ -566,7 +592,12 @@ function runAutoMatch(content, reps) {
     }
   }
 
-  /* ---- 5단계: 지원 신청자로 남은 빈자리 채우기 (전체 평균에 가장 가까워지는 자리부터) ---- */
+  /* ---- 5단계: 지원 신청자로 남은 빈자리 채우기 ----
+     전투력 높은 지원자부터 순서대로 배정합니다 — "누구를 먼저 배정하나"는 전투력
+     내림차순, "어느 자리에 넣나"는 기존과 동일한 균형 점수(전체 평균에 가장
+     가까워지는 자리)입니다. 아직 한 번도 배정되지 않은 지원자 전원이 1회씩
+     기회를 가진 뒤(패스1)에만 반복 배정(패스2 이상)을 허용합니다.
+     (지원강캐우선_딜러집중배치 통합 요청, 요청①) */
   const repTimeOccupied = {}; // `${repName}:${time}` -> true
   Object.values(partiesByKey).forEach((p) => {
     p.slots.forEach((s) => { if (s.repName) repTimeOccupied[`${s.repName}:${p.time}`] = true; });
@@ -577,31 +608,53 @@ function runAutoMatch(content, reps) {
     p.slots.forEach((s, si) => { if (!s.nickname) emptySlots.push({ party: p, slotIndex: si, role: s.role }); });
   });
 
-  let guard = 0;
-  while (guard < 2000) {
-    guard++;
+  const supportSortedDesc = [...supportChars].sort((a, b) => charFinalPower(b.char, content) - charFinalPower(a.char, content));
+
+  function findBestSlotFor(sc) {
     const avgs = partyAverages();
     const target = avgs.length ? avgs.reduce((a, b) => a + b, 0) / avgs.length : 0;
-    let bestChoice = null, bestScore = Infinity, bestSlotArrIdx = -1;
+    let bestIdx = -1, bestScore = Infinity;
     emptySlots.forEach((es, idx) => {
       if (es.party.slots[es.slotIndex].nickname) return;
-      supportChars.forEach((sc) => {
-        // 서포터 슬롯은 서포터만, 탱커·딜러 슬롯은 역할 무관하게 교차 배정 가능 (1.2절, 사용자 확정)
-        if (es.role === "support" && sc.char.role !== "support") return;
-        if (!sc.times.includes(es.party.time)) return;
-        if (repTimeOccupied[`${sc.repName}:${es.party.time}`]) return;
-        const power = charFinalPower(sc.char, content);
-        const newAvg = (es.party._powerSum + power) / (es.party._filledCount + 1);
-        const score = Math.abs(newAvg - target);
-        if (score < bestScore) { bestScore = score; bestChoice = { es, sc, power }; bestSlotArrIdx = idx; }
-      });
+      // 서포터 슬롯은 서포터만, 탱커·딜러 슬롯은 역할 무관하게 교차 배정 가능 (1.2절, 사용자 확정 — 변경 금지 범위)
+      if (es.role === "support" && sc.char.role !== "support") return;
+      if (!sc.times.includes(es.party.time)) return;
+      if (repTimeOccupied[`${sc.repName}:${es.party.time}`]) return;
+      const power = charFinalPower(sc.char, content);
+      const newAvg = (es.party._powerSum + power) / (es.party._filledCount + 1);
+      const score = Math.abs(newAvg - target);
+      if (score < bestScore) { bestScore = score; bestIdx = idx; }
     });
-    if (!bestChoice) break;
-    const { es, sc, power } = bestChoice;
+    return bestIdx === -1 ? null : bestIdx;
+  }
+
+  function assignSupport(sc, slotArrIdx) {
+    const es = emptySlots[slotArrIdx];
+    const power = charFinalPower(sc.char, content);
     es.party.slots[es.slotIndex] = { role: sc.char.role, nickname: sc.char.nickname, repName: sc.repName, characterId: sc.char.id, type: "support" };
     es.party._powerSum += power; es.party._filledCount++;
     repTimeOccupied[`${sc.repName}:${es.party.time}`] = true;
-    emptySlots.splice(bestSlotArrIdx, 1);
+    emptySlots.splice(slotArrIdx, 1);
+  }
+
+  // 패스 1: 미배정 지원자 전원을 전투력 내림차순으로 1회씩 시도
+  for (const sc of supportSortedDesc) {
+    if (emptySlots.length === 0) break;
+    const idx = findBestSlotFor(sc);
+    if (idx !== null) assignSupport(sc, idx);
+  }
+
+  // 패스 2 이상: 빈자리가 남아있는 동안, 전투력 내림차순 순서를 유지하며 반복 배정
+  let guard = 0;
+  while (emptySlots.length > 0 && guard < 2000) {
+    guard++;
+    let anyPlaced = false;
+    for (const sc of supportSortedDesc) {
+      if (emptySlots.length === 0) break;
+      const idx = findBestSlotFor(sc);
+      if (idx !== null) { assignSupport(sc, idx); anyPlaced = true; }
+    }
+    if (!anyPlaced) break;
   }
 
   /* ---- 결과 정리 ---- */
@@ -1273,6 +1326,12 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
   }
 
   function assignToSlot(partyIdx, slotIdx, newSlotValue, consumedCandidate) {
+    // 같은 대표 캐릭터가 이미 이 파티의 다른 자리에 있으면 배정을 막습니다 (드래그드롭 중복배정 방지 요청).
+    if (newSlotValue.repName) {
+      const targetParty = matchData.parties[partyIdx];
+      const conflict = targetParty.slots.some((s, si) => si !== slotIdx && s.repName === newSlotValue.repName);
+      if (conflict) { onToast("같은 대표 캐릭터의 다른 캐릭터가 이미 이 파티에 있어 배정할 수 없습니다."); return; }
+    }
     const oldSlot = matchData.parties[partyIdx].slots[slotIdx];
     const parties = matchData.parties.map((p, i) => {
       if (i !== partyIdx) return p;
@@ -1306,6 +1365,14 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
     const sourceSlot = matchData.parties[sourcePartyIdx].slots[sourceSlotIdx];
     const targetSlot = matchData.parties[targetPartyIdx].slots[targetSlotIdx];
     if (sourceSlot.role !== targetSlot.role) { onToast("같은 역할끼리만 이동할 수 있습니다."); return; }
+    // 같은 대표 캐릭터가 이동 결과로 한 파티에 같이 있게 되면 막습니다 (드래그드롭 중복배정 방지 요청).
+    if (sourcePartyIdx !== targetPartyIdx) {
+      const targetParty = matchData.parties[targetPartyIdx];
+      const sourceParty = matchData.parties[sourcePartyIdx];
+      const conflictAtTarget = sourceSlot.repName && targetParty.slots.some((s, si) => si !== targetSlotIdx && s.repName === sourceSlot.repName);
+      const conflictAtSource = targetSlot.repName && sourceParty.slots.some((s, si) => si !== sourceSlotIdx && s.repName === targetSlot.repName);
+      if (conflictAtTarget || conflictAtSource) { onToast("같은 대표 캐릭터의 다른 캐릭터가 이미 그 파티에 있어 이동할 수 없습니다."); return; }
+    }
     const newSource = { ...sourceSlot, nickname: targetSlot.nickname, repName: targetSlot.repName, characterId: targetSlot.characterId, type: targetSlot.type };
     const newTarget = { ...targetSlot, nickname: sourceSlot.nickname, repName: sourceSlot.repName, characterId: sourceSlot.characterId, type: sourceSlot.type };
     const parties = matchData.parties.map((p, i) => {
@@ -1375,6 +1442,13 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
           {matchData && matchData.parties.length > 0 && (
             <button className="gpa-btn gpa-btn-ghost" onClick={downloadResultsImage} disabled={downloadingImage}>{downloadingImage ? "이미지 생성 중..." : "이미지로 다운로드"}</button>
           )}
+          <button
+            className="gpa-btn gpa-btn-ghost"
+            disabled={loadingResult}
+            onClick={async () => { await loadResult(); if (onDataChanged) await onDataChanged(); onToast("새로고침했습니다."); }}
+          >
+            {loadingResult ? "새로고침 중..." : "새로고침"}
+          </button>
         </div>
       </div>
 
