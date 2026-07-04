@@ -357,7 +357,7 @@ function doPost(e) {
     } else {
       sheet.getRange(row, 3).setValue(body.value);
     }
-    if (shared) mirrorToTables_(body.key, body.value);
+    if (shared && !body.skipMirror) mirrorToTables_(body.key, body.value);
     return jsonOut_({ ok: true });
   }
 
@@ -375,6 +375,68 @@ function doPost(e) {
   if (body.action === "backupKv") {
     var backupName = backupKv_();
     return jsonOut_({ ok: true, name: backupName });
+  }
+
+  if (body.action === "syncMirror") {
+    syncCharacterAndApplicationTables_();
+    return jsonOut_({ ok: true });
+  }
+
+  if (body.action === "setMany") {
+    var items = body.items || [];
+    var kvData = sheet.getDataRange().getValues();
+    var rowIndexByKey = {}; // "key\u0000shared" -> 1-indexed row number
+    for (var ri = 1; ri < kvData.length; ri++) {
+      var rk = kvData[ri][0] + "\u0000" + (String(kvData[ri][1]) === "true");
+      rowIndexByKey[rk] = ri + 1;
+    }
+
+    var appendRows = [];
+    var pendingIndexByKey = {}; // "key\u0000shared" -> index within appendRows, for keys not yet in kv
+    var updatedCount = 0, appendedCount = 0;
+    var sawGuildConfig = false, sawRep = false;
+
+    items.forEach(function (item) {
+      var itemShared = !!item.shared;
+      var rk2 = item.key + "\u0000" + itemShared;
+      if (item.key === "guild-config") sawGuildConfig = true;
+      if (String(item.key).indexOf("rep:") === 0) sawRep = true;
+
+      var existingRow = rowIndexByKey[rk2];
+      if (existingRow) {
+        sheet.getRange(existingRow, 3).setValue(item.value);
+        updatedCount++;
+      } else if (pendingIndexByKey.hasOwnProperty(rk2)) {
+        // 같은 요청 안에서 이미 추가 목록에 넣은 (key,shared)가 다시 나온 경우: 마지막 값으로 덮어씁니다.
+        appendRows[pendingIndexByKey[rk2]] = [item.key, itemShared ? "true" : "false", item.value];
+      } else {
+        pendingIndexByKey[rk2] = appendRows.length;
+        appendRows.push([item.key, itemShared ? "true" : "false", item.value]);
+        appendedCount++;
+      }
+    });
+
+    if (appendRows.length > 0) {
+      var startRow = sheet.getLastRow() + 1;
+      sheet.getRange(startRow, 1, appendRows.length, 3).setValues(appendRows);
+    }
+
+    if (!body.skipMirror) {
+      if (sawGuildConfig) {
+        var cfgRow = findRow_(sheet, "guild-config", true);
+        if (cfgRow !== -1) {
+          try {
+            var cfgVal = JSON.parse(sheet.getRange(cfgRow, 3).getValue());
+            mirrorToTables_("guild-config", JSON.stringify(cfgVal));
+          } catch (e) { /* 미러링 실패는 setMany 자체를 실패시키지 않습니다. */ }
+        }
+      }
+      if (sawRep) {
+        try { syncCharacterAndApplicationTables_(); } catch (e) { /* 위와 동일 */ }
+      }
+    }
+
+    return jsonOut_({ ok: true, updated: updatedCount, appended: appendedCount });
   }
 
   return jsonOut_({ error: "unknown action" });

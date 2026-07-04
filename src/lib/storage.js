@@ -53,14 +53,16 @@ export async function storageGetSafe(key, shared) {
   }
 }
 
-export async function storageSet(key, value, shared) {
+export async function storageSet(key, value, shared, opts) {
   try {
     assertConfigured();
     // Apps Script와의 CORS 프리플라이트를 피하려고 text/plain으로 보냅니다 (Apps Script 쪽에서 JSON.parse로 읽음).
+    const body = { action: "set", key, value: JSON.stringify(value), shared: !!shared, token: API_TOKEN };
+    if (opts?.skipMirror) body.skipMirror = true;
     const res = await fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "set", key, value: JSON.stringify(value), shared: !!shared, token: API_TOKEN }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (data.error) { console.error("storageSet error:", data.error); return false; }
@@ -167,5 +169,57 @@ export async function backupKv() {
   } catch (e) {
     console.error("backupKv failed:", e);
     return { ok: false };
+  }
+}
+
+/**
+ * 여러 키를 한 번의 요청으로 upsert합니다. rep마다 storageSet을 반복 호출하는
+ * 대신 이걸 쓰면 왕복 횟수를 크게 줄일 수 있습니다 (미러링 지연 동기화 성능개선).
+ * items: [{ key, value, shared }, ...] — value는 JS 객체로 넘기면 내부에서 stringify합니다.
+ * opts?.skipMirror가 true면 이 요청 안에서는 미러 탭 갱신을 건너뜁니다 — 그 경우
+ * 호출부가 나중에 syncMirror()를 직접 불러줘야 합니다.
+ */
+export async function storageSetMany(items, opts) {
+  if (!items || items.length === 0) return true;
+  try {
+    assertConfigured();
+    const body = {
+      action: "setMany",
+      items: items.map((it) => ({ key: it.key, value: JSON.stringify(it.value), shared: !!it.shared })),
+      token: API_TOKEN,
+    };
+    if (opts?.skipMirror) body.skipMirror = true;
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.error) { console.error("storageSetMany error:", data.error); return false; }
+    return true;
+  } catch (e) {
+    console.error("storageSetMany failed:", e);
+    return false;
+  }
+}
+
+/**
+ * characters/applications 미러 탭을 kv 기준으로 다시 맞춥니다. skipMirror로
+ * 미룬 미러링을 연산이 다 끝난 뒤 한 번만 실행할 때 씁니다.
+ */
+export async function syncMirror() {
+  try {
+    assertConfigured();
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "syncMirror", token: API_TOKEN }),
+    });
+    const data = await res.json();
+    if (data.error) { console.error("syncMirror error:", data.error); return false; }
+    return true;
+  } catch (e) {
+    console.error("syncMirror failed:", e);
+    return false;
   }
 }
