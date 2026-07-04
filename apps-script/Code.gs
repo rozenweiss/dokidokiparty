@@ -443,7 +443,7 @@ function doPost(e) {
 }
 
 /* ---------------- 시간 기반 자동 매칭 결과 만료 삭제 트리거 (방법 A) ---------------- */
-function cleanExpiredResults_() {
+function cleanExpiredResults() {
   var sheet = getSheet_();
   var data = sheet.getDataRange().getValues();
   var now = Date.now();
