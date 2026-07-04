@@ -118,6 +118,7 @@ const GlobalStyle = () => (
     .gpa-slot-name { flex: 1; color: var(--text); }
     .gpa-slot-empty { flex: 1; color: var(--text-faint); font-style: italic; }
     .gpa-slot-tag { font-size: 9px; color: var(--text-faint); }
+    .gpa-slot-tag-support { color: var(--warn); font-weight: 700; }
     .gpa-party-short { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-soft); font-size: 10.5px; color: var(--danger); }
     .gpa-time-block + .gpa-time-block { margin-top: 20px; }
     .gpa-time-title { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 13.5px; color: var(--accent-soft); font-weight: 700; }
@@ -295,15 +296,16 @@ function buildCandidates(content, reps) {
   return out;
 }
 
-/* (repName, 캐릭터) 단위로 후보를 묶어서, 그 캐릭터가 신청한 시간 목록을 만듭니다. */
+/* (repName, 캐릭터) 단위로 후보를 묶어서, 그 캐릭터가 신청한 시간 목록과 신청 유형들을 모읍니다. */
 function groupCandidatesByChar(candidates) {
   const map = new Map();
   candidates.forEach((c) => {
     const key = c.repName + ":" + c.char.id;
-    if (!map.has(key)) map.set(key, { repName: c.repName, char: c.char, times: new Set() });
+    if (!map.has(key)) map.set(key, { repName: c.repName, char: c.char, times: new Set(), types: new Set() });
     map.get(key).times.add(c.time);
+    map.get(key).types.add(c.type);
   });
-  return [...map.values()].map((v) => ({ ...v, times: [...v.times] }));
+  return [...map.values()].map((v) => ({ ...v, times: [...v.times], types: [...v.types] }));
 }
 
 function stdev(nums) {
@@ -341,30 +343,49 @@ function runAutoMatch(content, reps) {
   const normalChars = groupCandidatesByChar(candidates.filter((c) => appliesNormal(c.type)));
   const supportCandidatesRaw = candidates.filter((c) => appliesSupport(c.type));
 
-  /* ---- 1단계: 일반 신청 캐릭터의 시간 배정 (역할별 시간대 부하 분산, 신청한 시간 범위 안에서만) ---- */
+  /* ---- 1단계: 일반 신청 캐릭터의 시간 배정 (역할별 시간대 부하 분산, 신청한 시간 범위 안에서만) ----
+     딜러를 먼저 배치해 "딜러 있는 시간"을 결정한 뒤, 탱커·서포터는 그 시간을 우선 배정
+     시도합니다. 딜러 없는 시간에 탱커·서포터가 배정된 채 조용히 사라지는 버그를 막기
+     위한 규칙입니다(딜러없는시간대 버그수정 요청, 2.1절). */
   const roleCountAtTime = {};
   allTimes.forEach((t) => (roleCountAtTime[t] = { tank: 0, support: 0, dealer: 0 }));
   const repTimeUsed = {}; // repName -> Set(이미 배정된 시간)
-  const placedNormal = []; // {repName, char, role, time, allowedTimes}
+  const placedNormal = []; // {repName, char, role, time, allowedTimes, type}
 
-  [...normalChars].sort((a, b) => a.times.length - b.times.length).forEach(({ repName, char, times }) => {
+  function placeNormalTime({ repName, char, times, types }, preferredTimes) {
+    const appType = types.includes("both") ? "both" : "normal";
     if (!repTimeUsed[repName]) repTimeUsed[repName] = new Set();
     const candidateTimes = times.filter((t) => !repTimeUsed[repName].has(t));
     if (candidateTimes.length === 0) {
-      unassigned.push({ repName, char, type: "normal", time: times[0], reason: "동일 대표 캐릭터가 신청한 시간에 모두 이미 배정됨" });
+      unassigned.push({ repName, char, type: appType, time: times[0], reason: "동일 대표 캐릭터가 신청한 시간에 모두 이미 배정됨" });
       return;
     }
-    candidateTimes.sort((t1, t2) => roleCountAtTime[t1][char.role] - roleCountAtTime[t2][char.role]);
+    candidateTimes.sort((t1, t2) => {
+      if (preferredTimes) {
+        const pri = (preferredTimes.has(t2) ? 1 : 0) - (preferredTimes.has(t1) ? 1 : 0);
+        if (pri !== 0) return pri;
+      }
+      return roleCountAtTime[t1][char.role] - roleCountAtTime[t2][char.role];
+    });
     const time = candidateTimes[0];
     roleCountAtTime[time][char.role]++;
     repTimeUsed[repName].add(time);
-    placedNormal.push({ repName, char, role: char.role, time, allowedTimes: times });
-  });
+    placedNormal.push({ repName, char, role: char.role, time, allowedTimes: times, type: appType });
+  }
+
+  const dealerNormals = normalChars.filter((c) => c.char.role === "dealer");
+  const otherNormals = normalChars.filter((c) => c.char.role !== "dealer");
+
+  [...dealerNormals].sort((a, b) => a.times.length - b.times.length).forEach((c) => placeNormalTime(c, null));
+
+  const timesWithDealer = new Set(placedNormal.filter((p) => p.role === "dealer").map((p) => p.time));
+
+  [...otherNormals].sort((a, b) => a.times.length - b.times.length).forEach((c) => placeNormalTime(c, timesWithDealer));
 
   /* 일반+지원(both) 캐릭터는 1단계에서 배정된 시간을 제외한 나머지 신청 시간만
      지원 후보로 남습니다 (12.3절). 1단계에서 아예 배정 실패한 both 캐릭터는
-     신청한 시간 전체가 지원 후보로 남습니다. [Inference] 이 경우는 문서에 명시되지
-     않아 제가 추론한 처리입니다. */
+     신청한 시간 전체가 지원 후보로 남습니다 — 사용자가 이 처리 방식을 확정했습니다
+     (딜러없는시간대 버그수정 요청, 2.3절). */
   const supportChars = groupCandidatesByChar(supportCandidatesRaw)
     .map((sc) => {
       const normalPlacement = placedNormal.find((p) => p.repName === sc.repName && p.char.id === sc.char.id);
@@ -380,21 +401,17 @@ function runAutoMatch(content, reps) {
     partyCountAtTime[t] = dealerCount > 0 ? Math.ceil(dealerCount / Math.max(dealerSlots, 1)) : 0;
   });
 
-  /* ---- 3단계: 시간대별 그리디 빈 패킹 배치 (전투력 낮은 파티부터 채움) ---- */
+  /* ---- 3단계: 시간대별 그리디 빈 패킹 배치 ----
+     역할 초과분 교차배정 규칙 (초과분_교차배정_재정의 요청, 1.1절 — 사용자 확정):
+     - 서포터 슬롯은 서포터만 채울 수 있음
+     - 딜러 슬롯은 [딜러 + 초과탱커 + 초과서포터] 전투력 순 혼합 풀로 채움 (역할 우선순위 없음)
+     - 빈 탱커 슬롯(탱커 수 < 파티 수)은 남은 [초과딜러 + 초과서포터] 전투력 순 혼합으로 채움
+     - 서포터 초과분은 파티를 새로 만들지 않고, 채울 슬롯이 없으면 사유와 함께 미배정 */
   const partiesByKey = {}; // `${time}:${partyNumber}` -> party
   const placedSlotOf = {}; // `${repName}:${characterId}` -> {time, partyNumber, slotIndex}
 
-  allTimes.forEach((t) => {
-    const partyCount = partyCountAtTime[t];
-    if (partyCount === 0) return;
-    const parties = Array.from({ length: partyCount }, (_, i) => ({
-      time: t, partyNumber: i + 1,
-      slots: slotOrder.map((role) => ({ role, nickname: null, repName: null, characterId: null, type: null })),
-      _powerSum: 0, _filledCount: 0,
-    }));
-    parties.forEach((p) => (partiesByKey[`${t}:${p.partyNumber}`] = p));
-
-    function placeInLowestParty(entry, slotRole, type) {
+  function fillPartiesCrossAssign(t, parties, tanksIn, supportsIn, dealersIn) {
+    function place(entry, slotRole) {
       let best = -1, bestSum = Infinity;
       parties.forEach((p, i) => {
         const idx = p.slots.findIndex((s) => !s.nickname && s.role === slotRole);
@@ -405,35 +422,88 @@ function runAutoMatch(content, reps) {
       const p = parties[best];
       const idx = p.slots.findIndex((s) => !s.nickname && s.role === slotRole);
       const power = charFinalPower(entry.char, content);
-      p.slots[idx] = { role: slotRole, nickname: entry.char.nickname, repName: entry.repName, characterId: entry.char.id, type };
+      // 슬롯의 role은 이제 "이 자리에 배정된 캐릭터의 실제 역할"을 그대로 반영합니다.
+      // 즉 원래 딜러 슬롯이었어도 탱커가 교차배정되면 role이 "tank"로 바뀌어 표시됩니다
+      // (예: 딜러3·서포터1·탱커1 구성이 교차배정 후 탱커2·딜러2·서포터1로 보일 수 있음).
+      p.slots[idx] = { role: entry.role, nickname: entry.char.nickname, repName: entry.repName, characterId: entry.char.id, type: "normal" };
       p._powerSum += power; p._filledCount++;
       placedSlotOf[`${entry.repName}:${entry.char.id}`] = { time: t, partyNumber: p.partyNumber, slotIndex: idx };
       return true;
     }
 
+    const byPowerDesc = (a, b) => charFinalPower(b.char, content) - charFinalPower(a.char, content);
+    const sortedSupports = [...supportsIn].sort(byPowerDesc);
+    const sortedTanks = [...tanksIn].sort(byPowerDesc);
+
+    // 서포터: 서포터 슬롯 전용, 파티 수만큼만. 초과분은 딜러 풀로 넘어감(파티는 새로 안 만듦).
+    const primarySupports = sortedSupports.slice(0, parties.length);
+    const excessSupports = sortedSupports.slice(parties.length);
+    primarySupports.forEach((entry) => { if (!place(entry, "support")) excessSupports.push(entry); });
+
+    // 탱커: 탱커 슬롯 전용, 파티 수만큼만. 초과분은 딜러 풀로.
+    const primaryTanks = sortedTanks.slice(0, parties.length);
+    const excessTanks = sortedTanks.slice(parties.length);
+    primaryTanks.forEach((entry) => { if (!place(entry, "tank")) excessTanks.push(entry); });
+
+    // 딜러 슬롯: [딜러 + 초과탱커 + 초과서포터] 전투력 순 혼합 (역할 우선순위 없음)
+    const dealerPool = [...dealersIn, ...excessTanks, ...excessSupports].sort(byPowerDesc);
+    const leftoverAfterDealer = [];
+    dealerPool.forEach((entry) => { if (!place(entry, "dealer")) leftoverAfterDealer.push(entry); });
+
+    // 빈 탱커 슬롯: 남은 [초과딜러 + 초과서포터](leftoverAfterDealer)로 채움
+    leftoverAfterDealer.sort(byPowerDesc);
+    const stillLeftover = [];
+    leftoverAfterDealer.forEach((entry) => { if (!place(entry, "tank")) stillLeftover.push(entry); });
+
+    stillLeftover.forEach((entry) => unassigned.push({ ...entry, reason: "역할 자리 부족" }));
+  }
+
+  allTimes.forEach((t) => {
+    const partyCount = partyCountAtTime[t];
     const atTime = placedNormal.filter((p) => p.time === t);
-    const tanks = atTime.filter((p) => p.role === "tank").sort((a, b) => charFinalPower(b.char, content) - charFinalPower(a.char, content));
-    const supports = atTime.filter((p) => p.role === "support").sort((a, b) => charFinalPower(b.char, content) - charFinalPower(a.char, content));
+
+    if (partyCount === 0) {
+      /* 딜러 0명 시간대 (딜러없는시간대 버그수정 요청, 2.2절 — 사용자 확정 공식).
+         탱커 2명 이상이면 탱커를 딜러 자리에도 채용해 파티를 만들고,
+         1명 이하면 파티를 만들지 않고 사유와 함께 미배정으로 보냅니다. */
+      const tanksHere = atTime.filter((p) => p.role === "tank");
+      const supportsHere = atTime.filter((p) => p.role === "support");
+      const noDealerReason = "이 시간대에 딜러 신청이 없어 파티가 생성되지 않음";
+
+      // 사용자 확정 공식: min(ceil(탱커 ÷ (1+딜러슬롯)), floor(탱커 ÷ 2))
+      const tankPartyCount = tanksHere.length >= 2
+        ? Math.min(Math.ceil(tanksHere.length / (1 + dealerSlots)), Math.floor(tanksHere.length / 2))
+        : 0;
+
+      if (tankPartyCount === 0) {
+        tanksHere.forEach((entry) => unassigned.push({ ...entry, reason: noDealerReason }));
+        supportsHere.forEach((entry) => unassigned.push({ ...entry, reason: noDealerReason }));
+        return;
+      }
+
+      const tParties = Array.from({ length: tankPartyCount }, (_, i) => ({
+        time: t, partyNumber: i + 1,
+        slots: slotOrder.map((role) => ({ role, nickname: null, repName: null, characterId: null, type: null })),
+        _powerSum: 0, _filledCount: 0,
+      }));
+      tParties.forEach((p) => (partiesByKey[`${t}:${p.partyNumber}`] = p));
+
+      // 이 시간대엔 딜러 신청 자체가 없으므로(파티수 0의 정의), 딜러 풀은 빈 배열로 전달합니다.
+      fillPartiesCrossAssign(t, tParties, tanksHere, supportsHere, []);
+      return;
+    }
+
+    const parties = Array.from({ length: partyCount }, (_, i) => ({
+      time: t, partyNumber: i + 1,
+      slots: slotOrder.map((role) => ({ role, nickname: null, repName: null, characterId: null, type: null })),
+      _powerSum: 0, _filledCount: 0,
+    }));
+    parties.forEach((p) => (partiesByKey[`${t}:${p.partyNumber}`] = p));
+
+    const tanks = atTime.filter((p) => p.role === "tank");
+    const supports = atTime.filter((p) => p.role === "support");
     const dealersRaw = atTime.filter((p) => p.role === "dealer");
-
-    // 탱커: 파티 수만큼만 우선 배정, 초과분은 딜러 풀로 이동 (10.3.1절 정정 반영)
-    const tankOverflow = [];
-    tanks.forEach((entry, i) => {
-      if (i < partyCount) { if (!placeInLowestParty(entry, "tank", "normal")) tankOverflow.push(entry); }
-      else tankOverflow.push(entry);
-    });
-
-    // 서포터: 파티 수만큼만 배정, 초과분은 미배정
-    supports.forEach((entry, i) => {
-      if (i < partyCount) { if (!placeInLowestParty(entry, "support", "normal")) unassigned.push({ ...entry, reason: "역할 자리 부족" }); }
-      else unassigned.push({ ...entry, reason: "역할 자리 부족" });
-    });
-
-    // 딜러 + 초과 탱커: 전투력 내림차순으로 정렬해 낮은 파티부터 채움
-    const dealerPool = [...dealersRaw, ...tankOverflow].sort((a, b) => charFinalPower(b.char, content) - charFinalPower(a.char, content));
-    dealerPool.forEach((entry) => {
-      if (!placeInLowestParty(entry, "dealer", "normal")) unassigned.push({ ...entry, reason: "역할 자리 부족" });
-    });
+    fillPartiesCrossAssign(t, parties, tanks, supports, dealersRaw);
   });
 
   /* ---- 4단계: 같은 역할·서로 다른 시간 사이의 지역 탐색 (신청한 시간 범위 안에서만 스왑) ---- */
@@ -467,6 +537,9 @@ function runAutoMatch(content, reps) {
         const partyB = partiesByKey[`${b.loc.time}:${b.loc.partyNumber}`];
         const slotA = partyA.slots[a.loc.slotIndex];
         const slotB = partyB.slots[b.loc.slotIndex];
+        // 슬롯의 role은 이제 실제 배정된 캐릭터의 역할을 그대로 반영하므로(교차배정 포함),
+        // a.role === b.role(위에서 이미 확인)이면 slotA.role === slotB.role도 항상 성립합니다.
+        // 그래서 별도의 자리 종류 일치 검사는 더 이상 필요 없습니다.
         const powerA = charFinalPower(a.char, content), powerB = charFinalPower(b.char, content);
 
         const before = objective();
@@ -510,7 +583,8 @@ function runAutoMatch(content, reps) {
     emptySlots.forEach((es, idx) => {
       if (es.party.slots[es.slotIndex].nickname) return;
       supportChars.forEach((sc) => {
-        if (sc.char.role !== es.role) return;
+        // 서포터 슬롯은 서포터만, 탱커·딜러 슬롯은 역할 무관하게 교차 배정 가능 (1.2절, 사용자 확정)
+        if (es.role === "support" && sc.char.role !== "support") return;
         if (!sc.times.includes(es.party.time)) return;
         if (repTimeOccupied[`${sc.repName}:${es.party.time}`]) return;
         const power = charFinalPower(sc.char, content);
@@ -521,7 +595,7 @@ function runAutoMatch(content, reps) {
     });
     if (!bestChoice) break;
     const { es, sc, power } = bestChoice;
-    es.party.slots[es.slotIndex] = { role: es.role, nickname: sc.char.nickname, repName: sc.repName, characterId: sc.char.id, type: "support" };
+    es.party.slots[es.slotIndex] = { role: sc.char.role, nickname: sc.char.nickname, repName: sc.repName, characterId: sc.char.id, type: "support" };
     es.party._powerSum += power; es.party._filledCount++;
     repTimeOccupied[`${sc.repName}:${es.party.time}`] = true;
     emptySlots.splice(bestSlotArrIdx, 1);
@@ -1339,7 +1413,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
                           onDrop={(e) => { e.preventDefault(); handleDropOnSlot(p._idx, si, s.role); }}
                         >
                           <span className={`gpa-slot-role ${s.role}`}>{ROLE_LABEL[s.role]}</span>
-                          {s.nickname ? <span className="gpa-slot-name">{s.nickname}{s.type === "temp" && <span className="gpa-slot-tag"> · 임시</span>}</span> : <span className="gpa-slot-empty">빈자리</span>}
+                          {s.nickname ? <span className="gpa-slot-name">{s.nickname}{s.type === "temp" && <span className="gpa-slot-tag"> · 임시</span>}{s.type === "support" && <span className="gpa-slot-tag gpa-slot-tag-support"> · 지원</span>}</span> : <span className="gpa-slot-empty">빈자리</span>}
                         </div>
                       );
                     })}
