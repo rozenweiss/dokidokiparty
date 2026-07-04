@@ -441,3 +441,69 @@ function doPost(e) {
 
   return jsonOut_({ error: "unknown action" });
 }
+
+/* ---------------- 시간 기반 자동 매칭 결과 만료 삭제 트리거 (방법 A) ---------------- */
+function cleanExpiredResults_() {
+  var sheet = getSheet_();
+  var data = sheet.getDataRange().getValues();
+  var now = Date.now();
+  var retentionMs = 48 * 60 * 60 * 1000; // 48시간
+  
+  var expiredContentIds = [];
+  var expiredRowIndices = []; // 뒤쪽 행부터 순차적으로 지우기 위해 행 번호 저장
+  
+  // 1) 만료된 results: 키 식별
+  for (var i = 1; i < data.length; i++) {
+    var key = data[i][0];
+    var shared = String(data[i][1]) === "true";
+    if (shared && String(key).indexOf("results:") === 0) {
+      try {
+        var res = JSON.parse(data[i][2]);
+        if (res.generatedAt && (now - res.generatedAt) > retentionMs) {
+          var contentId = key.slice("results:".length);
+          expiredContentIds.push(contentId);
+          expiredRowIndices.push(i + 1); // 1-indexed 행 번호
+        }
+      } catch (e) {
+        // JSON 파싱 실패 시 무시
+      }
+    }
+  }
+  
+  if (expiredContentIds.length === 0) return;
+  
+  // 2) 모든 대표 캐릭터(rep:*)의 신청 내역에서 만료된 콘텐츠의 신청을 필터링하여 일관성 유지
+  for (var j = 1; j < data.length; j++) {
+    var key2 = data[j][0];
+    var shared2 = String(data[j][1]) === "true";
+    if (shared2 && String(key2).indexOf("rep:") === 0) {
+      try {
+        var repVal = JSON.parse(data[j][2]);
+        var originalAppCount = (repVal.applications || []).length;
+        var filteredApps = (repVal.applications || []).filter(function (app) {
+          return expiredContentIds.indexOf(app.contentId) === -1;
+        });
+        if (filteredApps.length !== originalAppCount) {
+          repVal.applications = filteredApps;
+          sheet.getRange(j + 1, 3).setValue(JSON.stringify(repVal));
+        }
+      } catch (e) {
+        // 에러 스킵
+      }
+    }
+  }
+  
+  // 3) 만료된 results:* 행 제거 (뒤쪽 행부터 삭제하여 인덱스 뒤틀림 우회)
+  expiredRowIndices.sort(function(a, b) { return b - a; });
+  expiredRowIndices.forEach(function(rowIdx) {
+    sheet.deleteRow(rowIdx);
+  });
+  
+  // 4) 삭제 결과를 반영하여 캐릭터 및 신청 테이블 재동기화
+  try {
+    syncCharacterAndApplicationTables_();
+  } catch (e) {
+    // 미러링 에러 스킵
+  }
+}
+
