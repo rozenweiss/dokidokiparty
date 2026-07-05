@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import html2canvas from "html2canvas";
+import { Shield, Swords, HeartPulse } from "lucide-react";
 import { storageGet, storageSet, storageDelete, storageListWithValues, storageGetSafe, pullFromSheets, backupKv, storageSetMany, syncMirror } from "./lib/storage";
 
 /* ============================================================
@@ -94,6 +95,10 @@ const GlobalStyle = () => (
     .gpa-table-wrap { overflow-x: auto; }
 
     .gpa-badge { font-size: 10.5px; padding: 3px 8px; border-radius: 6px; font-weight: 700; display: inline-block; }
+    .gpa-badge-icon { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; }
+    .gpa-badge-icon.tank { background: rgba(76,113,150,0.16); color: var(--tank); }
+    .gpa-badge-icon.support { background: rgba(111,196,138,0.16); color: var(--support); }
+    .gpa-badge-icon.dealer { background: rgba(224,112,95,0.16); color: var(--dealer); }
     .gpa-badge.tank { background: rgba(76,113,150,0.16); color: var(--tank); }
     .gpa-badge.support { background: rgba(79,122,91,0.16); color: var(--support); }
     .gpa-badge.dealer { background: rgba(168,90,56,0.16); color: var(--dealer); }
@@ -113,7 +118,7 @@ const GlobalStyle = () => (
     .gpa-slot.dragging { opacity: 0.4; }
     .gpa-slot.dragover { border-color: var(--accent-soft); background: rgba(193,95,60,0.16); }
     .gpa-slot.drag-reject { border-color: var(--danger); }
-    .gpa-slot-role { width: 42px; flex-shrink: 0; font-size: 10px; font-weight: 700; }
+    .gpa-slot-role { width: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
     .gpa-slot-role.tank { color: var(--tank); } .gpa-slot-role.support { color: var(--support); } .gpa-slot-role.dealer { color: var(--dealer); }
     .gpa-slot-name { flex: 1; color: var(--text); }
     .gpa-slot-empty { flex: 1; color: var(--text-faint); font-style: italic; }
@@ -158,6 +163,7 @@ const DEFAULT_CONTENTS = [
   { id: "c3", name: "폐허의 감시탑", pressure: 0, requiredResist: 0, partySize: 6, interval: 60, startTime: "21:00", endTime: "23:00", active: false },
 ];
 const ROLE_LABEL = { tank: "탱커", support: "서포터", dealer: "딜러" };
+const ROLE_ICON = { tank: Shield, support: HeartPulse, dealer: Swords };
 // 신청 유형: "normal" | "support" | "both" (일반+지원, 12.4절). 기존 데이터는 normal/support만 가짐(하위 호환).
 const APP_TYPE_LABEL = { normal: "일반", support: "지원", both: "일반+지원" };
 const appliesNormal = (type) => type === "normal" || type === "both";
@@ -679,6 +685,18 @@ function Toast({ message }) {
   return <div className="gpa-toast">{message}</div>;
 }
 const RoleBadge = ({ role }) => <span className={`gpa-badge ${role}`}>{ROLE_LABEL[role] || role}</span>;
+
+// 매칭 결과 화면의 미배정 목록 전용 아이콘 배지입니다. RoleBadge는 직업 관리·캐릭터 관리·
+// 신청 현황 표에서도 공용으로 쓰이므로 그대로 두고, 이 컴포넌트를 새로 추가해 미배정
+// 목록에만 적용합니다 (매칭결과_역할아이콘_교체 요청).
+const RoleIconBadge = ({ role }) => {
+  const RoleIcon = ROLE_ICON[role];
+  return (
+    <span className={`gpa-badge-icon ${role}`} title={ROLE_LABEL[role] || role} aria-label={ROLE_LABEL[role] || role}>
+      {RoleIcon && <RoleIcon size={13} strokeWidth={2.3} />}
+    </span>
+  );
+};
 
 function ConfirmModal({ title, message, confirmLabel = "확인", cancelLabel = "취소", danger, onConfirm, onCancel }) {
   return (
@@ -1492,7 +1510,9 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
                           onDragLeave={() => { if (dragOverKey === key) setDragOverKey(null); }}
                           onDrop={(e) => { e.preventDefault(); handleDropOnSlot(p._idx, si, s.role); }}
                         >
-                          <span className={`gpa-slot-role ${s.role}`}>{ROLE_LABEL[s.role]}</span>
+                          <span className={`gpa-slot-role ${s.role}`} title={ROLE_LABEL[s.role]} aria-label={ROLE_LABEL[s.role]}>
+                            {ROLE_ICON[s.role] && React.createElement(ROLE_ICON[s.role], { size: 14, strokeWidth: 2.3 })}
+                          </span>
                           {s.nickname ? <span className="gpa-slot-name">{s.nickname}{s.type === "temp" && <span className="gpa-slot-tag"> · 임시</span>}{s.type === "support" && <span className="gpa-slot-tag gpa-slot-tag-support"> · 지원</span>}</span> : <span className="gpa-slot-empty">빈자리</span>}
                         </div>
                       );
@@ -1517,7 +1537,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
                     onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", `unassigned-${i}`); setDragItem({ kind: "unassigned", candidate: u, role: u.char.role }); }}
                     onDragEnd={() => { setDragItem(null); setDragOverKey(null); }}
                   >
-                    <RoleBadge role={u.char.role} />
+                    <RoleIconBadge role={u.char.role} />
                     <span>{u.char.nickname} ({u.repName})</span>
                     <span style={{ color: "var(--text-faint)" }}>{u.time}</span>
                     <span style={{ marginLeft: "auto", color: "var(--text-faint)" }}>{u.reason}</span>

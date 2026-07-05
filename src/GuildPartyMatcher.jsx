@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { Shield, Swords, HeartPulse } from "lucide-react";
 import { storageGet, storageSet, storageGetSafe } from "./lib/storage";
 
 /* ============================================================
@@ -227,7 +228,7 @@ const GlobalStyle = () => (
     .gpm-party-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .gpm-party-num { font-family: var(--font-mono); font-size: 12px; color: var(--text-faint); }
     .gpm-party-slot { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 12.5px; }
-    .gpm-party-slot-role { width: 44px; flex-shrink: 0; font-size: 10px; font-weight: 700; }
+    .gpm-party-slot-role { width: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
     .gpm-party-slot-role.tank { color: var(--tank); } .gpm-party-slot-role.support { color: var(--support); } .gpm-party-slot-role.dealer { color: var(--dealer); }
     .gpm-party-slot-name { color: var(--text); }
     .gpm-party-slot-empty { color: var(--text-faint); font-style: italic; }
@@ -275,6 +276,7 @@ const DEFAULT_CONTENTS = [
 ];
 
 const ROLE_LABEL = { tank: "탱커", support: "서포터", dealer: "딜러" };
+const ROLE_ICON = { tank: Shield, support: HeartPulse, dealer: Swords };
 // 신청 유형: "normal" | "support" | "both" (일반+지원, 12.4절). 기존 데이터는 normal/support만 가짐(하위 호환).
 const APP_TYPE_LABEL = { normal: "일반 신청", support: "지원 신청", both: "일반 신청 + 지원 신청" };
 const appliesNormal = (type) => type === "normal" || type === "both";
@@ -1083,7 +1085,9 @@ function ResultsView({ contents }) {
                 <div className="gpm-party-top"><span className="gpm-party-num">파티 {p.partyNumber}</span></div>
                 {p.slots.map((s, i) => (
                   <div key={i} className="gpm-party-slot">
-                    <span className={`gpm-party-slot-role ${s.role}`}>{ROLE_LABEL[s.role]}</span>
+                    <span className={`gpm-party-slot-role ${s.role}`} title={ROLE_LABEL[s.role]} aria-label={ROLE_LABEL[s.role]}>
+                      {ROLE_ICON[s.role] && React.createElement(ROLE_ICON[s.role], { size: 15, strokeWidth: 2.3 })}
+                    </span>
                     {s.nickname ? <span className="gpm-party-slot-name">{s.nickname}</span> : <span className="gpm-party-slot-empty">모집 중</span>}
                   </div>
                 ))}
