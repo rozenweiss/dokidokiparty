@@ -125,16 +125,18 @@ function writeTable_(name, rows) {
   var headers = TABLES[name];
   var sheet = getTableSheet_(name);
   sheet.clearContents();
-  sheet.appendRow(headers);
-  if (rows && rows.length) {
-    var values = rows.map(function (r) {
-      return headers.map(function (h) {
-        var v = r[h];
-        return v === undefined || v === null ? "" : v;
-      });
+  var values = (rows || []).map(function (r) {
+    return headers.map(function (h) {
+      var v = r[h];
+      return v === undefined || v === null ? "" : v;
     });
-    sheet.getRange(2, 1, values.length, headers.length).setValues(values);
-  }
+  });
+  // 헤더 + 데이터를 하나의 2차원 배열로 합쳐 쓰기 호출 1회로 줄입니다.
+  // 주의: 마지막 인자는 반드시 headers.length (열 개수)여야 합니다 — headers는
+  // 문자열 배열이라 headers[0].length를 쓰면 첫 헤더 문자열의 글자 수가 되어
+  // 열이 잘리는 실수가 될 수 있습니다.
+  var output = [headers].concat(values); // rows가 없으면 [headers]만
+  sheet.getRange(1, 1, output.length, headers.length).setValues(output);
 }
 
 function readTable_(name) {
@@ -224,6 +226,26 @@ function backupKv_() {
 
 function pullFromSheets_() {
   var kvSheet = getSheet_();
+  // kv 전체를 여기서 1회만 읽어서, 이후 guild-config/각 rep 행 찾기와
+  // "캐릭터/신청이 하나도 없는 기존 대표 캐릭터 보존" 판단에 전부 재사용합니다
+  // (시트API_호출최소화 요청, 항목2 — 기존에는 rep마다 findRow_가 매번 다시 읽었음).
+  var kvData = kvSheet.getDataRange().getValues();
+  var rowIndexByKey = {}; // "key\u0000shared" -> 1-indexed 시트 행 번호
+  for (var i = 1; i < kvData.length; i++) {
+    var rk = kvData[i][0] + "\u0000" + (String(kvData[i][1]) === "true");
+    rowIndexByKey[rk] = i + 1;
+  }
+
+  // 갱신은 value(3열)만 모아뒀다가 마지막에 한 번에 씁니다 (항목3, 완화조건 적용).
+  // 읽어온 범위(kvData 기준) 밖은 건드리지 않고, key/shared 열은 다시 쓰지 않습니다.
+  var dataRowCount = kvData.length - 1;
+  var valueColumn = [];
+  for (var vi = 1; vi < kvData.length; vi++) valueColumn.push([kvData[vi][2]]);
+  function setRowValue(rowNum, value) {
+    var idx = rowNum - 2; // 시트 2행 = valueColumn[0]
+    if (idx >= 0 && idx < valueColumn.length) valueColumn[idx][0] = value;
+  }
+  var appendRows = [];
 
   // 1) jobs, contents -> guild-config
   var jobs = readTable_("jobs").map(function (j) {
@@ -242,12 +264,13 @@ function pullFromSheets_() {
       active: c.active === true || String(c.active).toLowerCase() === "true"
     };
   });
-  var cfgRow = findRow_(kvSheet, "guild-config", true);
-  var cfg = cfgRow === -1 ? {} : JSON.parse(kvSheet.getRange(cfgRow, 3).getValue());
+  var cfgRowNum = rowIndexByKey["guild-config\u0000true"];
+  var cfg = cfgRowNum ? JSON.parse(kvData[cfgRowNum - 1][2]) : {};
   cfg.jobs = jobs;
   cfg.contents = contents;
-  if (cfgRow === -1) kvSheet.appendRow(["guild-config", "true", JSON.stringify(cfg)]);
-  else kvSheet.getRange(cfgRow, 3).setValue(JSON.stringify(cfg));
+  var cfgValue = JSON.stringify(cfg);
+  if (cfgRowNum) setRowValue(cfgRowNum, cfgValue);
+  else appendRows.push(["guild-config", "true", cfgValue]);
 
   // 2) characters, applications -> rep:* (대표 캐릭터별로 묶어서 저장)
   var chars = readTable_("characters");
@@ -255,10 +278,9 @@ function pullFromSheets_() {
   var repNames = {};
   chars.forEach(function (c) { repNames[c.repName] = true; });
   apps.forEach(function (a) { repNames[a.repName] = true; });
-  // 캐릭터/신청이 하나도 없는 기존 대표 캐릭터도 보존
-  var data = kvSheet.getDataRange().getValues();
-  for (var i = 1; i < data.length; i++) {
-    var key = data[i][0];
+  // 캐릭터/신청이 하나도 없는 기존 대표 캐릭터도 보존 (위에서 이미 읽어둔 kvData 재사용, 추가 읽기 없음)
+  for (var ri = 1; ri < kvData.length; ri++) {
+    var key = kvData[ri][0];
     if (String(key).indexOf("rep:") === 0) repNames[String(key).slice(4)] = true;
   }
 
@@ -281,11 +303,25 @@ function pullFromSheets_() {
       };
     });
     var repKey = "rep:" + repName;
-    var existingRow = findRow_(kvSheet, repKey, true);
+    var repRowNum = rowIndexByKey[repKey + "\u0000true"];
     var value = JSON.stringify({ subs: subs, applications: repApps });
-    if (existingRow === -1) kvSheet.appendRow([repKey, "true", value]);
-    else kvSheet.getRange(existingRow, 3).setValue(value);
+    if (repRowNum) setRowValue(repRowNum, value);
+    else appendRows.push([repKey, "true", value]);
   });
+
+  // 갱신 일괄 반영: 읽어온 범위(dataRowCount)만, value(3열)만 덮어씁니다.
+  // [Inference] LockService가 없는 구조라, 이 함수 실행 중 다른 클라이언트가
+  // 개별 set을 했다면 그 변경이 여기서 다시 쓰는 옛 값으로 되돌아갈 수 있는 창
+  // (lost update)이 "해당 행 하나"에서 "여기서 갱신하는 모든 행"으로 넓어집니다.
+  // 관리자가 수동으로 누르는 복구용 기능이고 관리자 1인 운영 기준으로는 위험이
+  // 낮다고 보고 적용하지만, 위험이 완전히 0은 아닙니다.
+  if (dataRowCount > 0) {
+    kvSheet.getRange(2, 3, dataRowCount, 1).setValues(valueColumn);
+  }
+  if (appendRows.length > 0) {
+    var startRow = kvSheet.getLastRow() + 1;
+    kvSheet.getRange(startRow, 1, appendRows.length, 3).setValues(appendRows);
+  }
 }
 
 /* ---------------- GET: get / list ---------------- */
@@ -391,6 +427,20 @@ function doPost(e) {
       rowIndexByKey[rk] = ri + 1;
     }
 
+    // 갱신은 value(3열)만 모아뒀다가 마지막에 한 번에 씁니다 (시트API_호출최소화 요청, 항목3).
+    // 완화조건: 함수 시작 시 읽어온 범위(dataRowCount)만 정확히 되쓰고, key/shared 열은
+    // 건드리지 않습니다. [Inference] LockService가 없어, 읽기~쓰기 사이 다른 클라이언트의
+    // 단건 set이 끼어들면 그 변경이 되돌아갈 수 있는 창(lost update)이 "해당 행"에서
+    // "여기서 갱신하는 모든 행"으로 넓어집니다. 관리자 1인 운영 기준으로는 위험이 낮다고
+    // 보고 적용하지만, 위험이 완전히 0은 아닙니다.
+    var dataRowCount = kvData.length - 1;
+    var valueColumn = [];
+    for (var vi = 1; vi < kvData.length; vi++) valueColumn.push([kvData[vi][2]]);
+    function setRowValue(rowNum, value) {
+      var idx = rowNum - 2; // 시트 2행 = valueColumn[0]
+      if (idx >= 0 && idx < valueColumn.length) valueColumn[idx][0] = value;
+    }
+
     var appendRows = [];
     var pendingIndexByKey = {}; // "key\u0000shared" -> index within appendRows, for keys not yet in kv
     var updatedCount = 0, appendedCount = 0;
@@ -404,7 +454,7 @@ function doPost(e) {
 
       var existingRow = rowIndexByKey[rk2];
       if (existingRow) {
-        sheet.getRange(existingRow, 3).setValue(item.value);
+        setRowValue(existingRow, item.value);
         updatedCount++;
       } else if (pendingIndexByKey.hasOwnProperty(rk2)) {
         // 같은 요청 안에서 이미 추가 목록에 넣은 (key,shared)가 다시 나온 경우: 마지막 값으로 덮어씁니다.
@@ -416,6 +466,9 @@ function doPost(e) {
       }
     });
 
+    if (dataRowCount > 0) {
+      sheet.getRange(2, 3, dataRowCount, 1).setValues(valueColumn);
+    }
     if (appendRows.length > 0) {
       var startRow = sheet.getLastRow() + 1;
       sheet.getRange(startRow, 1, appendRows.length, 3).setValues(appendRows);
@@ -471,8 +524,16 @@ function cleanExpiredResults() {
   }
   
   if (expiredContentIds.length === 0) return;
-  
+
   // 2) 모든 대표 캐릭터(rep:*)의 신청 내역에서 만료된 콘텐츠의 신청을 필터링하여 일관성 유지
+  // (시트API_호출최소화 패턴과 동일하게, rep마다 개별 setValue 대신 value(3열)만 모아 1회로 씁니다.
+  //  이 함수는 시간 트리거로 자동 실행되므로, 아래 lost-update 위험은 관리자 수동 조작보다
+  // 더 신경 써야 할 수 있습니다 — 트리거 주기를 사용량이 적은 시간대로 맞추는 것을 권장합니다.)
+  var dataRowCount = data.length - 1;
+  var valueColumn = [];
+  for (var vi = 1; vi < data.length; vi++) valueColumn.push([data[vi][2]]);
+  var anyRepChanged = false;
+
   for (var j = 1; j < data.length; j++) {
     var key2 = data[j][0];
     var shared2 = String(data[j][1]) === "true";
@@ -485,14 +546,18 @@ function cleanExpiredResults() {
         });
         if (filteredApps.length !== originalAppCount) {
           repVal.applications = filteredApps;
-          sheet.getRange(j + 1, 3).setValue(JSON.stringify(repVal));
+          valueColumn[j - 1][0] = JSON.stringify(repVal); // data[j] <-> valueColumn[j-1] (data[0]은 헤더)
+          anyRepChanged = true;
         }
       } catch (e) {
         // 에러 스킵
       }
     }
   }
-  
+  if (anyRepChanged && dataRowCount > 0) {
+    sheet.getRange(2, 3, dataRowCount, 1).setValues(valueColumn);
+  }
+
   // 3) 만료된 results:* 행 제거 (뒤쪽 행부터 삭제하여 인덱스 뒤틀림 우회)
   expiredRowIndices.sort(function(a, b) { return b - a; });
   expiredRowIndices.forEach(function(rowIdx) {
