@@ -1177,7 +1177,7 @@ function AppShell({ repName, repData, setRepData, config }) {
           <Emblem />
           <div className="gpm-brand-text">
             <span className="gpm-brand-title">두두파 2.0</span>
-            <span className="gpm-brand-sub">GUILD PARTY MATCHING LEDGER</span>
+            <span className="gpm-brand-sub">SAINT DOKIDOKI GUILD PARTY MAKER</span>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
