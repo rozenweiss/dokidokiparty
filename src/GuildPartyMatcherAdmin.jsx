@@ -1224,6 +1224,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
   const [createPartyTime, setCreatePartyTime] = useState("");
   const [confirmDeleteParty, setConfirmDeleteParty] = useState(null); // party index or null
   const resultsRef = useRef(null);
+  const publicPreviewRef = useRef(null);
 
   useEffect(() => {
     const t = setInterval(() => setClockTick((x) => x + 1), 30000);
@@ -1303,10 +1304,10 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
   // 나오지만, 드래그 중 상태나 일부 CSS 효과는 캡처 결과에 정확히 반영되지
   // 않을 수 있습니다 — 이는 기대되는 동작이며 모든 환경에서 보장되지는 않습니다.
   async function downloadResultsImage() {
-    if (!resultsRef.current) return;
+    if (!publicPreviewRef.current) return;
     setDownloadingImage(true);
     try {
-      const canvas = await html2canvas(resultsRef.current, {
+      const canvas = await html2canvas(publicPreviewRef.current, {
         backgroundColor: "#F7F5F0",
         scale: 2,
       });
@@ -1339,6 +1340,24 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
     });
     return g;
   }, [matchData]);
+
+  // 사용자 화면(ResultsView)이 실제로 공개하는 정보와 동일하게, 역할·닉네임·부족인원만
+  // 남기고 나머지(대표캐릭터명, 신청유형, 임시 여부 등)는 제외합니다. 이미지 다운로드가
+  // 관리자 편집 화면이 아니라 "사용자에게 보이는 화면"을 담도록 만들기 위한 것입니다.
+  const publicResultGroups = useMemo(() => {
+    if (!matchData || !content) return {};
+    const g = {};
+    matchData.parties.forEach((p) => {
+      const key = `${content.name} · ${p.time}`;
+      if (!g[key]) g[key] = [];
+      g[key].push({
+        partyNumber: p.partyNumber,
+        slots: (p.slots || []).map((s) => ({ role: s.role, nickname: s.nickname || null })),
+        shortage: p.shortage || null,
+      });
+    });
+    return g;
+  }, [matchData, content]);
 
   function recomputeShortage(party) {
     const missing = {};
@@ -1619,6 +1638,37 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* 이미지 다운로드 전용 숨김 렌더링: 사용자 화면(ResultsView)이 실제로 보여주는 정보와
+          동일하게(역할·닉네임·부족인원만) 구성합니다. 화면 밖으로 배치해 사람 눈에는 안 보이지만
+          html2canvas는 캡처할 수 있습니다. */}
+      {matchData && content && (
+        <div style={{ position: "fixed", top: 0, left: "-99999px", width: 900 }}>
+          <div ref={publicPreviewRef} style={{ background: "#F7F5F0", padding: 24 }}>
+            {Object.entries(publicResultGroups).map(([key, parties]) => (
+              <div key={key} style={{ marginBottom: 20 }}>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: 15, color: "var(--accent-soft)", fontWeight: 700, marginBottom: 10 }}>{key}</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px,1fr))", gap: 12 }}>
+                  {parties.map((p) => (
+                    <div key={p.partyNumber} className="gpa-party-card">
+                      <div className="gpa-party-top"><span>파티 {p.partyNumber}</span></div>
+                      {p.slots.map((s, si) => (
+                        <div key={si} className="gpa-slot" style={{ cursor: "default" }}>
+                          <span className={`gpa-slot-role ${s.role}`} title={ROLE_LABEL[s.role]} aria-label={ROLE_LABEL[s.role]}>
+                            {ROLE_ICON[s.role] && React.createElement(ROLE_ICON[s.role], { size: 14, strokeWidth: 2.3 })}
+                          </span>
+                          {s.nickname ? <span className="gpa-slot-name">{s.nickname}</span> : <span className="gpa-slot-empty">모집 중</span>}
+                        </div>
+                      ))}
+                      {p.shortage && <div className="gpa-party-short">부족 인원: {p.shortage}</div>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
