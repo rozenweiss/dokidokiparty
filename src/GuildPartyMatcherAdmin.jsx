@@ -2222,9 +2222,9 @@ function AdminShell({ config, setConfig }) {
       <div className="gpa-header">
         <div className="gpa-brand">
           <span className="gpa-brand-badge">ADMIN</span>
-          <span className="gpa-brand-title">길드 파티 매칭 · 관리자</span>
+          <span className="gpa-brand-title">두두파 2.0</span>
         </div>
-        <a href="/" className="gpa-btn gpa-btn-ghost gpa-btn-sm" style={{ textDecoration: "none" }}>← 사용자 화면</a>
+        <a href="/" className="gpa-btn gpa-btn-ghost gpa-btn-sm" style={{ textDecoration: "none" }}>사용자 화면</a>
       </div>
       <div className="gpa-nav">
         {NAV_ITEMS.map((n) => <button key={n.key} className={`gpa-nav-item ${view === n.key ? "active" : ""}`} onClick={() => setView(n.key)}>{n.label}</button>)}
