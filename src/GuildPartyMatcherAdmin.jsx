@@ -113,6 +113,8 @@ const GlobalStyle = () => (
     .gpa-party-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px,1fr)); gap: 12px; }
     .gpa-party-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 12px; padding: 14px; }
     .gpa-party-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 12px; color: var(--text-faint); font-family: var(--font-mono); }
+    .gpa-party-delete-btn { background: transparent; border: none; color: var(--text-faint); font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 6px; }
+    .gpa-party-delete-btn:hover { color: var(--danger); background: rgba(226,87,76,0.1); }
     .gpa-slot { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 7px; font-size: 12px; cursor: pointer; border: 1px dashed transparent; }
     .gpa-slot:hover { border-color: var(--accent); background: rgba(193,95,60,0.06); }
     .gpa-slot.dragging { opacity: 0.4; }
@@ -1218,6 +1220,9 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
   const [dragOverKey, setDragOverKey] = useState(null);
   const [clockTick, setClockTick] = useState(0);
   const [downloadingImage, setDownloadingImage] = useState(false);
+  const [showCreateParty, setShowCreateParty] = useState(false);
+  const [createPartyTime, setCreatePartyTime] = useState("");
+  const [confirmDeleteParty, setConfirmDeleteParty] = useState(null); // party index or null
   const resultsRef = useRef(null);
 
   useEffect(() => {
@@ -1233,6 +1238,8 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
     const support = candidates.filter((c) => appliesSupport(c.type)).length;
     return { repCount: repSet.size, candidateCount: candidates.length, normal, support };
   }, [content, reps]);
+
+  const availableTimes = useMemo(() => (content ? timeSlots(content.startTime, content.endTime, content.interval) : []), [content]);
 
   const loadResult = useCallback(async () => {
     if (!content) return;
@@ -1343,6 +1350,38 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
     return parts.length ? parts.join(" · ") : null;
   }
 
+  function createEmptyParty(time) {
+    if (!time || !content) return;
+    const dealerSlotCount = Math.max(content.partySize - 2, 0);
+    const newSlotOrder = ["tank", "support", ...Array(dealerSlotCount).fill("dealer")];
+    const base = matchData || { parties: [], unassigned: [], generatedAt: Date.now(), published: false };
+    const existingAtTime = base.parties.filter((p) => p.time === time);
+    const nextNumber = existingAtTime.length > 0 ? Math.max(...existingAtTime.map((p) => p.partyNumber)) + 1 : 1;
+    const newParty = {
+      time, partyNumber: nextNumber,
+      slots: newSlotOrder.map((role) => ({ role, nickname: null, repName: null, characterId: null, type: null })),
+      shortage: null,
+    };
+    saveResult({ ...base, parties: [...base.parties, newParty] });
+    setShowCreateParty(false);
+    onToast(`${time} 시간대에 빈 파티를 생성했습니다.`);
+  }
+
+  function deleteParty(partyIdx) {
+    const party = matchData.parties[partyIdx];
+    // 이 파티에 배정되어 있던 인원은 삭제하지 않고 미배정 목록으로 돌려보냅니다.
+    const returned = party.slots
+      .filter((s) => s.nickname && s.characterId) // 임시 캐릭터(characterId 없음)는 미배정 목록으로 보내지 않음
+      .map((s) => ({
+        repName: s.repName, type: s.type, time: party.time,
+        char: { id: s.characterId, nickname: s.nickname, role: s.role, power: 0, resist: 0 },
+        reason: "파티 삭제로 제외됨",
+      }));
+    const parties = matchData.parties.filter((_, i) => i !== partyIdx);
+    saveResult({ ...matchData, parties, unassigned: [...matchData.unassigned, ...returned] });
+    onToast(`파티 ${party.partyNumber}을(를) 삭제했습니다.`);
+  }
+
   function assignToSlot(partyIdx, slotIdx, newSlotValue, consumedCandidate) {
     // 같은 대표 캐릭터가 이미 이 파티의 다른 자리에 있으면 배정을 막습니다 (드래그드롭 중복배정 방지 요청).
     if (newSlotValue.repName) {
@@ -1377,13 +1416,14 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
     setEditSlot(null);
   }
 
-  // 슬롯↔슬롯 드래그: 같은 역할끼리 두 슬롯의 내용을 맞바꿉니다.
+  // 슬롯↔슬롯 드래그: 역할 제한 없이 두 슬롯의 내용을 맞바꿉니다 (관리자가 파티 구성을 임의로 변경 가능).
   function swapSlots(sourcePartyIdx, sourceSlotIdx, targetPartyIdx, targetSlotIdx) {
     if (sourcePartyIdx === targetPartyIdx && sourceSlotIdx === targetSlotIdx) return;
     const sourceSlot = matchData.parties[sourcePartyIdx].slots[sourceSlotIdx];
     const targetSlot = matchData.parties[targetPartyIdx].slots[targetSlotIdx];
-    if (sourceSlot.role !== targetSlot.role) { onToast("같은 역할끼리만 이동할 수 있습니다."); return; }
-    // 같은 대표 캐릭터가 이동 결과로 한 파티에 같이 있게 되면 막습니다 (드래그드롭 중복배정 방지 요청).
+    // 역할 제한 없이 관리자가 임의로 파티 구성을 바꿀 수 있도록, 같은 역할끼리만 이동 가능하다는
+    // 제약을 없앴습니다. 슬롯 내용(역할 포함)을 통째로 맞바꿔서, role 필드가 계속
+    // "지금 이 자리에 실제로 있는 캐릭터의 역할"을 반영하도록 유지합니다.
     if (sourcePartyIdx !== targetPartyIdx) {
       const targetParty = matchData.parties[targetPartyIdx];
       const sourceParty = matchData.parties[sourcePartyIdx];
@@ -1391,8 +1431,8 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
       const conflictAtSource = targetSlot.repName && sourceParty.slots.some((s, si) => si !== sourceSlotIdx && s.repName === targetSlot.repName);
       if (conflictAtTarget || conflictAtSource) { onToast("같은 대표 캐릭터의 다른 캐릭터가 이미 그 파티에 있어 이동할 수 없습니다."); return; }
     }
-    const newSource = { ...sourceSlot, nickname: targetSlot.nickname, repName: targetSlot.repName, characterId: targetSlot.characterId, type: targetSlot.type };
-    const newTarget = { ...targetSlot, nickname: sourceSlot.nickname, repName: sourceSlot.repName, characterId: sourceSlot.characterId, type: sourceSlot.type };
+    const newSource = { ...targetSlot };
+    const newTarget = { ...sourceSlot };
     const parties = matchData.parties.map((p, i) => {
       const isSource = i === sourcePartyIdx, isTarget = i === targetPartyIdx;
       if (!isSource && !isTarget) return p;
@@ -1411,12 +1451,12 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
   function handleDropOnSlot(targetPartyIdx, targetSlotIdx, targetRole) {
     setDragOverKey(null);
     if (!dragItem) return;
-    if (dragItem.role !== targetRole) { onToast("같은 역할끼리만 이동할 수 있습니다."); setDragItem(null); return; }
     if (dragItem.kind === "slot") {
       swapSlots(dragItem.partyIdx, dragItem.slotIdx, targetPartyIdx, targetSlotIdx);
     } else if (dragItem.kind === "unassigned") {
       const cand = dragItem.candidate;
-      assignToSlot(targetPartyIdx, targetSlotIdx, { role: targetRole, nickname: cand.char.nickname, repName: cand.repName, characterId: cand.char.id, type: cand.type }, cand);
+      // role은 슬롯의 기존 자리 종류(targetRole)가 아니라, 실제로 배정되는 캐릭터의 역할을 따릅니다.
+      assignToSlot(targetPartyIdx, targetSlotIdx, { role: cand.char.role, nickname: cand.char.nickname, repName: cand.repName, characterId: cand.char.id, type: cand.type }, cand);
     }
     setDragItem(null);
   }
@@ -1467,8 +1507,30 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
           >
             {loadingResult ? "새로고침 중..." : "새로고침"}
           </button>
+          <button className="gpa-btn gpa-btn-ghost" onClick={() => { setCreatePartyTime(availableTimes[0] || ""); setShowCreateParty(true); }} disabled={availableTimes.length === 0}>
+            파티 생성
+          </button>
         </div>
       </div>
+
+      {showCreateParty && (
+        <div className="gpa-modal-overlay" onMouseDown={(e) => e.target === e.currentTarget && setShowCreateParty(false)}>
+          <div className="gpa-modal">
+            <h3 className="gpa-modal-title">빈 파티 생성</h3>
+            <div className="gpa-field">
+              <label className="gpa-label">시작 시각</label>
+              <select className="gpa-input" value={createPartyTime} onChange={(e) => setCreatePartyTime(e.target.value)}>
+                {availableTimes.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <div className="gpa-hint">아무도 배정되지 않은 빈 파티가 이 시간대에 추가됩니다.</div>
+            </div>
+            <div className="gpa-modal-actions">
+              <button className="gpa-btn gpa-btn-ghost" style={{ flex: 1 }} onClick={() => setShowCreateParty(false)}>취소</button>
+              <button className="gpa-btn gpa-btn-primary" style={{ flex: 1 }} onClick={() => createEmptyParty(createPartyTime)}>생성</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {loadingResult ? (
         <div className="gpa-card"><div className="gpa-empty">불러오는 중...</div></div>
@@ -1478,7 +1540,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
         <div className="gpa-card" ref={resultsRef}>
           <div className="gpa-section-title">
             <h2 style={{ fontSize: 14 }}>결과 편집 {matchData.published ? <span className="gpa-badge on" style={{ marginLeft: 8 }}>공개됨</span> : <span className="gpa-badge off" style={{ marginLeft: 8 }}>비공개</span>}</h2>
-            <div className="gpa-section-desc">슬롯을 드래그해서 옮기거나, 클릭해서 임시 캐릭터 입력·비우기를 할 수 있습니다. (같은 역할 슬롯끼리만 이동 가능)</div>
+            <div className="gpa-section-desc">슬롯을 드래그해서 옮기거나, 클릭해서 임시 캐릭터 입력·비우기를 할 수 있습니다. (역할 제한 없이 자유롭게 이동 가능)</div>
           </div>
           <div className="gpa-hint" style={{ marginBottom: 16 }}>
             자동 매칭 실행: {formatDateTime(matchData.generatedAt)} · 자동 삭제 예정: {formatDateTime(matchData.generatedAt + RETENTION_MS)} ·{" "}
@@ -1492,12 +1554,23 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
               <div className="gpa-party-grid">
                 {parties.map((p) => (
                   <div key={p.partyNumber} className="gpa-party-card">
-                    <div className="gpa-party-top"><span>파티 {p.partyNumber}</span></div>
+                    <div className="gpa-party-top">
+                      <span>파티 {p.partyNumber}</span>
+                      <button
+                        type="button"
+                        className="gpa-party-delete-btn"
+                        title="파티 삭제"
+                        aria-label="파티 삭제"
+                        onClick={() => setConfirmDeleteParty(p._idx)}
+                      >
+                        ×
+                      </button>
+                    </div>
                     {p.slots.map((s, si) => {
                       const key = `${p._idx}-${si}`;
                       const cls = ["gpa-slot"];
                       if (dragItem && dragItem.kind === "slot" && dragItem.partyIdx === p._idx && dragItem.slotIdx === si) cls.push("dragging");
-                      if (dragOverKey === key) cls.push(dragItem && dragItem.role === s.role ? "dragover" : "drag-reject");
+                      if (dragOverKey === key) cls.push("dragover");
                       return (
                         <div
                           key={si}
@@ -1527,7 +1600,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
           {matchData.unassigned && matchData.unassigned.length > 0 && (
             <div style={{ marginTop: 22 }}>
               <div className="gpa-time-title">미배정 신청자 ({matchData.unassigned.length}명)</div>
-              <div className="gpa-hint" style={{ marginBottom: 8 }}>카드를 파티 슬롯으로 드래그하면 바로 배정됩니다. (같은 역할 슬롯에만 놓을 수 있어요)</div>
+              <div className="gpa-hint" style={{ marginBottom: 8 }}>카드를 파티 슬롯으로 드래그하면 바로 배정됩니다. (역할 제한 없이 아무 슬롯에나 놓을 수 있어요)</div>
               <div className="gpa-unassigned-list">
                 {matchData.unassigned.map((u, i) => (
                   <div
@@ -1568,6 +1641,17 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
           danger
           onConfirm={async () => { setShowRematchConfirm(false); await doRunMatch(); }}
           onCancel={() => setShowRematchConfirm(false)}
+        />
+      )}
+
+      {confirmDeleteParty !== null && matchData && matchData.parties[confirmDeleteParty] && (
+        <ConfirmModal
+          title="파티 삭제"
+          message={`'${matchData.parties[confirmDeleteParty].time} · 파티 ${matchData.parties[confirmDeleteParty].partyNumber}'을(를) 삭제하시겠습니까?\n배정되어 있던 캐릭터는 미배정 목록으로 돌아갑니다 (임시 캐릭터는 그냥 사라집니다).`}
+          confirmLabel="삭제"
+          danger
+          onConfirm={() => { const idx = confirmDeleteParty; setConfirmDeleteParty(null); deleteParty(idx); }}
+          onCancel={() => setConfirmDeleteParty(null)}
         />
       )}
     </div>
