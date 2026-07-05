@@ -58,7 +58,7 @@ const GlobalStyle = () => (
 
     /* --- 공통: 상단 브랜드 --- */
     .gpm-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
-    .gpm-emblem { width: 34px; height: 34px; flex-shrink: 0; }
+    .gpm-emblem { flex-shrink: 0; }
     .gpm-brand-text { display: flex; flex-direction: column; }
     .gpm-brand-title { font-family: var(--font-display); font-size: 15px; color: var(--gold-soft); letter-spacing: 0.08em; }
     .gpm-brand-sub { font-size: 11px; color: var(--text-faint); letter-spacing: 0.05em; }
@@ -324,11 +324,14 @@ function charFinalPower(char, content) {
 
 /* ---------------- 작은 컴포넌트 ---------------- */
 const Emblem = ({ size = 34 }) => (
-  <svg width={size} height={size} viewBox="0 0 40 40" className="gpm-emblem">
-    <polygon points="20,2 36,11 36,29 20,38 4,29 4,11" fill="none" stroke="#C15F3C" strokeWidth="1.4" />
-    <polygon points="20,9 30,14.5 30,25.5 20,31 10,25.5 10,14.5" fill="rgba(193,95,60,0.12)" stroke="#D97757" strokeWidth="1" />
-    <circle cx="20" cy="20" r="3.2" fill="#D97757" />
-  </svg>
+  <img
+    src="/guild-emblem.png"
+    alt="길드 엠블럼"
+    width={size}
+    height={size}
+    className="gpm-emblem"
+    style={{ objectFit: "contain" }}
+  />
 );
 
 const RoleBadge = ({ role }) => (
