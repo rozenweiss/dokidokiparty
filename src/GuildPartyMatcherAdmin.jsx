@@ -46,26 +46,26 @@ const GlobalStyle = () => (
     .gpa-frame { width: 100%; max-width: 920px; }
 
     .gpa-gate-wrap { min-height: 92vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
-    .gpa-gate-card { width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 18px; padding: 38px 30px; box-shadow: 0 1px 2px rgba(43,40,34,0.04), 0 20px 44px -24px rgba(43,40,34,0.16); }
+    .gpa-gate-card { width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 21px; padding: 38px 30px; box-shadow: 0 1px 2px rgba(43,40,34,0.04), 0 20px 44px -24px rgba(43,40,34,0.16); }
     .gpa-gate-title { text-align: center; font-size: 20px; color: var(--accent-soft); margin-bottom: 8px; }
-    .gpa-gate-desc { text-align: center; font-size: 12.5px; color: var(--text-dim); margin-bottom: 24px; line-height: 1.6; }
+    .gpa-gate-desc { text-align: center; font-size: 14px; color: var(--text-dim); margin-bottom: 24px; line-height: 1.6; }
 
     .gpa-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; flex-wrap: wrap; gap: 10px; }
     .gpa-brand { display: flex; align-items: center; gap: 10px; }
-    .gpa-brand-badge { font-size: 10px; font-weight: 700; color: #FFFFFF; background: linear-gradient(180deg, var(--accent-soft), var(--accent)); padding: 3px 9px; border-radius: 20px; letter-spacing: 0.04em; }
-    .gpa-brand-title { font-size: 15px; color: var(--text); font-weight: 700; }
+    .gpa-brand-badge { font-size: 11.5px; font-weight: 700; color: #FFFFFF; background: linear-gradient(180deg, var(--accent-soft), var(--accent)); padding: 3px 9px; border-radius: 20px; letter-spacing: 0.04em; }
+    .gpa-brand-title { font-size: 16.5px; color: var(--text); font-weight: 700; }
 
-    .gpa-nav { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 12px; padding: 4px; margin-bottom: 20px; overflow-x: auto; }
-    .gpa-nav-item { flex: 1; white-space: nowrap; text-align: center; padding: 9px 12px; border-radius: 9px; font-size: 12.5px; color: var(--text-dim); background: transparent; border: none; font-weight: 600; }
+    .gpa-nav { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 15px; padding: 4px; margin-bottom: 20px; overflow-x: auto; }
+    .gpa-nav-item { flex: 1; white-space: nowrap; text-align: center; padding: 9px 12px; border-radius: 13px; font-size: 14px; color: var(--text-dim); background: transparent; border: none; font-weight: 600; }
     .gpa-nav-item.active { background: var(--surface-2); color: var(--accent-soft); }
 
-    .gpa-card { background: var(--surface); border: 1px solid var(--border-soft); border-radius: 14px; padding: 22px; box-shadow: 0 1px 2px rgba(43,40,34,0.04), 0 12px 28px -20px rgba(43,40,34,0.12); }
+    .gpa-card { background: var(--surface); border: 1px solid var(--border-soft); border-radius: 22px; padding: 24px; box-shadow: 0 1px 2px rgba(43,40,34,0.04), 0 12px 28px -20px rgba(43,40,34,0.12); }
     .gpa-card + .gpa-card { margin-top: 14px; }
     .gpa-section-title { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; gap: 10px; flex-wrap: wrap; }
     .gpa-section-title h2 { font-size: 17px; }
-    .gpa-section-desc { font-size: 12px; color: var(--text-faint); margin-top: 3px; }
+    .gpa-section-desc { font-size: 13.5px; color: var(--text-faint); margin-top: 3px; }
 
-    .gpa-btn { border: none; border-radius: 9px; padding: 10px 16px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+    .gpa-btn { border: none; border-radius: 15px; padding: 14px 20px; font-size: 16px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
     .gpa-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .gpa-btn-primary { background: linear-gradient(180deg, var(--accent-soft), var(--accent)); color: #FFFFFF; }
     .gpa-btn-primary:hover { filter: brightness(1.05); }
@@ -73,29 +73,29 @@ const GlobalStyle = () => (
     .gpa-btn-ghost:hover { color: var(--text); border-color: var(--accent); }
     .gpa-btn-danger { background: rgba(192,57,43,0.1); color: var(--danger); border: 1px solid rgba(192,57,43,0.3); }
     .gpa-btn-danger:hover { background: rgba(192,57,43,0.18); }
-    .gpa-btn-sm { padding: 7px 11px; font-size: 12px; border-radius: 7px; }
+    .gpa-btn-sm { padding: 10px 14px; font-size: 13.5px; border-radius: 11px; }
 
     .gpa-field { margin-bottom: 14px; }
-    .gpa-label { display: block; font-size: 11.5px; color: var(--text-dim); margin-bottom: 6px; }
-    .gpa-input { width: 100%; background: var(--bg-elev); border: 1px solid var(--border); color: var(--text); padding: 10px 12px; border-radius: 8px; font-size: 13.5px; outline: none; }
+    .gpa-label { display: block; font-size: 13px; color: var(--text-dim); margin-bottom: 6px; }
+    .gpa-input { width: 100%; background: var(--bg-elev); border: 1px solid var(--border); color: var(--text); padding: 12px 16px; border-radius: 15px; font-size: 16px; outline: none; }
     .gpa-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(193,95,60,0.15); }
     .gpa-row { display: flex; gap: 10px; }
-    .gpa-hint { font-size: 11px; color: var(--text-faint); margin-top: 5px; }
-    .gpa-error { font-size: 11px; color: var(--danger); margin-top: 5px; }
+    .gpa-hint { font-size: 12.5px; color: var(--text-faint); margin-top: 5px; }
+    .gpa-error { font-size: 12.5px; color: var(--danger); margin-top: 5px; }
 
     .gpa-dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap: 10px; }
-    .gpa-stat-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 12px; padding: 14px 16px; }
+    .gpa-stat-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 15px; padding: 14px 16px; }
     .gpa-stat-num { font-family: var(--font-mono); font-size: 22px; color: var(--accent-soft); }
-    .gpa-stat-label { font-size: 11px; color: var(--text-faint); margin-top: 3px; }
+    .gpa-stat-label { font-size: 12.5px; color: var(--text-faint); margin-top: 3px; }
 
-    .gpa-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-    .gpa-table th { text-align: left; color: var(--text-faint); font-weight: 600; font-size: 11px; padding: 8px 10px; border-bottom: 1px solid var(--border-soft); white-space: nowrap; }
+    .gpa-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .gpa-table th { text-align: left; color: var(--text-faint); font-weight: 600; font-size: 12.5px; padding: 8px 10px; border-bottom: 1px solid var(--border-soft); white-space: nowrap; }
     .gpa-table td { padding: 9px 10px; border-bottom: 1px solid var(--border-soft); vertical-align: middle; }
     .gpa-table tr:last-child td { border-bottom: none; }
     .gpa-table-wrap { overflow-x: auto; }
 
-    .gpa-badge { font-size: 10.5px; padding: 3px 8px; border-radius: 6px; font-weight: 700; display: inline-block; }
-    .gpa-badge-icon { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; }
+    .gpa-badge { font-size: 12px; padding: 3px 8px; border-radius: 10px; font-weight: 700; display: inline-block; }
+    .gpa-badge-icon { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 10px; }
     .gpa-badge-icon.tank { background: rgba(76,113,150,0.16); color: var(--tank); }
     .gpa-badge-icon.support { background: rgba(111,196,138,0.16); color: var(--support); }
     .gpa-badge-icon.dealer { background: rgba(224,112,95,0.16); color: var(--dealer); }
@@ -108,14 +108,14 @@ const GlobalStyle = () => (
     .gpa-badge.supportApp { background: rgba(181,140,74,0.15); color: var(--warn); }
     .gpa-badge.combo { background: linear-gradient(90deg, rgba(76,113,150,0.18), rgba(181,140,74,0.18)); color: var(--text); }
 
-    .gpa-empty { text-align: center; padding: 40px 16px; color: var(--text-faint); font-size: 13px; }
+    .gpa-empty { text-align: center; padding: 40px 16px; color: var(--text-faint); font-size: 14.5px; }
 
     .gpa-party-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px,1fr)); gap: 12px; }
-    .gpa-party-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 12px; padding: 14px; }
-    .gpa-party-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 12px; color: var(--text-faint); font-family: var(--font-mono); }
-    .gpa-party-delete-btn { background: transparent; border: none; color: var(--text-faint); font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 6px; }
+    .gpa-party-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 15px; padding: 14px; }
+    .gpa-party-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 13.5px; color: var(--text-faint); font-family: var(--font-mono); }
+    .gpa-party-delete-btn { background: transparent; border: none; color: var(--text-faint); font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 10px; }
     .gpa-party-delete-btn:hover { color: var(--danger); background: rgba(226,87,76,0.1); }
-    .gpa-slot { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 7px; font-size: 12px; cursor: pointer; border: 1px dashed transparent; }
+    .gpa-slot { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 11px; font-size: 13.5px; cursor: pointer; border: 1px dashed transparent; }
     .gpa-slot:hover { border-color: var(--accent); background: rgba(193,95,60,0.06); }
     .gpa-slot.dragging { opacity: 0.4; }
     .gpa-slot.dragover { border-color: var(--accent-soft); background: rgba(193,95,60,0.16); }
@@ -124,26 +124,26 @@ const GlobalStyle = () => (
     .gpa-slot-role.tank { color: var(--tank); } .gpa-slot-role.support { color: var(--support); } .gpa-slot-role.dealer { color: var(--dealer); }
     .gpa-slot-name { flex: 1; color: var(--text); }
     .gpa-slot-empty { flex: 1; color: var(--text-faint); font-style: italic; }
-    .gpa-slot-tag { font-size: 9px; color: var(--text-faint); }
+    .gpa-slot-tag { font-size: 10.5px; color: var(--text-faint); }
     .gpa-slot-tag-support { color: var(--warn); font-weight: 700; }
-    .gpa-party-short { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-soft); font-size: 10.5px; color: var(--danger); }
+    .gpa-party-short { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-soft); font-size: 12px; color: var(--danger); }
     .gpa-time-block + .gpa-time-block { margin-top: 20px; }
-    .gpa-time-title { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 13.5px; color: var(--accent-soft); font-weight: 700; }
+    .gpa-time-title { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 15px; color: var(--accent-soft); font-weight: 700; }
 
     .gpa-unassigned-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
-    .gpa-unassigned-row { display: flex; align-items: center; gap: 8px; background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 8px; padding: 8px 10px; font-size: 12px; cursor: grab; }
+    .gpa-unassigned-row { display: flex; align-items: center; gap: 8px; background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 12px; padding: 8px 10px; font-size: 13.5px; cursor: grab; }
     .gpa-unassigned-row.dragging { opacity: 0.4; }
 
     .gpa-modal-overlay { position: fixed; inset: 0; background: rgba(6,7,12,0.72); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 100; }
-    .gpa-modal { width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; max-height: 88vh; overflow-y: auto; box-shadow: 0 1px 2px rgba(43,40,34,0.04), 0 24px 48px -20px rgba(43,40,34,0.22); }
-    .gpa-modal-title { font-size: 15px; margin-bottom: 16px; }
+    .gpa-modal { width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--border); border-radius: 19px; padding: 24px; max-height: 88vh; overflow-y: auto; box-shadow: 0 1px 2px rgba(43,40,34,0.04), 0 24px 48px -20px rgba(43,40,34,0.22); }
+    .gpa-modal-title { font-size: 16.5px; margin-bottom: 16px; }
     .gpa-modal-actions { display: flex; gap: 10px; margin-top: 18px; }
-    .gpa-pick-btn { width: 100%; text-align: left; background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 8px; padding: 10px 12px; font-size: 12.5px; color: var(--text); margin-bottom: 6px; display: flex; justify-content: space-between; }
+    .gpa-pick-btn { width: 100%; text-align: left; background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 12px; padding: 10px 12px; font-size: 14px; color: var(--text); margin-bottom: 6px; display: flex; justify-content: space-between; }
     .gpa-pick-btn:hover { border-color: var(--accent); }
 
-    .gpa-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 12px 20px; border-radius: 30px; font-size: 13px; z-index: 200; box-shadow: 0 4px 16px -6px rgba(43,40,34,0.22); }
+    .gpa-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 12px 20px; border-radius: 30px; font-size: 14.5px; z-index: 200; box-shadow: 0 4px 16px -6px rgba(43,40,34,0.22); }
     .gpa-content-pick { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-    .gpa-content-chip { padding: 8px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg-elev); color: var(--text-dim); font-size: 12.5px; }
+    .gpa-content-chip { padding: 8px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg-elev); color: var(--text-dim); font-size: 14px; }
     .gpa-content-chip.active { border-color: var(--accent); color: var(--accent-soft); background: rgba(193,95,60,0.1); }
   `}</style>
 );
@@ -2222,9 +2222,9 @@ function AdminShell({ config, setConfig }) {
       <div className="gpa-header">
         <div className="gpa-brand">
           <span className="gpa-brand-badge">ADMIN</span>
-          <span className="gpa-brand-title">두두파 2.0</span>
+          <span className="gpa-brand-title">길드 파티 매칭 · 관리자</span>
         </div>
-        <a href="/" className="gpa-btn gpa-btn-ghost gpa-btn-sm" style={{ textDecoration: "none" }}>사용자 화면</a>
+        <a href="/" className="gpa-btn gpa-btn-ghost gpa-btn-sm" style={{ textDecoration: "none" }}>← 사용자 화면</a>
       </div>
       <div className="gpa-nav">
         {NAV_ITEMS.map((n) => <button key={n.key} className={`gpa-nav-item ${view === n.key ? "active" : ""}`} onClick={() => setView(n.key)}>{n.label}</button>)}

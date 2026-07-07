@@ -60,35 +60,35 @@ const GlobalStyle = () => (
     .gpm-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
     .gpm-emblem { flex-shrink: 0; }
     .gpm-brand-text { display: flex; flex-direction: column; }
-    .gpm-brand-title { font-family: var(--font-display); font-size: 15px; color: var(--gold-soft); letter-spacing: 0.08em; }
-    .gpm-brand-sub { font-size: 11px; color: var(--text-faint); letter-spacing: 0.05em; }
+    .gpm-brand-title { font-family: var(--font-display); font-size: 16.5px; color: var(--gold-soft); letter-spacing: 0.08em; }
+    .gpm-brand-sub { font-size: 12.5px; color: var(--text-faint); letter-spacing: 0.05em; }
 
     /* --- 카드 --- */
-    .gpm-card { background: var(--surface); border: 1px solid var(--border-soft); border-radius: 14px; padding: 26px; box-shadow: 0 1px 2px rgba(43,40,34,0.04), 0 12px 28px -20px rgba(43,40,34,0.12); }
+    .gpm-card { background: var(--surface); border: 1px solid var(--border-soft); border-radius: 22px; padding: 24px; box-shadow: 0 1px 2px rgba(43,40,34,0.04), 0 12px 28px -20px rgba(43,40,34,0.12); }
     .gpm-card + .gpm-card { margin-top: 14px; }
 
     /* --- 게이트(입장/대표캐릭터) 화면 --- */
     .gpm-gate-wrap { min-height: 92vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
-    .gpm-gate-card { width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 18px; padding: 40px 32px; box-shadow: 0 1px 2px rgba(43,40,34,0.04), 0 20px 44px -24px rgba(43,40,34,0.16); position: relative; overflow: hidden; }
+    .gpm-gate-card { width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 21px; padding: 40px 32px; box-shadow: 0 1px 2px rgba(43,40,34,0.04), 0 20px 44px -24px rgba(43,40,34,0.16); position: relative; overflow: hidden; }
     .gpm-gate-card::before { content: ''; position: absolute; top: -60px; right: -60px; width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle, rgba(193,95,60,0.18), transparent 70%); pointer-events: none; z-index: 0; }
     .gpm-gate-card > * { position: relative; z-index: 1; }
     .gpm-gate-emblem { display: flex; justify-content: center; margin-bottom: 18px; }
     .gpm-gate-title { text-align: center; font-size: 22px; color: var(--gold-soft); margin-bottom: 6px; }
-    .gpm-gate-desc { text-align: center; font-size: 12.5px; color: var(--text-dim); margin-bottom: 26px; line-height: 1.6; }
+    .gpm-gate-desc { text-align: center; font-size: 14px; color: var(--text-dim); margin-bottom: 26px; line-height: 1.6; }
     .gpm-steps { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 22px; }
     .gpm-step-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); transition: all .2s; }
-    .gpm-step-dot.active { background: var(--gold); width: 18px; border-radius: 3px; }
+    .gpm-step-dot.active { background: var(--gold); width: 18px; border-radius: 7px; }
 
     .gpm-field { margin-bottom: 16px; }
-    .gpm-label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 7px; letter-spacing: 0.02em; }
-    .gpm-input { width: 100%; background: var(--bg-elev); border: 1px solid var(--border); color: var(--text); padding: 12px 14px; border-radius: 9px; font-size: 14.5px; outline: none; transition: border-color .15s, box-shadow .15s; }
+    .gpm-label { display: block; font-size: 13.5px; color: var(--text-dim); margin-bottom: 7px; letter-spacing: 0.02em; }
+    .gpm-input { width: 100%; background: var(--bg-elev); border: 1px solid var(--border); color: var(--text); padding: 12px 16px; border-radius: 15px; font-size: 16px; outline: none; transition: border-color .15s, box-shadow .15s; }
     .gpm-input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(193,95,60,0.15); }
     .gpm-input::placeholder { color: var(--text-faint); }
     .gpm-input.error { border-color: var(--danger); }
-    .gpm-error-text { color: var(--danger); font-size: 11.5px; margin-top: 6px; }
-    .gpm-hint-text { color: var(--text-faint); font-size: 11.5px; margin-top: 6px; }
+    .gpm-error-text { color: var(--danger); font-size: 13px; margin-top: 6px; }
+    .gpm-hint-text { color: var(--text-faint); font-size: 13px; margin-top: 6px; }
 
-    .gpm-btn { border: none; border-radius: 9px; padding: 12px 18px; font-size: 14px; font-weight: 600; transition: transform .12s, filter .12s, background .12s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+    .gpm-btn { border: none; border-radius: 15px; padding: 14px 20px; font-size: 16px; font-weight: 600; transition: transform .12s, filter .12s, background .12s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
     .gpm-btn:active { transform: translateY(1px); }
     .gpm-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .gpm-btn-primary { background: linear-gradient(180deg, var(--gold-soft), var(--gold)); color: #FFFFFF; width: 100%; }
@@ -98,122 +98,122 @@ const GlobalStyle = () => (
     .gpm-btn-block { width: 100%; }
     .gpm-btn-danger { background: rgba(192,57,43,0.1); color: var(--danger); border: 1px solid rgba(192,57,43,0.3); }
     .gpm-btn-danger:hover { background: rgba(192,57,43,0.2); }
-    .gpm-btn-sm { padding: 8px 12px; font-size: 12.5px; border-radius: 7px; }
+    .gpm-btn-sm { padding: 10px 14px; font-size: 13.5px; border-radius: 11px; }
 
     .gpm-row { display: flex; gap: 10px; }
     .gpm-recents { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-    .gpm-recent-chip { font-size: 11.5px; color: var(--text-dim); background: var(--bg-elev); border: 1px solid var(--border-soft); padding: 5px 10px; border-radius: 20px; }
+    .gpm-recent-chip { font-size: 13px; color: var(--text-dim); background: var(--bg-elev); border: 1px solid var(--border-soft); padding: 5px 10px; border-radius: 20px; }
     .gpm-recent-chip:hover { border-color: var(--gold); color: var(--gold-soft); }
 
     /* --- 앱 셸 --- */
     .gpm-shell-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; gap: 12px; flex-wrap: wrap; }
     .gpm-rep-badge { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border-soft); padding: 7px 12px 7px 8px; border-radius: 30px; }
-    .gpm-rep-avatar { width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, var(--gold-soft), var(--gold)); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #FFFFFF; }
-    .gpm-rep-name { font-size: 13px; color: var(--text); font-weight: 600; }
-    .gpm-rep-tag { font-size: 10px; color: var(--text-faint); }
+    .gpm-rep-avatar { width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, var(--gold-soft), var(--gold)); display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 700; color: #FFFFFF; }
+    .gpm-rep-name { font-size: 14.5px; color: var(--text); font-weight: 600; }
+    .gpm-rep-tag { font-size: 11.5px; color: var(--text-faint); }
 
-    .gpm-nav { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 12px; padding: 4px; margin-bottom: 20px; overflow-x: auto; }
-    .gpm-nav-item { flex: 1; white-space: nowrap; text-align: center; padding: 9px 10px; border-radius: 9px; font-size: 12.5px; color: var(--text-dim); background: transparent; border: none; font-weight: 600; }
+    .gpm-nav { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 15px; padding: 4px; margin-bottom: 20px; overflow-x: auto; }
+    .gpm-nav-item { flex: 1; white-space: nowrap; text-align: center; padding: 9px 10px; border-radius: 13px; font-size: 14px; color: var(--text-dim); background: transparent; border: none; font-weight: 600; }
     .gpm-nav-item.active { background: var(--surface-2); color: var(--gold-soft); }
     .gpm-nav-item:hover:not(.active) { color: var(--text); }
 
     .gpm-section-title { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; gap: 10px; flex-wrap: wrap; }
     .gpm-section-title h2 { font-size: 18px; }
-    .gpm-section-desc { font-size: 12px; color: var(--text-faint); margin-top: 3px; }
+    .gpm-section-desc { font-size: 13.5px; color: var(--text-faint); margin-top: 3px; }
 
     .gpm-divider { height: 1px; background: var(--border-soft); margin: 18px 0; }
 
     /* --- 빈 상태 --- */
     .gpm-empty { text-align: center; padding: 46px 20px; color: var(--text-faint); }
     .gpm-empty-icon { font-size: 26px; margin-bottom: 10px; opacity: 0.6; }
-    .gpm-empty-title { color: var(--text-dim); font-size: 13.5px; margin-bottom: 4px; }
-    .gpm-empty-desc { font-size: 12px; }
+    .gpm-empty-title { color: var(--text-dim); font-size: 15px; margin-bottom: 4px; }
+    .gpm-empty-desc { font-size: 13.5px; }
 
     /* --- 캐릭터 카드 --- */
     .gpm-char-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px,1fr)); gap: 12px; }
-    .gpm-char-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 12px; padding: 16px; position: relative; }
+    .gpm-char-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 15px; padding: 16px; position: relative; }
     .gpm-char-card.inactive { opacity: 0.45; }
     .gpm-char-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-    .gpm-char-name { font-size: 14.5px; font-weight: 700; color: var(--text); }
-    .gpm-role-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 700; padding: 4px 10px; border-radius: 20px; letter-spacing: 0.02em; }
+    .gpm-char-name { font-size: 16px; font-weight: 700; color: var(--text); }
+    .gpm-role-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 20px; letter-spacing: 0.02em; }
     .gpm-role-badge.tank { background: rgba(76,113,150,0.12); color: var(--tank); }
     .gpm-role-badge.support { background: rgba(79,122,91,0.12); color: var(--support); }
     .gpm-role-badge.dealer { background: rgba(168,90,56,0.12); color: var(--dealer); }
-    .gpm-char-job { font-size: 12px; color: var(--text-dim); margin-bottom: 10px; }
+    .gpm-char-job { font-size: 13.5px; color: var(--text-dim); margin-bottom: 10px; }
     .gpm-char-stats { display: flex; gap: 14px; margin-bottom: 12px; }
     .gpm-stat { display: flex; flex-direction: column; gap: 2px; }
-    .gpm-stat-label { font-size: 10px; color: var(--text-faint); }
-    .gpm-stat-value { font-family: var(--font-mono); font-size: 13px; color: var(--text); }
+    .gpm-stat-label { font-size: 11.5px; color: var(--text-faint); }
+    .gpm-stat-value { font-family: var(--font-mono); font-size: 14.5px; color: var(--text); }
     .gpm-char-actions { display: flex; gap: 6px; }
 
-    .gpm-fab-add { border: 1px dashed var(--border); background: transparent; border-radius: 12px; min-height: 120px; display: flex; align-items: center; justify-content: center; color: var(--text-faint); font-size: 13px; gap: 6px; }
+    .gpm-fab-add { border: 1px dashed var(--border); background: transparent; border-radius: 15px; min-height: 120px; display: flex; align-items: center; justify-content: center; color: var(--text-faint); font-size: 14.5px; gap: 6px; }
     .gpm-fab-add:hover { border-color: var(--gold); color: var(--gold-soft); }
 
     /* --- 콘텐츠 카드 --- */
-    .gpm-content-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+    .gpm-content-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 15px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
     .gpm-content-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
     .gpm-content-name { font-family: var(--font-display); font-size: 16px; }
-    .gpm-status-pill { font-size: 10.5px; padding: 4px 10px; border-radius: 20px; font-weight: 700; white-space: nowrap; }
+    .gpm-status-pill { font-size: 12px; padding: 4px 10px; border-radius: 20px; font-weight: 700; white-space: nowrap; }
     .gpm-status-pill.open { background: rgba(79,122,91,0.15); color: var(--success); }
     .gpm-status-pill.closed { background: rgba(143,138,126,0.2); color: var(--text-faint); }
     .gpm-content-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px,1fr)); gap: 10px; }
     .gpm-meta-item { display: flex; flex-direction: column; gap: 2px; }
-    .gpm-meta-label { font-size: 10.5px; color: var(--text-faint); }
-    .gpm-meta-value { font-size: 13px; color: var(--text); font-family: var(--font-mono); }
+    .gpm-meta-label { font-size: 12px; color: var(--text-faint); }
+    .gpm-meta-value { font-size: 14.5px; color: var(--text); font-family: var(--font-mono); }
 
     /* --- 신청 화면 --- */
     .gpm-select-list { display: flex; flex-direction: column; gap: 8px; }
-    .gpm-select-row { display: flex; align-items: center; gap: 12px; background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 10px; padding: 12px 14px; transition: border-color .12s; }
+    .gpm-select-row { display: flex; align-items: center; gap: 12px; background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 14px; padding: 12px 14px; transition: border-color .12s; }
     .gpm-select-row.checked { border-color: var(--gold); background: rgba(193,95,60,0.06); }
     .gpm-select-row.disabled { opacity: 0.5; }
-    .gpm-checkbox { width: 18px; height: 18px; flex-shrink: 0; border-radius: 5px; border: 1.5px solid var(--border); background: var(--surface); display: flex; align-items: center; justify-content: center; }
+    .gpm-checkbox { width: 18px; height: 18px; flex-shrink: 0; border-radius: 9px; border: 1.5px solid var(--border); background: var(--surface); display: flex; align-items: center; justify-content: center; }
     .gpm-checkbox.checked { background: var(--gold); border-color: var(--gold); }
     .gpm-select-info { flex: 1; min-width: 0; }
     .gpm-select-name-row { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; flex-wrap: wrap; }
-    .gpm-select-name { font-size: 13.5px; font-weight: 700; }
-    .gpm-select-sub { font-size: 11.5px; color: var(--text-dim); }
-    .gpm-select-warn { font-size: 11px; color: var(--danger); margin-top: 3px; }
-    .gpm-select-power { text-align: right; font-family: var(--font-mono); font-size: 13px; color: var(--gold-soft); white-space: nowrap; }
-    .gpm-select-power-label { font-size: 9.5px; color: var(--text-faint); display: block; text-align: right; }
+    .gpm-select-name { font-size: 15px; font-weight: 700; }
+    .gpm-select-sub { font-size: 13px; color: var(--text-dim); }
+    .gpm-select-warn { font-size: 12.5px; color: var(--danger); margin-top: 3px; }
+    .gpm-select-power { text-align: right; font-family: var(--font-mono); font-size: 14.5px; color: var(--gold-soft); white-space: nowrap; }
+    .gpm-select-power-label { font-size: 11px; color: var(--text-faint); display: block; text-align: right; }
 
     .gpm-time-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-    .gpm-time-chip { padding: 9px 16px; border-radius: 9px; border: 1px solid var(--border); background: var(--bg-elev); color: var(--text-dim); font-size: 13px; font-family: var(--font-mono); font-weight: 600; }
+    .gpm-time-chip { padding: 9px 16px; border-radius: 13px; border: 1px solid var(--border); background: var(--bg-elev); color: var(--text-dim); font-size: 14.5px; font-family: var(--font-mono); font-weight: 600; }
     .gpm-time-chip.checked { border-color: var(--gold); background: rgba(193,95,60,0.14); color: var(--gold-soft); }
 
     .gpm-type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .gpm-type-card { border: 1px solid var(--border); background: var(--bg-elev); border-radius: 12px; padding: 16px; text-align: left; }
+    .gpm-type-card { border: 1px solid var(--border); background: var(--bg-elev); border-radius: 15px; padding: 16px; text-align: left; }
     .gpm-type-card.checked { border-color: var(--gold); background: rgba(193,95,60,0.08); }
     .gpm-type-card:disabled { opacity: 0.45; cursor: not-allowed; }
-    .gpm-type-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 7px; }
-    .gpm-type-desc { font-size: 11.5px; color: var(--text-dim); line-height: 1.6; }
+    .gpm-type-title { font-size: 15.5px; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 7px; }
+    .gpm-type-desc { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
 
-    .gpm-notice { display: flex; gap: 10px; background: rgba(193,95,60,0.07); border: 1px solid rgba(193,95,60,0.22); border-radius: 10px; padding: 12px 14px; font-size: 12px; color: var(--gold-soft); line-height: 1.6; }
+    .gpm-notice { display: flex; gap: 10px; background: rgba(193,95,60,0.07); border: 1px solid rgba(193,95,60,0.22); border-radius: 14px; padding: 12px 14px; font-size: 13.5px; color: var(--gold-soft); line-height: 1.6; }
 
-    .gpm-summary-bar { position: sticky; bottom: 16px; margin-top: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; box-shadow: 0 1px 2px rgba(43,40,34,0.04), 0 14px 28px -18px rgba(43,40,34,0.14); flex-wrap: wrap; }
-    .gpm-summary-info { font-size: 12px; color: var(--text-dim); }
+    .gpm-summary-bar { position: sticky; bottom: 16px; margin-top: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 17px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; box-shadow: 0 1px 2px rgba(43,40,34,0.04), 0 14px 28px -18px rgba(43,40,34,0.14); flex-wrap: wrap; }
+    .gpm-summary-info { font-size: 13.5px; color: var(--text-dim); }
     .gpm-summary-info b { color: var(--gold-soft); font-weight: 700; }
 
     /* --- 확인/완료 화면 --- */
     .gpm-review-block { margin-bottom: 16px; }
-    .gpm-review-label { font-size: 11px; color: var(--text-faint); margin-bottom: 6px; letter-spacing: 0.03em; }
-    .gpm-review-value { font-size: 14px; color: var(--text); }
+    .gpm-review-label { font-size: 12.5px; color: var(--text-faint); margin-bottom: 6px; letter-spacing: 0.03em; }
+    .gpm-review-value { font-size: 15.5px; color: var(--text); }
     .gpm-review-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-    .gpm-chip { font-size: 12px; background: var(--bg-elev); border: 1px solid var(--border-soft); padding: 5px 10px; border-radius: 7px; color: var(--text); }
+    .gpm-chip { font-size: 13.5px; background: var(--bg-elev); border: 1px solid var(--border-soft); padding: 5px 10px; border-radius: 11px; color: var(--text); }
 
     .gpm-done-wrap { text-align: center; padding: 30px 10px 6px; }
     .gpm-done-icon { width: 60px; height: 60px; margin: 0 auto 18px; border-radius: 50%; background: rgba(79,122,91,0.15); display: flex; align-items: center; justify-content: center; }
     .gpm-done-title { font-size: 19px; margin-bottom: 8px; }
-    .gpm-done-desc { font-size: 13px; color: var(--text-dim); margin-bottom: 24px; line-height: 1.6; }
+    .gpm-done-desc { font-size: 14.5px; color: var(--text-dim); margin-bottom: 24px; line-height: 1.6; }
     .gpm-done-stats { display: flex; justify-content: center; gap: 22px; margin-bottom: 26px; flex-wrap: wrap; }
     .gpm-done-stat-num { font-family: var(--font-mono); font-size: 20px; color: var(--gold-soft); }
-    .gpm-done-stat-label { font-size: 11px; color: var(--text-faint); margin-top: 2px; }
+    .gpm-done-stat-label { font-size: 12.5px; color: var(--text-faint); margin-top: 2px; }
 
     /* --- 신청 내역 --- */
-    .gpm-app-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 12px; padding: 16px 18px; }
+    .gpm-app-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 15px; padding: 16px 18px; }
     .gpm-app-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
-    .gpm-app-content { font-size: 14.5px; font-weight: 700; font-family: var(--font-display); }
-    .gpm-app-meta { font-size: 11.5px; color: var(--text-faint); margin-top: 3px; }
-    .gpm-status-tag { font-size: 10.5px; padding: 4px 10px; border-radius: 20px; font-weight: 700; white-space: nowrap; }
+    .gpm-app-content { font-size: 16px; font-weight: 700; font-family: var(--font-display); }
+    .gpm-app-meta { font-size: 13px; color: var(--text-faint); margin-top: 3px; }
+    .gpm-status-tag { font-size: 12px; padding: 4px 10px; border-radius: 20px; font-weight: 700; white-space: nowrap; }
     .gpm-status-tag.applied { background: rgba(76,113,150,0.15); color: var(--tank); }
     .gpm-status-tag.waiting { background: rgba(193,95,60,0.15); color: var(--gold-soft); }
     .gpm-status-tag.matched { background: rgba(79,122,91,0.15); color: var(--success); }
@@ -221,34 +221,34 @@ const GlobalStyle = () => (
 
     /* --- 매칭 결과 --- */
     .gpm-result-group-title { display: flex; align-items: center; gap: 10px; margin: 22px 0 12px; }
-    .gpm-result-group-title h3 { font-size: 15px; color: var(--gold-soft); }
+    .gpm-result-group-title h3 { font-size: 16.5px; color: var(--gold-soft); }
     .gpm-result-group-line { flex: 1; height: 1px; background: var(--border-soft); }
     .gpm-party-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px,1fr)); gap: 12px; }
-    .gpm-party-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 12px; padding: 16px; }
+    .gpm-party-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 15px; padding: 16px; }
     .gpm-party-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-    .gpm-party-num { font-family: var(--font-mono); font-size: 12px; color: var(--text-faint); }
-    .gpm-party-slot { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 12.5px; }
+    .gpm-party-num { font-family: var(--font-mono); font-size: 13.5px; color: var(--text-faint); }
+    .gpm-party-slot { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 14px; }
     .gpm-party-slot-role { width: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
     .gpm-party-slot-role.tank { color: var(--tank); } .gpm-party-slot-role.support { color: var(--support); } .gpm-party-slot-role.dealer { color: var(--dealer); }
     .gpm-party-slot-name { color: var(--text); }
     .gpm-party-slot-empty { color: var(--text-faint); font-style: italic; }
-    .gpm-party-short { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-soft); font-size: 11px; color: var(--danger); }
+    .gpm-party-short { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-soft); font-size: 12.5px; color: var(--danger); }
 
     /* --- 모달 --- */
     .gpm-modal-overlay { position: fixed; inset: 0; background: rgba(6,7,12,0.72); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 100; }
-    .gpm-modal { width: 100%; max-width: 440px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 26px; max-height: 88vh; overflow-y: auto; }
+    .gpm-modal { width: 100%; max-width: 440px; background: var(--surface); border: 1px solid var(--border); border-radius: 19px; padding: 26px; max-height: 88vh; overflow-y: auto; }
     .gpm-modal-title { font-size: 16px; margin-bottom: 18px; }
     .gpm-modal-actions { display: flex; gap: 10px; margin-top: 20px; }
 
     /* --- 콤보박스(직업 검색) --- */
     .gpm-combo { position: relative; }
-    .gpm-combo-list { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px; max-height: 220px; overflow-y: auto; z-index: 10; box-shadow: 0 1px 2px rgba(43,40,34,0.04), 0 14px 28px -16px rgba(43,40,34,0.14); }
-    .gpm-combo-opt { padding: 10px 14px; font-size: 13px; display: flex; align-items: center; justify-content: space-between; }
+    .gpm-combo-list { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 14px; max-height: 220px; overflow-y: auto; z-index: 10; box-shadow: 0 1px 2px rgba(43,40,34,0.04), 0 14px 28px -16px rgba(43,40,34,0.14); }
+    .gpm-combo-opt { padding: 10px 14px; font-size: 14.5px; display: flex; align-items: center; justify-content: space-between; }
     .gpm-combo-opt:hover { background: var(--surface-2); }
-    .gpm-combo-empty { padding: 14px; font-size: 12px; color: var(--text-faint); text-align: center; }
+    .gpm-combo-empty { padding: 14px; font-size: 13.5px; color: var(--text-faint); text-align: center; }
 
     /* --- 토스트 --- */
-    .gpm-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 12px 20px; border-radius: 30px; font-size: 13px; box-shadow: 0 4px 16px -6px rgba(43,40,34,0.22); z-index: 200; }
+    .gpm-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 12px 20px; border-radius: 30px; font-size: 14.5px; box-shadow: 0 4px 16px -6px rgba(43,40,34,0.22); z-index: 200; }
 
     @media (max-width: 480px) {
       .gpm-type-grid { grid-template-columns: 1fr; }
@@ -1176,12 +1176,12 @@ function AppShell({ repName, repData, setRepData, config }) {
         <div className="gpm-brand">
           <Emblem />
           <div className="gpm-brand-text">
-            <span className="gpm-brand-title">두두파 2.0</span>
-            <span className="gpm-brand-sub">SAINT DOKIDOKI GUILD PARTY MAKER</span>
+            <span className="gpm-brand-title">길드 파티 매칭</span>
+            <span className="gpm-brand-sub">GUILD PARTY MATCHING LEDGER</span>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <a href="/admin.html" className="gpm-btn gpm-btn-ghost gpm-btn-sm" style={{ textDecoration: "none" }}>관리자 화면</a>
+          <a href="/admin.html" className="gpm-btn gpm-btn-ghost gpm-btn-sm" style={{ textDecoration: "none" }}>관리자 화면 →</a>
           <div className="gpm-rep-badge">
             <div className="gpm-rep-avatar">{repName.slice(0, 1)}</div>
             <div>
