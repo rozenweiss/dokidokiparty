@@ -13,7 +13,8 @@ import { storageGet, storageSet, storageDelete, storageListWithValues, storageGe
 
    범위 안내(간소화한 부분):
    - 진짜 드래그앤드롭 대신 슬롯 클릭 → 선택 방식으로 파티원을 이동/교체합니다.
-   - 48시간 자동 삭제 타이머는 구현하지 않고, 수동 삭제 버튼만 제공합니다.
+   - 48시간 자동 삭제는 프론트가 아니라 Apps Script 시간 트리거(cleanExpiredResults)가
+     담당합니다. 프론트에는 수동 삭제 버튼만 있습니다(자동삭제 루프 제거, 2026-07-08).
    - 자동 매칭 알고리즘은 기획서에 정확한 배정/균형 공식이 없어 다음 규칙의
      단순 휴리스틱으로 구현했습니다: 일반 신청 우선 → 동일 대표는 같은 시간 1명만 →
      일반 신청 캐릭터는 전체 기간 중 최대 1회 배정 → 지원 신청은 시간마다 반복 가능.
@@ -830,17 +831,22 @@ function runAutoMatch(content, reps) {
   function findBestSlotFor(sc) {
     const avgs = partyAverages();
     const target = avgs.length ? avgs.reduce((a, b) => a + b, 0) / avgs.length : 0;
-    let bestIdx = -1, bestScore = Infinity;
+    // 역할 우선 2단계 (지원채우기_역할우선_수정_요청_프롬프트, 2026-07-08 확정):
+    // 1순위 = 본래 역할과 같은 빈 슬롯, 2순위 = 그런 슬롯이 전혀 없을 때만 교차 슬롯.
+    // 같은 순위 등급 안에서는 기존과 동일하게 균형 점수(채웠을 때 파티 평균이 전체 평균에
+    // 가장 가까워지는 자리)로 고릅니다. 서포터 슬롯은 여전히 서포터 후보만 채울 수 있습니다
+    // (1.2절, 변경 금지 범위).
+    let bestIdx = -1, bestScore = Infinity, bestTier = Infinity;
     emptySlots.forEach((es, idx) => {
       if (es.party.slots[es.slotIndex].nickname) return;
-      // 서포터 슬롯은 서포터만, 탱커·딜러 슬롯은 역할 무관하게 교차 배정 가능 (1.2절, 변경 금지 범위)
       if (es.role === "support" && sc.char.role !== "support") return;
       if (!sc.times.includes(es.party.time)) return;
       if (repTimeOccupied[`${sc.repName}:${es.party.time}`]) return;
+      const tier = es.role === sc.char.role ? 0 : 1;
       const power = charFinalPower(sc.char, content);
       const newAvg = (es.party._powerSum + power) / (es.party._filledCount + 1);
       const score = Math.abs(newAvg - target);
-      if (score < bestScore) { bestScore = score; bestIdx = idx; }
+      if (tier < bestTier || (tier === bestTier && score < bestScore)) { bestTier = tier; bestScore = score; bestIdx = idx; }
     });
     return bestIdx === -1 ? null : bestIdx;
   }
@@ -2372,21 +2378,10 @@ function AdminShell({ config, setConfig }) {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  // 48시간 자동 삭제: 앱이 열려 있는 동안 주기적으로 만료 여부를 확인합니다.
-  useEffect(() => {
-    const t = setInterval(async () => {
-      const now = Date.now();
-      const expired = config.contents.filter((c) => {
-        const meta = resultsMeta[c.id];
-        return meta && now - meta.generatedAt >= RETENTION_MS;
-      });
-      if (expired.length === 0) return;
-      for (const c of expired) await purgeContentData(c);
-      showToast(`자동 매칭 후 48시간이 지나 ${expired.map((c) => c.name).join(", ")}의 신청/매칭 데이터가 자동 삭제되었습니다.`);
-      await refresh();
-    }, 60000);
-    return () => clearInterval(t);
-  }, [config.contents, resultsMeta, refresh, showToast]);
+  // 48시간 자동 삭제는 Apps Script 시간 트리거(cleanExpiredResults)가 서버에서 단일 경로로
+  // 처리합니다. 클라이언트 폴링 루프는 서버 트리거와의 중복 삭제 경쟁(행 번호 밀림) 위험이
+  // 있어 제거되었습니다(클라이언트_자동삭제루프_제거_요청_프롬프트, 2026-07-08). 수동
+  // "매칭 삭제" 버튼과 purgeContentData는 그대로 유지됩니다.
 
   function updateConfig(patch) {
     const next = { ...config, ...patch };
