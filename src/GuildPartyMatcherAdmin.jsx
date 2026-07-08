@@ -95,7 +95,7 @@ const GlobalStyle = () => (
     .gpa-table tr:last-child td { border-bottom: none; }
     .gpa-table-wrap { overflow-x: auto; }
 
-    .gpa-badge { font-size: 12px; padding: 3px 8px; border-radius: 10px; font-weight: 700; display: inline-block; }
+    .gpa-badge { font-size: 12px; padding: 3px 8px; border-radius: 10px; font-weight: 700; display: inline-block; white-space: nowrap; }
     .gpa-badge-icon { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 10px; }
     .gpa-badge-icon.tank { background: rgba(76,113,150,0.16); color: var(--tank); }
     .gpa-badge-icon.support { background: rgba(111,196,138,0.16); color: var(--support); }
@@ -1368,7 +1368,7 @@ function ApplicationsView({ contents, reps, onExcludeCharacter }) {
                       <td style={{ fontFamily: "var(--font-mono)", color: short ? "var(--danger)" : "var(--text)" }}>{char.resist.toLocaleString()}{short && " (미달)"}</td>
                       <td style={{ fontFamily: "var(--font-mono)" }}>{content ? charFinalPower(char, content).toLocaleString() : "-"}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontSize: 11.5 }}>{app.times.slice().sort().join(", ")}</td>
-                      <td>{APP_STATUS_LABEL[app.status] || app.status}</td>
+                      <td style={{ whiteSpace: "nowrap" }}>{APP_STATUS_LABEL[app.status] || app.status}</td>
                       <td><button className="gpa-btn gpa-btn-danger gpa-btn-sm" onClick={() => onExcludeCharacter(repName, app.id, char.id)}>캐릭터 제외</button></td>
                     </tr>
                   );
