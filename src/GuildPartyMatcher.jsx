@@ -496,7 +496,7 @@ function GateFlow({ config, onEnter }) {
           </button>
         )}
 
-        <a href="/admin.html" className="gpm-btn gpm-btn-ghost gpm-btn-block" style={{ textDecoration: "none", marginTop: 12 }}>관리자 화면 →</a>
+        <a href="/admin.html" className="gpm-btn gpm-btn-ghost gpm-btn-block" style={{ textDecoration: "none", marginTop: 12 }}>Admin</a>
       </div>
     </div>
   );
@@ -1155,12 +1155,12 @@ function AppShell({ repName, repData, setRepData, config }) {
         <div className="gpm-brand">
           <Emblem />
           <div className="gpm-brand-text">
-            <span className="gpm-brand-title">길드 파티 매칭</span>
-            <span className="gpm-brand-sub">GUILD PARTY MATCHING LEDGER</span>
+            <span className="gpm-brand-title">두두파 2.0</span>
+            <span className="gpm-brand-sub">DOKIDOKI SAINT GUILD PARTY MAKER</span>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <a href="/admin.html" className="gpm-btn gpm-btn-ghost gpm-btn-sm" style={{ textDecoration: "none" }}>관리자 화면 →</a>
+          <a href="/admin.html" className="gpm-btn gpm-btn-ghost gpm-btn-sm" style={{ textDecoration: "none" }}>Admin</a>
           <div className="gpm-rep-badge">
             <div className="gpm-rep-avatar">{repName.slice(0, 1)}</div>
             <div>

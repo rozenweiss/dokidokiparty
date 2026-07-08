@@ -161,9 +161,7 @@ const DEFAULT_JOBS = [
   { id: "j8", name: "도적", role: "dealer", keywords: "rogue 단검 은신", order: 8, active: true },
 ];
 const DEFAULT_CONTENTS = [
-  { id: "c1", name: "협곡의 결전", pressure: 0, requiredResist: 0, partySize: 4, interval: 30, startTime: "20:00", endTime: "23:30", active: true },
-  { id: "c2", name: "심연의 제단", pressure: 120, requiredResist: 1600, partySize: 4, interval: 30, startTime: "20:00", endTime: "23:00", active: true },
-  { id: "c3", name: "폐허의 감시탑", pressure: 0, requiredResist: 0, partySize: 6, interval: 60, startTime: "21:00", endTime: "23:00", active: false },
+  { id: "c1", name: "협곡의 결전", pressure: 0, requiredResist: 0, partySize: 4, interval: 30, startTime: "20:00", endTime: "23:30", active: true }
 ];
 const ROLE_LABEL = { tank: "탱커", support: "서포터", dealer: "딜러" };
 const ROLE_ICON = { tank: Shield, support: HeartPulse, dealer: Swords };
