@@ -75,9 +75,6 @@ const GlobalStyle = () => (
     .gpm-gate-emblem { display: flex; justify-content: center; margin-bottom: 18px; }
     .gpm-gate-title { text-align: center; font-size: 22px; color: var(--gold-soft); margin-bottom: 6px; }
     .gpm-gate-desc { text-align: center; font-size: 14px; color: var(--text-dim); margin-bottom: 26px; line-height: 1.6; }
-    .gpm-steps { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 22px; }
-    .gpm-step-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); transition: all .2s; }
-    .gpm-step-dot.active { background: var(--gold); width: 18px; border-radius: 7px; }
 
     .gpm-field { margin-bottom: 16px; }
     .gpm-label { display: block; font-size: 13.5px; color: var(--text-dim); margin-bottom: 7px; letter-spacing: 0.02em; }
@@ -392,10 +389,6 @@ function JobCombo({ jobs, value, onChange }) {
    1.3 + 1.4 — 길드 입장 & 대표 캐릭터 입력 (게이트)
    ============================================================ */
 function GateFlow({ config, onEnter }) {
-  const alreadyAuthed = (() => {
-    try { return sessionStorage.getItem("gpm-guild-authed") === "true"; } catch (e) { return false; }
-  })();
-  const [step, setStep] = useState(alreadyAuthed ? 2 : 1); // 1: 길드 비번, 2: 대표 캐릭터
   const [pw, setPw] = useState("");
   const [pwError, setPwError] = useState("");
   const [repInput, setRepInput] = useState("");
@@ -410,19 +403,15 @@ function GateFlow({ config, onEnter }) {
     })();
   }, []);
 
-  function submitPw() {
-    if (pw === config.password) {
-      try { sessionStorage.setItem("gpm-guild-authed", "true"); } catch (e) { /* 세션 저장이 안 되면 그냥 이번 새로고침까지만 유지됩니다 */ }
-      setStep(2);
-      setPwError("");
-    } else {
-      setPwError("비밀번호가 올바르지 않습니다. 관리자에게 공유받은 길드 비밀번호를 확인해주세요.");
-    }
-  }
-
-  async function submitRep(name) {
+  async function submit(name) {
     const target = (name ?? repInput).trim();
     if (!target) return;
+    if (pw !== config.password) {
+      setPwError("비밀번호가 올바르지 않습니다. 관리자에게 공유받은 길드 비밀번호를 확인해주세요.");
+      return;
+    }
+    setPwError("");
+    try { sessionStorage.setItem("gpm-guild-authed", "true"); } catch (e) { /* 세션 저장이 안 되면 그냥 이번 새로고침까지만 유지됩니다 */ }
     setBusy(true);
     const existing = await storageGet(`rep:${target}`, true);
     setBusy(false);
@@ -439,6 +428,10 @@ function GateFlow({ config, onEnter }) {
   async function createRep() {
     const target = repInput.trim();
     if (!target) return;
+    if (pw !== config.password) {
+      setPwError("비밀번호가 올바르지 않습니다. 관리자에게 공유받은 길드 비밀번호를 확인해주세요.");
+      return;
+    }
     const fresh = { subs: [], applications: [] };
     await storageSet(`rep:${target}`, fresh, true);
     const recentsNext = [target, ...recents.filter((r) => r !== target)].slice(0, 5);
@@ -451,73 +444,59 @@ function GateFlow({ config, onEnter }) {
     <div className="gpm-gate-wrap">
       <div className="gpm-gate-card">
         <div className="gpm-gate-emblem"><Emblem size={44} /></div>
-        <div className="gpm-steps">
-          <div className={`gpm-step-dot ${step >= 1 ? "active" : ""}`} />
-          <div className={`gpm-step-dot ${step >= 2 ? "active" : ""}`} />
+        <h1 className="gpm-gate-title">길드 파티 매칭</h1>
+        <p className="gpm-gate-desc">길드원만 입장할 수 있습니다.<br />길드 공용 비밀번호와 대표 캐릭터명을 입력해주세요.</p>
+
+        <div className="gpm-field">
+          <label className="gpm-label">길드 공용 비밀번호</label>
+          <input
+            type="password"
+            className={`gpm-input ${pwError ? "error" : ""}`}
+            value={pw}
+            onChange={(e) => { setPw(e.target.value); setPwError(""); }}
+            onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+            placeholder="비밀번호 입력"
+            autoFocus
+          />
+          {pwError && <div className="gpm-error-text">{pwError}</div>}
+          <div className="gpm-hint-text">프로토타입 기본 비밀번호: {config.password}</div>
         </div>
 
-        {step === 1 && (
-          <div>
-            <h1 className="gpm-gate-title">길드 파티 매칭</h1>
-            <p className="gpm-gate-desc">길드원만 입장할 수 있습니다.<br />관리자에게 공유받은 길드 공용 비밀번호를 입력해주세요.</p>
-            <div className="gpm-field">
-              <label className="gpm-label">길드 공용 비밀번호</label>
-              <input
-                type="password"
-                className={`gpm-input ${pwError ? "error" : ""}`}
-                value={pw}
-                onChange={(e) => { setPw(e.target.value); setPwError(""); }}
-                onKeyDown={(e) => { if (e.key === "Enter") submitPw(); }}
-                placeholder="비밀번호 입력"
-                autoFocus
-              />
-              {pwError && <div className="gpm-error-text">{pwError}</div>}
-              <div className="gpm-hint-text">프로토타입 기본 비밀번호: {config.password}</div>
+        <div className="gpm-field">
+          <label className="gpm-label">대표 캐릭터명</label>
+          <input
+            className="gpm-input"
+            value={repInput}
+            onChange={(e) => { setRepInput(e.target.value); setLookupState(null); }}
+            placeholder="대표 캐릭터명 입력"
+            onKeyDown={(e) => e.key === "Enter" && submit()}
+          />
+          {recents.length > 0 && (
+            <div className="gpm-recents">
+              {recents.map((r) => (
+                <button key={r} className="gpm-recent-chip" onClick={() => { setRepInput(r); setLookupState(null); }}>{r}</button>
+              ))}
             </div>
-            <button type="button" className="gpm-btn gpm-btn-primary gpm-btn-block" onClick={submitPw}>입장하기</button>
+          )}
+        </div>
+
+        {lookupState === "not_found" ? (
+          <div>
+            <div className="gpm-notice" style={{ marginBottom: 14 }}>
+              '{repInput}'(으)로 등록된 정보가 없습니다. 신규 대표 캐릭터로 등록할까요?
+            </div>
+            <div className="gpm-row">
+              <button className="gpm-btn gpm-btn-ghost" style={{ flex: 1 }} onClick={() => setLookupState(null)}>다시 입력</button>
+              <button className="gpm-btn gpm-btn-primary" style={{ flex: 1 }} onClick={createRep}>신규 등록</button>
+            </div>
           </div>
+        ) : (
+          <button className="gpm-btn gpm-btn-primary gpm-btn-block" disabled={!repInput.trim() || !pw.trim() || busy} onClick={() => submit()}>
+            {busy ? "확인 중..." : "입장하기"}
+          </button>
         )}
 
-        {step === 2 && (
-          <div>
-            <h1 className="gpm-gate-title">대표 캐릭터</h1>
-            <p className="gpm-gate-desc">대표 캐릭터명은 사용자 계정처럼 사용됩니다.<br />실제 파티에 참여할 캐릭터는 다음 화면에서 등록합니다.</p>
-            <div className="gpm-field">
-              <label className="gpm-label">대표 캐릭터명</label>
-              <input
-                className="gpm-input"
-                value={repInput}
-                onChange={(e) => { setRepInput(e.target.value); setLookupState(null); }}
-                placeholder="대표 캐릭터명 입력"
-                autoFocus
-                onKeyDown={(e) => e.key === "Enter" && submitRep()}
-              />
-              {recents.length > 0 && (
-                <div className="gpm-recents">
-                  {recents.map((r) => (
-                    <button key={r} className="gpm-recent-chip" onClick={() => { setRepInput(r); submitRep(r); }}>{r}</button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {lookupState === "not_found" ? (
-              <div>
-                <div className="gpm-notice" style={{ marginBottom: 14 }}>
-                  '{repInput}'(으)로 등록된 정보가 없습니다. 신규 대표 캐릭터로 등록할까요?
-                </div>
-                <div className="gpm-row">
-                  <button className="gpm-btn gpm-btn-ghost" style={{ flex: 1 }} onClick={() => setLookupState(null)}>다시 입력</button>
-                  <button className="gpm-btn gpm-btn-primary" style={{ flex: 1 }} onClick={createRep}>신규 등록</button>
-                </div>
-              </div>
-            ) : (
-              <button className="gpm-btn gpm-btn-primary gpm-btn-block" disabled={!repInput.trim() || busy} onClick={() => submitRep()}>
-                {busy ? "조회 중..." : "조회하기"}
-              </button>
-            )}
-          </div>
-        )}
+        <a href="/admin.html" className="gpm-btn gpm-btn-ghost gpm-btn-block" style={{ textDecoration: "none", marginTop: 12 }}>관리자 화면 →</a>
       </div>
     </div>
   );
