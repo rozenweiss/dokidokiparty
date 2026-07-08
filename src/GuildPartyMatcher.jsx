@@ -443,8 +443,7 @@ function GateFlow({ config, onEnter }) {
   return (
     <div className="gpm-gate-wrap">
       <div className="gpm-gate-card">
-        <div className="gpm-gate-emblem"><Emblem size={44} /></div>
-        <h1 className="gpm-gate-title">길드 파티 매칭</h1>
+        <h1 className="gpm-gate-title">두근두근 파티 메이커 2.0</h1>
         <p className="gpm-gate-desc">길드원만 입장할 수 있습니다.<br />길드 공용 비밀번호와 대표 캐릭터명을 입력해주세요.</p>
 
         <div className="gpm-field">
