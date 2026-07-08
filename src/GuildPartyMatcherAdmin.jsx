@@ -327,22 +327,32 @@ function stdev(nums) {
 }
 
 /**
- * 자동 매칭 알고리즘 (요청 문서 5·6·10·11절 반영)
+ * 자동 매칭 알고리즘 (일반 신청 파티 배분 로직 수정안 + 정합화 노트, 2026-07-08 반영)
  *
  * [Inference/Unverified] 이 알고리즘은 최적해를 보장하지 않는 휴리스틱입니다.
  * 길드원 50명 미만 소규모 운영을 기준으로, 정수계획법(ILP)이나 완전탐색 대신
  * "그리디 배치 + 제한된 지역탐색(local search)"을 사용합니다. 아래는 기대되는
  * 동작이며, 모든 신청 조합에서 전역 최적 균형을 보장하지는 않습니다.
  *
- * 처리 순서:
- * 1) 일반 신청 캐릭터의 시간 배정을 역할별 시간대 부하 분산으로 1차 결정
+ * 처리 순서 (수정안 9절):
+ * 1) 일반 신청 캐릭터의 시간 배정 — 딜러 집중 배치 유지, 탱커·서포터는 딜러 있는 시간 우선
  *    (동일 대표 캐릭터는 같은 시간에 1명만 — 신청한 시간 범위 안에서만 배정)
- * 2) 시간대별 파티 수 = ceil(그 시간대 일반 딜러 수 ÷ 딜러 슬롯 수) — 딜러 기준으로만 산정
- * 3) 각 시간대 안에서, 전투력이 가장 낮은 파티부터 채우는 그리디 빈 패킹으로 배치
- *    (탱커·서포터·딜러 모두 동일한 방식 적용). 초과 탱커는 딜러 자리로 합류, 초과 서포터는 미배정.
- * 4) 같은 역할·서로 다른 시간 사이에서, 각 캐릭터가 실제로 신청한 시간 범위 안에서만
- *    스왑을 시도해 파티 평균 전투력의 표준편차가 줄어들면 교환 (제한된 횟수)
- * 5) 지원 신청자로 남은 빈자리를, 전체 평균에 가장 가깝게 만드는 자리부터 채움
+ * 2) 시간대별 파티 수 = ceil(그 시간대 일반 딜러 수 ÷ 딜러 슬롯 수). 딜러가 0명인 시간대는
+ *    파티를 생성하지 않음 (기존 "탱커 2명 이상이면 파티 생성" 규칙은 폐기됨 — 정합화 노트 2.2).
+ * 3) 각 시간대 안에서 서포터 → 탱커 → 딜러 순으로 "전투력 합계가 가장 낮은 파티부터 채우는"
+ *    그리디 배치. 서포터·탱커는 자기 역할 슬롯에만 배치(교차 없음), 딜러 배치 후 남는 탱커만
+ *    빈 딜러 슬롯에 교차 배치를 검토합니다. 서포터 초과분은 교차 배치하지 않습니다.
+ * 4) 3단계에서 역할 자리 부족 등으로 밀린 일반(및 both) 캐릭터는 바로 미배정 처리하지 않고,
+ *    본인이 신청한 다른 시간대의 빈 슬롯에 일반으로 재시도합니다(동일 대표 동일 시간 제약과
+ *    해당 시간대의 슬롯 규칙을 그대로 적용). 재시도까지 실패한 뒤에만 사유와 함께 미배정됩니다.
+ * 5) 그래도 남는 딜러 잉여는 신규 파티 생성을 검토합니다 — 지원 서포터를 구할 수 있으면
+ *    지원 서포터를 포함해, 구할 수 없으면 서포터 빈 슬롯으로 생성합니다. 이때도 배치할 수
+ *    없는 딜러만 최종 미배정 처리됩니다. (탱커·서포터 잉여만으로는 신규 파티를 만들지 않음)
+ * 6) 같은 역할·서로 다른 시간 사이에서, 각 캐릭터가 실제로 신청한 시간 범위 안에서만
+ *    스왑을 시도해 파티 평균 전투력의 표준편차가 줄어들면 교환 (신규 파티 포함, 제한된 횟수)
+ * 7) 지원 신청자로 남은 빈자리를 채웁니다. both 캐릭터는 일반 배정(재시도·신규 파티 포함)이
+ *    최종 실패하면 지원 후보에서도 완전히 제외됩니다(정합화 노트 2.4 — "일반 실패 시 지원도
+ *    실패"). 성공한 both 캐릭터는 최종 배정된 시간만 지원 후보에서 제외됩니다.
  */
 function runAutoMatch(content, reps) {
   const dealerSlots = Math.max(content.partySize - 2, 0);
@@ -354,14 +364,15 @@ function runAutoMatch(content, reps) {
   const normalChars = groupCandidatesByChar(candidates.filter((c) => appliesNormal(c.type)));
   const supportCandidatesRaw = candidates.filter((c) => appliesSupport(c.type));
 
-  /* ---- 1단계: 일반 신청 캐릭터의 시간 배정 (역할별 시간대 부하 분산, 신청한 시간 범위 안에서만) ----
-     딜러를 먼저 배치해 "딜러 있는 시간"을 결정한 뒤, 탱커·서포터는 그 시간을 우선 배정
-     시도합니다. 딜러 없는 시간에 탱커·서포터가 배정된 채 조용히 사라지는 버그를 막기
-     위한 규칙입니다(딜러없는시간대 버그수정 요청, 2.1절). */
+  const byPowerDesc = (a, b) => charFinalPower(b.char, content) - charFinalPower(a.char, content);
+  const charKey = (repName, char) => `${repName}:${char.id}`;
+
+  /* ---- 1단계: 일반 신청 캐릭터의 시간 배정 (기존 로직 유지 — 딜러 집중 배치, 탱커·서포터는
+     딜러 있는 시간 우선) ---- */
   const roleCountAtTime = {};
   allTimes.forEach((t) => (roleCountAtTime[t] = { tank: 0, support: 0, dealer: 0 }));
-  const repTimeUsed = {}; // repName -> Set(이미 배정된 시간)
-  const placedNormal = []; // {repName, char, role, time, allowedTimes, type}
+  const repTimeUsed = {}; // repName -> Set(이미 배정된 시간) — 재시도/신규 파티에서도 계속 갱신됨
+  const placedNormal = []; // {repName, char, role, time, allowedTimes, type} — .time은 최종 배정 시간으로 갱신될 수 있음
 
   function placeNormalTime({ repName, char, times, types }, compareFn) {
     const appType = types.includes("both") ? "both" : "normal";
@@ -381,11 +392,10 @@ function runAutoMatch(content, reps) {
   const dealerNormals = normalChars.filter((c) => c.char.role === "dealer");
   const otherNormals = normalChars.filter((c) => c.char.role !== "dealer");
 
-  /* 딜러 집중 배치 (지원강캐우선_딜러집중배치 통합 요청, 요청②): 새 시간대를 만들기보다
-     이미 딜러가 있고 파티가 덜 찬 시간대의 빈 딜러 슬롯을 먼저 채웁니다.
+  /* 딜러 집중 배치 (지원강캐우선_딜러집중배치 통합 요청, 요청②) — 변경 금지 범위, 그대로 유지:
+     새 시간대를 만들기보다 이미 딜러가 있고 파티가 덜 찬 시간대의 빈 딜러 슬롯을 먼저 채웁니다.
      우선순위: 1) 부분 파티가 있는 시간(딜러 수 % 딜러슬롯 !== 0, 잔여 슬롯 적은 순)
-     2) 이미 딜러가 있는 시간(파티는 꽉 참) 3) 딜러가 아예 없는 시간(기존 부하 분산 유지).
-     dealerSlots가 0인 콘텐츠는 이 로직을 적용하지 않고 기존 방식을 그대로 씁니다. */
+     2) 이미 딜러가 있는 시간(파티는 꽉 참) 3) 딜러가 아예 없는 시간(기존 부하 분산 유지). */
   function dealerTimeCompare(t1, t2) {
     if (dealerSlots === 0) return roleCountAtTime[t1].dealer - roleCountAtTime[t2].dealer;
     const tierOf = (t) => {
@@ -419,114 +429,66 @@ function runAutoMatch(content, reps) {
 
   [...otherNormals].sort((a, b) => a.times.length - b.times.length).forEach((c) => placeNormalTime(c, tankSupportTimeCompare(c.char)));
 
-  /* 일반+지원(both) 캐릭터는 1단계에서 배정된 시간을 제외한 나머지 신청 시간만
-     지원 후보로 남습니다 (12.3절). 1단계에서 아예 배정 실패한 both 캐릭터는
-     신청한 시간 전체가 지원 후보로 남습니다 — 사용자가 이 처리 방식을 확정했습니다
-     (딜러없는시간대 버그수정 요청, 2.3절). */
-  const supportChars = groupCandidatesByChar(supportCandidatesRaw)
-    .map((sc) => {
-      const normalPlacement = placedNormal.find((p) => p.repName === sc.repName && p.char.id === sc.char.id);
-      if (normalPlacement) return { ...sc, times: sc.times.filter((t) => t !== normalPlacement.time) };
-      return sc;
-    })
-    .filter((sc) => sc.times.length > 0);
-
-  /* ---- 2단계: 딜러 신청 수 기준 시간대별 파티 수 산정 (10.3.1절) ---- */
+  /* ---- 2단계: 딜러 신청 수 기준 시간대별 파티 수 산정 ----
+     딜러가 0명인 시간대는 파티를 생성하지 않습니다. 기존에 있던 "탱커 2명 이상이면 탱커를
+     딜러 자리에도 채용해 파티를 생성" 규칙은 폐기되었습니다(정합화 노트 2.2 — 2026-07-08 확정).
+     그 시간대에만 배정 가능한 일반 탱커·서포터는 아래 재시도 단계로 넘어가 다른 신청 시간에서
+     빈 슬롯을 찾고, 그마저 실패하면 사유와 함께 미배정됩니다. */
   const partyCountAtTime = {};
   allTimes.forEach((t) => {
     const dealerCount = placedNormal.filter((p) => p.time === t && p.role === "dealer").length;
     partyCountAtTime[t] = dealerCount > 0 ? Math.ceil(dealerCount / Math.max(dealerSlots, 1)) : 0;
   });
 
-  /* ---- 3단계: 시간대별 그리디 빈 패킹 배치 ----
-     역할 초과분 교차배정 규칙 (초과분_교차배정_재정의 요청, 1.1절 — 사용자 확정):
-     - 서포터 슬롯은 서포터만 채울 수 있음
-     - 딜러 슬롯은 [딜러 + 초과탱커 + 초과서포터] 전투력 순 혼합 풀로 채움 (역할 우선순위 없음)
-     - 빈 탱커 슬롯(탱커 수 < 파티 수)은 남은 [초과딜러 + 초과서포터] 전투력 순 혼합으로 채움
-     - 서포터 초과분은 파티를 새로 만들지 않고, 채울 슬롯이 없으면 사유와 함께 미배정 */
   const partiesByKey = {}; // `${time}:${partyNumber}` -> party
-  const placedSlotOf = {}; // `${repName}:${characterId}` -> {time, partyNumber, slotIndex}
+  const placedSlotOf = {}; // `${repName}:${characterId}` -> {time, partyNumber, slotIndex} — 지역탐색 스왑 대상(일반/both만)
 
-  function fillPartiesCrossAssign(t, parties, tanksIn, supportsIn, dealersIn) {
-    function place(entry, slotRole) {
-      let best = -1, bestSum = Infinity;
-      parties.forEach((p, i) => {
-        const idx = p.slots.findIndex((s) => !s.nickname && s.role === slotRole);
-        if (idx === -1) return;
-        if (p._powerSum < bestSum) { bestSum = p._powerSum; best = i; }
-      });
-      if (best === -1) return false;
-      const p = parties[best];
+  /* 파티의 빈 슬롯 중 role이 일치하는 자리를, 전투력 합계가 가장 낮은 파티부터 채우는 공용 배치 함수.
+     parties 배열 범위 안에서만 후보를 찾으므로, 같은 시간대 안에서도 / 여러 시간대에 걸쳐서도 재사용됩니다.
+     registerNormal=false인 경우(지원 신청으로 채우는 경우) 지역탐색 스왑 대상(placedSlotOf)에는 등록하지
+     않습니다 — 기존에도 지원 배치는 스왑 이후 단계였던 것과 동일하게, 일반 배정자만 스왑 후보로 남깁니다. */
+  function place(entry, slotRole, parties, opts) {
+    const slotType = (opts && opts.slotType) || "normal";
+    const registerNormal = !opts || opts.registerNormal !== false;
+    let best = null, bestSum = Infinity;
+    parties.forEach((p) => {
       const idx = p.slots.findIndex((s) => !s.nickname && s.role === slotRole);
-      const power = charFinalPower(entry.char, content);
-      // 슬롯의 role은 이제 "이 자리에 배정된 캐릭터의 실제 역할"을 그대로 반영합니다.
-      // 즉 원래 딜러 슬롯이었어도 탱커가 교차배정되면 role이 "tank"로 바뀌어 표시됩니다
-      // (예: 딜러3·서포터1·탱커1 구성이 교차배정 후 탱커2·딜러2·서포터1로 보일 수 있음).
-      p.slots[idx] = { role: entry.role, nickname: entry.char.nickname, repName: entry.repName, characterId: entry.char.id, type: "normal" };
-      p._powerSum += power; p._filledCount++;
-      placedSlotOf[`${entry.repName}:${entry.char.id}`] = { time: t, partyNumber: p.partyNumber, slotIndex: idx };
-      return true;
-    }
-
-    const byPowerDesc = (a, b) => charFinalPower(b.char, content) - charFinalPower(a.char, content);
-    const sortedSupports = [...supportsIn].sort(byPowerDesc);
-    const sortedTanks = [...tanksIn].sort(byPowerDesc);
-
-    // 서포터: 서포터 슬롯 전용, 파티 수만큼만. 초과분은 딜러 풀로 넘어감(파티는 새로 안 만듦).
-    const primarySupports = sortedSupports.slice(0, parties.length);
-    const excessSupports = sortedSupports.slice(parties.length);
-    primarySupports.forEach((entry) => { if (!place(entry, "support")) excessSupports.push(entry); });
-
-    // 탱커: 탱커 슬롯 전용, 파티 수만큼만. 초과분은 딜러 풀로.
-    const primaryTanks = sortedTanks.slice(0, parties.length);
-    const excessTanks = sortedTanks.slice(parties.length);
-    primaryTanks.forEach((entry) => { if (!place(entry, "tank")) excessTanks.push(entry); });
-
-    // 딜러 슬롯: [딜러 + 초과탱커 + 초과서포터] 전투력 순 혼합 (역할 우선순위 없음)
-    const dealerPool = [...dealersIn, ...excessTanks, ...excessSupports].sort(byPowerDesc);
-    const leftoverAfterDealer = [];
-    dealerPool.forEach((entry) => { if (!place(entry, "dealer")) leftoverAfterDealer.push(entry); });
-
-    // 빈 탱커 슬롯: 남은 [초과딜러 + 초과서포터](leftoverAfterDealer)로 채움
-    leftoverAfterDealer.sort(byPowerDesc);
-    const stillLeftover = [];
-    leftoverAfterDealer.forEach((entry) => { if (!place(entry, "tank")) stillLeftover.push(entry); });
-
-    stillLeftover.forEach((entry) => unassigned.push({ ...entry, reason: "역할 자리 부족" }));
+      if (idx === -1) return;
+      if (p._powerSum < bestSum) { bestSum = p._powerSum; best = p; }
+    });
+    if (!best) return null;
+    const idx = best.slots.findIndex((s) => !s.nickname && s.role === slotRole);
+    const power = charFinalPower(entry.char, content);
+    best.slots[idx] = { role: entry.role || slotRole, nickname: entry.char.nickname, repName: entry.repName, characterId: entry.char.id, type: slotType };
+    best._powerSum += power; best._filledCount++;
+    if (registerNormal) placedSlotOf[charKey(entry.repName, entry.char)] = { time: best.time, partyNumber: best.partyNumber, slotIndex: idx };
+    if (!repTimeUsed[entry.repName]) repTimeUsed[entry.repName] = new Set();
+    repTimeUsed[entry.repName].add(best.time);
+    return best;
   }
+
+  /* ---- 3단계: 시간대별 서포터 → 탱커 → 딜러 순 배치 (수정안 3절) ----
+     - 서포터: 파티당 1명, 서포터 슬롯 전용, 전투력 균형(합계 낮은 파티부터). 초과분은 교차
+       배치하지 않고 재시도 대상으로 넘어갑니다(4.1절).
+     - 탱커: 서포터 배치 후 파티 누적 전투력 기준으로 균형 배치, 파티당 1명. 초과분은 같은
+       시간대의 빈 딜러 슬롯에 교차 배치를 먼저 시도합니다(4.2절 1항).
+     - 딜러: 파티 전체 전투력 합계 기준 균형 배치. */
+  const tankSurplus = [];
+  const supportSurplus = [];
+  const dealerSurplus = [];
 
   allTimes.forEach((t) => {
     const partyCount = partyCountAtTime[t];
     const atTime = placedNormal.filter((p) => p.time === t);
 
     if (partyCount === 0) {
-      /* 딜러 0명 시간대 (딜러없는시간대 버그수정 요청, 2.2절 — 사용자 확정 공식).
-         탱커 2명 이상이면 탱커를 딜러 자리에도 채용해 파티를 만들고,
-         1명 이하면 파티를 만들지 않고 사유와 함께 미배정으로 보냅니다. */
-      const tanksHere = atTime.filter((p) => p.role === "tank");
-      const supportsHere = atTime.filter((p) => p.role === "support");
-      const noDealerReason = "이 시간대에 딜러 신청이 없어 파티가 생성되지 않음";
-
-      // 사용자 확정 공식: min(ceil(탱커 ÷ (1+딜러슬롯)), floor(탱커 ÷ 2))
-      const tankPartyCount = tanksHere.length >= 2
-        ? Math.min(Math.ceil(tanksHere.length / (1 + dealerSlots)), Math.floor(tanksHere.length / 2))
-        : 0;
-
-      if (tankPartyCount === 0) {
-        tanksHere.forEach((entry) => unassigned.push({ ...entry, reason: noDealerReason }));
-        supportsHere.forEach((entry) => unassigned.push({ ...entry, reason: noDealerReason }));
-        return;
-      }
-
-      const tParties = Array.from({ length: tankPartyCount }, (_, i) => ({
-        time: t, partyNumber: i + 1,
-        slots: slotOrder.map((role) => ({ role, nickname: null, repName: null, characterId: null, type: null })),
-        _powerSum: 0, _filledCount: 0,
-      }));
-      tParties.forEach((p) => (partiesByKey[`${t}:${p.partyNumber}`] = p));
-
-      // 이 시간대엔 딜러 신청 자체가 없으므로(파티수 0의 정의), 딜러 풀은 빈 배열로 전달합니다.
-      fillPartiesCrossAssign(t, tParties, tanksHere, supportsHere, []);
+      /* 딜러 신청이 없는 시간대는 파티를 만들지 않습니다. 이 시간대에 배정된 일반 탱커·서포터가
+         조용히 사라지지 않도록 재시도 대상(다른 신청 시간)으로 보냅니다. */
+      atTime.forEach((entry) => {
+        if (entry.role === "tank") tankSurplus.push(entry);
+        else if (entry.role === "support") supportSurplus.push(entry);
+        // 이 시간대엔 딜러가 없으므로(파티 수 0의 정의) 딜러 역할 entry는 존재하지 않습니다.
+      });
       return;
     }
 
@@ -537,13 +499,260 @@ function runAutoMatch(content, reps) {
     }));
     parties.forEach((p) => (partiesByKey[`${t}:${p.partyNumber}`] = p));
 
-    const tanks = atTime.filter((p) => p.role === "tank");
-    const supports = atTime.filter((p) => p.role === "support");
-    const dealersRaw = atTime.filter((p) => p.role === "dealer");
-    fillPartiesCrossAssign(t, parties, tanks, supports, dealersRaw);
+    const tanksHere = atTime.filter((p) => p.role === "tank");
+    const supportsHere = atTime.filter((p) => p.role === "support");
+    const dealersHere = atTime.filter((p) => p.role === "dealer");
+
+    [...supportsHere].sort(byPowerDesc).forEach((entry) => {
+      if (!place(entry, "support", parties)) supportSurplus.push(entry);
+    });
+
+    const tankLeftoverHere = [];
+    [...tanksHere].sort(byPowerDesc).forEach((entry) => {
+      if (!place(entry, "tank", parties)) tankLeftoverHere.push(entry);
+    });
+
+    [...dealersHere].sort(byPowerDesc).forEach((entry) => {
+      if (!place(entry, "dealer", parties)) dealerSurplus.push(entry);
+    });
+
+    /* 탱커 잉여 1차 처리: 같은 시간대의 빈 딜러 슬롯에 교차 배치 검토 (실제 역할 표시는 "tank" 유지) */
+    tankLeftoverHere.sort(byPowerDesc).forEach((entry) => {
+      if (!place(entry, "dealer", parties)) tankSurplus.push(entry);
+    });
   });
 
-  /* ---- 4단계: 같은 역할·서로 다른 시간 사이의 지역 탐색 (신청한 시간 범위 안에서만 스왑) ---- */
+  /* ---- 일반 재시도 (정합화 노트 2.3 — 2026-07-08 확정) ----
+     3단계에서 밀린 일반(및 both) 캐릭터를, 본인이 신청한 다른 시간대의 빈 슬롯에 배치
+     시도합니다. 빈 슬롯에만 배정하며(연쇄 방지), 동일 대표 동일 시간 제약과 해당
+     시간대의 슬롯 규칙(서포터 교차 금지 등)을 그대로 따릅니다.
+     [Inference] 여러 후보 시간이 있으면 전투력 합계가 가장 낮은 파티(균형 우선)를 고릅니다 —
+     명세에 시간 간 우선순위가 별도로 없어 기존 배치 함수의 균형 기준을 그대로 적용했습니다. */
+  function retryOtherTime(entry, tryRoles) {
+    if (!repTimeUsed[entry.repName]) repTimeUsed[entry.repName] = new Set();
+    const otherTimes = entry.allowedTimes.filter(
+      (t) => t !== entry.time && !repTimeUsed[entry.repName].has(t) && partyCountAtTime[t] > 0
+    );
+    if (otherTimes.length === 0) return false;
+    const poolParties = Object.values(partiesByKey).filter((p) => otherTimes.includes(p.time));
+    for (const slotRole of tryRoles) {
+      const landed = place(entry, slotRole, poolParties);
+      if (landed) {
+        const idx = placedNormal.findIndex((p) => p.repName === entry.repName && p.char.id === entry.char.id);
+        if (idx !== -1) placedNormal[idx] = { ...placedNormal[idx], time: landed.time };
+        return true;
+      }
+    }
+    return false;
+  }
+
+  const supportStillUnplaced = [];
+  supportSurplus.forEach((entry) => {
+    if (!retryOtherTime(entry, ["support"])) supportStillUnplaced.push(entry);
+  });
+
+  const tankStillUnplaced = [];
+  tankSurplus.forEach((entry) => {
+    if (!retryOtherTime(entry, ["tank", "dealer"])) tankStillUnplaced.push(entry);
+  });
+
+  const dealerStillUnplaced = [];
+  dealerSurplus.forEach((entry) => {
+    if (!retryOtherTime(entry, ["dealer"])) dealerStillUnplaced.push(entry);
+  });
+
+  /* 서포터 잉여: 재시도까지 실패하면 교차 배치 없이 바로 미배정 처리 (수정안 4.1절) */
+  supportStillUnplaced.forEach((entry) => unassigned.push({ ...entry, reason: "배정 가능한 서포터 자리가 없습니다." }));
+
+  /* 탱커 잉여는 재시도까지 실패해도 즉시 미배정하지 않고, 아래 딜러 잉여 신규 파티 생성의
+     "탱커 잉여 검토"(6.3절 3항)에 마지막으로 한 번 더 쓰일 수 있습니다. 신규 파티에서도
+     쓰이지 못한 나머지만 이후 최종 미배정 처리합니다. */
+  let tankPoolForNewParty = [...tankStillUnplaced];
+
+  /* ---- 지원 신청 후보 풀 구성 ----
+     both 캐릭터는 일반 배정(재시도 포함)이 최종 성공하면 그 시간만 지원 후보에서 제외되고,
+     최종 실패(unassigned에 both/normal로 기록됨)하면 지원 후보에서 완전히 제외됩니다
+     (정합화 노트 2.4 — "일반 배정이 실패하면 지원도 실패한다". 기존 "1단계 실패 시 전체
+     시간을 지원 후보로 유지" 규칙은 폐기되었습니다). 딜러 잉여의 최종 성패는 아래 신규 파티
+     생성 단계 이후에만 확정되므로, 이 함수는 신규 파티 생성 전/후 두 번 호출해 각각의
+     시점에서 유효한 풀을 만듭니다. */
+  const supportCharsBase = groupCandidatesByChar(supportCandidatesRaw);
+  function buildSupportChars() {
+    return supportCharsBase
+      .map((sc) => {
+        // sc.types는 "지원" 관점(support/both)에서 수집된 신청 유형 집합입니다. both가 없다면
+        // 애초에 일반 배정을 시도한 적 없는 순수 지원 신청이므로 항상 그대로 유지합니다.
+        if (!sc.types.includes("both")) return sc;
+        const key = charKey(sc.repName, sc.char);
+        // 1단계에서 즉시 배정 실패한 both 캐릭터는 placedNormal에 아예 등록되지 않으므로,
+        // placedNormal 조회 대신 placedSlotOf(최종 성공)와 unassigned(최종 실패) 상태를 직접
+        // 확인합니다 — 그래야 1단계 즉시 실패 케이스도 정확히 "지원 후보 제외"로 처리됩니다.
+        const loc = placedSlotOf[key];
+        if (loc) return { ...sc, times: sc.times.filter((t) => t !== loc.time) }; // 일반 배정 성공 — 그 시간만 제외
+        const failed = unassigned.some((u) => u.repName === sc.repName && u.char.id === sc.char.id);
+        if (failed) return null; // 일반 배정 최종 실패(1단계 즉시 실패 포함) — 지원 후보에서도 완전히 제외
+        return sc; // 아직 최종 결과가 확정되지 않은 딜러 잉여 신규 파티 대기 상태 — 원래 시간 유지(pending)
+      })
+      .filter((sc) => sc && sc.times.length > 0);
+  }
+
+  /* ---- 딜러 잉여 신규 파티 생성 (수정안 5~8절) ---- */
+  let remainingDealers = [...dealerStillUnplaced];
+
+  function pickUsableDealersForTime(pool, t) {
+    // 서로 다른 대표 캐릭터당 1명만, 해당 시간에 이미 배정된 대표는 제외 (6.4절)
+    const usedReps = new Set();
+    const usable = [];
+    pool.forEach((d) => {
+      if (!d.allowedTimes.includes(t)) return;
+      if (repTimeUsed[d.repName] && repTimeUsed[d.repName].has(t)) return;
+      if (usedReps.has(d.repName)) return;
+      usedReps.add(d.repName);
+      usable.push(d);
+    });
+    return usable;
+  }
+
+  function nextPartyNumber(t) {
+    const nums = Object.values(partiesByKey).filter((p) => p.time === t).map((p) => p.partyNumber);
+    return (nums.length ? Math.max(...nums) : 0) + 1;
+  }
+
+  function createNewParty(t) {
+    const partyNumber = nextPartyNumber(t);
+    const p = {
+      time: t, partyNumber,
+      slots: slotOrder.map((role) => ({ role, nickname: null, repName: null, characterId: null, type: null })),
+      _powerSum: 0, _filledCount: 0,
+    };
+    partiesByKey[`${t}:${partyNumber}`] = p;
+    return p;
+  }
+
+  function placeDirect(entry, slotRole, party, slotType, registerNormal) {
+    const idx = party.slots.findIndex((s) => !s.nickname && s.role === slotRole);
+    if (idx === -1) return false;
+    const power = charFinalPower(entry.char, content);
+    party.slots[idx] = { role: entry.role || slotRole, nickname: entry.char.nickname, repName: entry.repName, characterId: entry.char.id, type: slotType };
+    party._powerSum += power; party._filledCount++;
+    if (registerNormal) placedSlotOf[charKey(entry.repName, entry.char)] = { time: party.time, partyNumber: party.partyNumber, slotIndex: idx };
+    if (!repTimeUsed[entry.repName]) repTimeUsed[entry.repName] = new Set();
+    repTimeUsed[entry.repName].add(party.time);
+    return true;
+  }
+
+  function fillTankSurplusIfAny(party, t, usedReps) {
+    const idx = tankPoolForNewParty.findIndex(
+      (cand) => cand.allowedTimes.includes(t) && !usedReps.has(cand.repName) && !(repTimeUsed[cand.repName] && repTimeUsed[cand.repName].has(t))
+    );
+    if (idx === -1) return;
+    const cand = tankPoolForNewParty[idx];
+    if (placeDirect(cand, "tank", party, "normal", true)) {
+      const pnIdx = placedNormal.findIndex((p) => p.repName === cand.repName && p.char.id === cand.char.id);
+      if (pnIdx !== -1) placedNormal[pnIdx] = { ...placedNormal[pnIdx], time: party.time };
+      tankPoolForNewParty.splice(idx, 1);
+    }
+  }
+
+  if (dealerSlots > 0) {
+    /* 6절: 지원 서포터를 포함한 신규 파티 생성. 지원 서포터를 구할 수 있는 동안 반복합니다.
+       [Inference] 시간 선택 기준은 6.2절의 1)배정 가능 딜러 수 2)서로 다른 대표 수를 핵심
+       criteria로 사용했습니다(균형·잔여 활용성은 부차 기준으로, 별도 점수화하지 않았습니다 —
+       이 경로는 정합화 노트 2.1에 따라 실사용에서는 드물게만 발동할 것으로 예상됩니다). */
+    function tryCreatePartyWithSupport(supportPool) {
+      const timeCandidates = new Set();
+      remainingDealers.forEach((d) => d.allowedTimes.forEach((t) => timeCandidates.add(t)));
+      let best = null;
+      timeCandidates.forEach((t) => {
+        const usableDealers = pickUsableDealersForTime(remainingDealers, t);
+        if (usableDealers.length === 0) return;
+        const dealerRepsAtTime = new Set(usableDealers.map((d) => d.repName));
+        const usableSupports = supportPool.filter(
+          (sc) => sc.times.includes(t) && !(repTimeUsed[sc.repName] && repTimeUsed[sc.repName].has(t)) && !dealerRepsAtTime.has(sc.repName)
+        );
+        if (usableSupports.length === 0) return;
+        const dealerCount = Math.min(usableDealers.length, dealerSlots);
+        const distinctReps = new Set(usableDealers.slice(0, dealerSlots).map((d) => d.repName)).size;
+        if (!best || dealerCount > best.dealerCount || (dealerCount === best.dealerCount && distinctReps > best.distinctReps)) {
+          best = { time: t, dealerCount, distinctReps, usableDealers, usableSupports };
+        }
+      });
+      if (!best) return false;
+
+      const party = createNewParty(best.time);
+      const support = [...best.usableSupports].sort(byPowerDesc)[0];
+      placeDirect(support, "support", party, "support", false);
+      const dealersToPlace = [...best.usableDealers].sort(byPowerDesc).slice(0, dealerSlots);
+      dealersToPlace.forEach((d) => {
+        placeDirect(d, "dealer", party, "normal", true);
+        remainingDealers = remainingDealers.filter((x) => x !== d);
+      });
+      const usedReps = new Set([support.repName, ...dealersToPlace.map((d) => d.repName)]);
+      fillTankSurplusIfAny(party, best.time, usedReps);
+      return true;
+    }
+
+    let supportPoolForNewParty = buildSupportChars().filter((sc) => sc.char.role === "support");
+    let guardA = 0;
+    while (remainingDealers.length > 0 && guardA < 500) {
+      guardA++;
+      if (!tryCreatePartyWithSupport(supportPoolForNewParty)) break;
+      // 지원 후보 풀은 신규 파티가 생길 때마다 repTimeUsed 변화를 반영해 다시 계산합니다.
+      supportPoolForNewParty = buildSupportChars().filter((sc) => sc.char.role === "support");
+    }
+
+    /* 7절: 지원 서포터를 찾을 수 없으면 딜러만으로 신규 파티 생성 (서포터 자리는 빈 슬롯 유지) */
+    function tryCreatePartyWithoutSupport() {
+      const timeCandidates = new Set();
+      remainingDealers.forEach((d) => d.allowedTimes.forEach((t) => timeCandidates.add(t)));
+      let best = null;
+      timeCandidates.forEach((t) => {
+        const usableDealers = pickUsableDealersForTime(remainingDealers, t);
+        if (usableDealers.length === 0) return;
+        const dealerCount = Math.min(usableDealers.length, dealerSlots);
+        const distinctReps = new Set(usableDealers.slice(0, dealerSlots).map((d) => d.repName)).size;
+        if (!best || dealerCount > best.dealerCount || (dealerCount === best.dealerCount && distinctReps > best.distinctReps)) {
+          best = { time: t, dealerCount, distinctReps, usableDealers };
+        }
+      });
+      if (!best) return false;
+
+      const party = createNewParty(best.time);
+      const dealersToPlace = [...best.usableDealers].sort(byPowerDesc).slice(0, dealerSlots);
+      dealersToPlace.forEach((d) => {
+        placeDirect(d, "dealer", party, "normal", true);
+        remainingDealers = remainingDealers.filter((x) => x !== d);
+      });
+      const usedReps = new Set(dealersToPlace.map((d) => d.repName));
+      fillTankSurplusIfAny(party, best.time, usedReps);
+      return true;
+    }
+
+    let guardB = 0;
+    while (remainingDealers.length > 0 && guardB < 500) {
+      guardB++;
+      if (!tryCreatePartyWithoutSupport()) break;
+    }
+  }
+
+  /* 8절: 그래도 배치할 수 없는 딜러 / 신규 파티에도 쓰이지 못한 탱커 잉여는 사유와 함께 미배정 */
+  remainingDealers.forEach((entry) => {
+    if (!repTimeUsed[entry.repName]) repTimeUsed[entry.repName] = new Set();
+    // entry.time(1단계에서 이미 배정된 자기 자신의 시간)은 "동일 대표 충돌"이 아니라 단순히 그
+    // 시간에 자리가 없었던 것이므로 제외하고, 그 외 신청 시간이 전부 같은 대표의 다른 캐릭터로
+    // 막혀 있는 경우에만 "동일 대표 충돌" 사유를 사용합니다.
+    const otherAllowed = entry.allowedTimes.filter((t) => t !== entry.time);
+    const blocked = otherAllowed.length > 0 && otherAllowed.every((t) => repTimeUsed[entry.repName].has(t));
+    const reason = blocked
+      ? "동일 대표 캐릭터의 다른 캐릭터가 해당 시간에 이미 배정되어 있습니다."
+      : "신청한 시간에 배정 가능한 신규 파티를 생성할 수 없습니다.";
+    unassigned.push({ ...entry, reason });
+  });
+  tankPoolForNewParty.forEach((entry) => unassigned.push({ ...entry, reason: "배정 가능한 탱커 또는 딜러 자리가 없습니다." }));
+
+  /* ---- 균형 조정: 같은 역할·서로 다른 시간 사이의 지역 탐색 (신규 파티 포함, 9.9절) ----
+     신청한 시간 범위 안에서만 스왑을 시도합니다. 지원 배치(placeDirect의 registerNormal=false)로
+     채운 자리는 스왑 후보에서 제외되지만, 파티 전투력 합계 계산에는 포함됩니다. */
   function partyAverages() {
     return Object.values(partiesByKey).filter((p) => p._filledCount > 0).map((p) => p._powerSum / p._filledCount);
   }
@@ -574,9 +783,8 @@ function runAutoMatch(content, reps) {
         const partyB = partiesByKey[`${b.loc.time}:${b.loc.partyNumber}`];
         const slotA = partyA.slots[a.loc.slotIndex];
         const slotB = partyB.slots[b.loc.slotIndex];
-        // 슬롯의 role은 이제 실제 배정된 캐릭터의 역할을 그대로 반영하므로(교차배정 포함),
+        // 슬롯의 role은 실제 배정된 캐릭터의 역할을 그대로 반영하므로(교차배정 포함),
         // a.role === b.role(위에서 이미 확인)이면 slotA.role === slotB.role도 항상 성립합니다.
-        // 그래서 별도의 자리 종류 일치 검사는 더 이상 필요 없습니다.
         const powerA = charFinalPower(a.char, content), powerB = charFinalPower(b.char, content);
 
         const before = objective();
@@ -600,12 +808,13 @@ function runAutoMatch(content, reps) {
     }
   }
 
-  /* ---- 5단계: 지원 신청자로 남은 빈자리 채우기 ----
-     전투력 높은 지원자부터 순서대로 배정합니다 — "누구를 먼저 배정하나"는 전투력
-     내림차순, "어느 자리에 넣나"는 기존과 동일한 균형 점수(전체 평균에 가장
-     가까워지는 자리)입니다. 아직 한 번도 배정되지 않은 지원자 전원이 1회씩
-     기회를 가진 뒤(패스1)에만 반복 배정(패스2 이상)을 허용합니다.
-     (지원강캐우선_딜러집중배치 통합 요청, 요청①) */
+  /* ---- 잔여 지원 신청 배치 (9.10절, 지원강캐우선_딜러집중배치 통합 요청 요청①과 동일 방식) ----
+     전투력 높은 지원자부터 순서대로, 전체 평균에 가장 가까워지는 자리를 채웁니다. 신규 파티의
+     빈 슬롯도 이 단계의 대상에 포함됩니다. both 캐릭터의 일반 배정이 신규 파티 생성 단계에서
+     최종적으로 확정되었으므로, 여기서 지원 후보 풀을 다시 계산해 최종 실패한 both 캐릭터를
+     완전히 제외합니다(정합화 노트 2.4). */
+  const supportChars = buildSupportChars();
+
   const repTimeOccupied = {}; // `${repName}:${time}` -> true
   Object.values(partiesByKey).forEach((p) => {
     p.slots.forEach((s) => { if (s.repName) repTimeOccupied[`${s.repName}:${p.time}`] = true; });
@@ -624,7 +833,7 @@ function runAutoMatch(content, reps) {
     let bestIdx = -1, bestScore = Infinity;
     emptySlots.forEach((es, idx) => {
       if (es.party.slots[es.slotIndex].nickname) return;
-      // 서포터 슬롯은 서포터만, 탱커·딜러 슬롯은 역할 무관하게 교차 배정 가능 (1.2절, 사용자 확정 — 변경 금지 범위)
+      // 서포터 슬롯은 서포터만, 탱커·딜러 슬롯은 역할 무관하게 교차 배정 가능 (1.2절, 변경 금지 범위)
       if (es.role === "support" && sc.char.role !== "support") return;
       if (!sc.times.includes(es.party.time)) return;
       if (repTimeOccupied[`${sc.repName}:${es.party.time}`]) return;
