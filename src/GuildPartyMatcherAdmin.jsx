@@ -1864,6 +1864,94 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
     return [...times];
   }
 
+  /**
+   * 미배정 신청자별로 "이렇게 바꾸면 배정 가능" 힌트를 계산합니다.
+   * - Type 1(rep 충돌 해소): 빈 슬롯은 있지만 같은 대표 캐릭터가 막고 있을 때,
+   *   그 캐릭터를 다른 시간대의 빈 슬롯으로 옮기면 가능.
+   * - Type 2(교환 가능): 역할 슬롯이 꽉 찼지만, 그 슬롯 중 하나가
+   *   미배정자의 다른 신청 시간에 빈 슬롯이 있어 서로 교환 가능.
+   * [Inference] 단순 1-스텝 연산만 검토하며, 연쇄 이동은 고려하지 않습니다.
+   */
+  const swapHints = useMemo(() => {
+    if (!matchData || !content) return {};
+    const result = {};
+
+    // 역할별로 빈 슬롯이 있는 파티를 빠르게 조회하기 위한 보조 함수
+    function hasEmptyRoleSlot(partyList, role, excludeRepName) {
+      return partyList.some((p) => {
+        if (excludeRepName && p.slots.some((s) => s.repName === excludeRepName && s.nickname)) return false;
+        return p.slots.some((s) => !s.nickname && s.role === role);
+      });
+    }
+
+    matchData.unassigned.forEach((u, i) => {
+      const hints = [];
+      const uTimes = u.allowedTimes && u.allowedTimes.length ? u.allowedTimes : [u.time];
+
+      for (const t of uTimes) {
+        if (hints.length >= 2) break;
+        const partiesAtT = matchData.parties.filter((p) => p.time === t);
+        if (partiesAtT.length === 0) continue;
+
+        for (const party of partiesAtT) {
+          if (hints.length >= 2) break;
+
+          // --- Type 1: 빈 슬롯은 있지만 같은 대표 캐릭터가 막고 있는 경우 ---
+          const emptySlot = party.slots.find((s) => !s.nickname && s.role === u.char.role);
+          if (emptySlot) {
+            const blocker = party.slots.find((s) => s.repName === u.repName && s.nickname && s.characterId);
+            if (blocker) {
+              // blocker를 다른 시간의 빈 슬롯으로 옮길 수 있는지 확인
+              const blockerTimes = getAppliedTimesFor(blocker.repName, blocker.characterId);
+              const otherTimes = blockerTimes.filter((bt) => bt !== t);
+              const blockerChar = (reps[blocker.repName]?.subs || []).find((s) => s.id === blocker.characterId);
+              if (blockerChar) {
+                const canMove = otherTimes.some((bt) => {
+                  const partiesAtBt = matchData.parties.filter((p) => p.time === bt);
+                  return hasEmptyRoleSlot(partiesAtBt, blockerChar.role, blocker.repName);
+                });
+                if (canMove) {
+                  hints.push({ kind: "rep-conflict", text: `${t} 파티${party.partyNumber}: ${blocker.nickname}을(를) 다른 시간으로 옮기면 배정 가능` });
+                }
+              }
+            }
+          }
+
+          // --- Type 2: 역할 슬롯이 모두 찬 경우, 교환 가능한 상대 탐색 ---
+          if (!emptySlot) {
+            const sameRoleSlots = party.slots.filter(
+              (s) => s.nickname && s.role === u.char.role && s.repName !== u.repName && s.characterId
+            );
+            for (const slot of sameRoleSlots) {
+              if (hints.length >= 2) break;
+              // 같은 대표 충돌 확인
+              const uConflict = party.slots.some((s) => s.repName === u.repName && s.nickname);
+              if (uConflict) continue;
+              // slot의 캐릭터가 u의 다른 신청 시간 중 어딘가로 옮길 수 있는지 확인
+              const slotTimes = getAppliedTimesFor(slot.repName, slot.characterId);
+              const slotChar = (reps[slot.repName]?.subs || []).find((s) => s.id === slot.characterId);
+              if (!slotChar) continue;
+              const swappableTo = slotTimes.find((st) => {
+                if (st === t) return false;
+                const partiesAtSt = matchData.parties.filter((p) => p.time === st);
+                return hasEmptyRoleSlot(partiesAtSt, slotChar.role, slot.repName);
+              });
+              if (swappableTo) {
+                const typeTag = slot.type === "support" ? "(지원) " : "";
+                hints.push({ kind: "swap", text: `${t} 파티${party.partyNumber}: ${slot.nickname}${typeTag}을(를) ${swappableTo}로 옮기면 이 자리에 배정 가능` });
+              }
+            }
+          }
+        }
+      }
+
+      if (hints.length > 0) result[i] = hints;
+    });
+
+    return result;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchData, reps, content]);
+
   function deleteParty(partyIdx) {
     const party = matchData.parties[partyIdx];
     // 이 파티에 배정되어 있던 인원은 삭제하지 않고 미배정 목록으로 돌려보냅니다.
@@ -2194,23 +2282,47 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
               <div className="gpa-unassigned-list">
                 {matchData.unassigned.map((u, i) => {
                   const uPower = getCharFinalPower(u.repName, u.char.id);
+                  const uHints = swapHints[i] || [];
                   return (
                     <div
                       key={i}
                       className={`gpa-unassigned-row ${dragItem && dragItem.kind === "unassigned" && dragItem.candidate === u ? "dragging" : ""}`}
+                      style={{ flexWrap: "wrap", alignItems: "flex-start", gap: 6 }}
                       draggable
                       onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", `unassigned-${i}`); setDragItem({ kind: "unassigned", candidate: u, role: u.char.role }); }}
                       onDragEnd={() => { setDragItem(null); setDragOverKey(null); }}
                     >
-                      <RoleIconBadge role={u.char.role} />
-                      <span>{u.char.nickname} ({u.repName})</span>
-                      {uPower !== null && (
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--accent-soft)" }}>{uPower.toLocaleString()}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
+                        <RoleIconBadge role={u.char.role} />
+                        <span>{u.char.nickname} ({u.repName})</span>
+                        {uPower !== null && (
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--accent-soft)" }}>{uPower.toLocaleString()}</span>
+                        )}
+                        <span style={{ color: "var(--text-faint)" }}>
+                          신청: {u.allowedTimes && u.allowedTimes.length ? u.allowedTimes.join(", ") : u.time}
+                        </span>
+                        <span style={{ marginLeft: "auto", color: "var(--text-faint)" }}>{u.reason}</span>
+                      </div>
+                      {uHints.length > 0 && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, paddingLeft: 30 }}>
+                          {uHints.map((h, hi) => (
+                            <span
+                              key={hi}
+                              style={{
+                                fontSize: 11.5,
+                                padding: "2px 8px",
+                                borderRadius: 8,
+                                background: h.kind === "rep-conflict" ? "rgba(184,130,58,0.14)" : "rgba(76,113,150,0.14)",
+                                color: h.kind === "rep-conflict" ? "var(--warn)" : "var(--tank)",
+                                border: `1px solid ${h.kind === "rep-conflict" ? "rgba(184,130,58,0.3)" : "rgba(76,113,150,0.3)"}`,
+                                lineHeight: 1.5,
+                              }}
+                            >
+                              💡 {h.text}
+                            </span>
+                          ))}
+                        </div>
                       )}
-                      <span style={{ color: "var(--text-faint)" }}>
-                        신청: {u.allowedTimes && u.allowedTimes.length ? u.allowedTimes.join(", ") : u.time}
-                      </span>
-                      <span style={{ marginLeft: "auto", color: "var(--text-faint)" }}>{u.reason}</span>
                     </div>
                   );
                 })}
