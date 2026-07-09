@@ -370,15 +370,19 @@ function runAutoMatch(content, reps) {
      딜러 있는 시간 우선) ---- */
   const roleCountAtTime = {};
   allTimes.forEach((t) => (roleCountAtTime[t] = { tank: 0, support: 0, dealer: 0 }));
-  const repTimeUsed = {}; // repName -> Set(이미 배정된 시간) — 재시도/신규 파티에서도 계속 갱신됨
+  const repTimeUsed = {}; // repName -> Set(이미 배정된 시간) — 재시도/신규 파티/구제 재배치에서도 계속 갱신됨
   const placedNormal = []; // {repName, char, role, time, allowedTimes, type} — .time은 최종 배정 시간으로 갱신될 수 있음
+  // 1단계에서 즉시 배정 실패한 항목은 바로 unassigned에 넣지 않고 별도 보관합니다 — 아래
+  // 구제 재배치 패스의 대상에도 포함시키기 위해서입니다(미배정_구제재배치_요청_프롬프트,
+  // 2026-07-09: "미배정된 모든 일반(및 both) 역할에 동일 적용").
+  const step1Failed = [];
 
   function placeNormalTime({ repName, char, times, types }, compareFn) {
     const appType = types.includes("both") ? "both" : "normal";
     if (!repTimeUsed[repName]) repTimeUsed[repName] = new Set();
     const candidateTimes = times.filter((t) => !repTimeUsed[repName].has(t));
     if (candidateTimes.length === 0) {
-      unassigned.push({ repName, char, type: appType, time: times[0], reason: "동일 대표 캐릭터가 신청한 시간에 모두 이미 배정됨" });
+      step1Failed.push({ repName, char, role: char.role, time: times[0], allowedTimes: times, type: appType, reason: "동일 대표 캐릭터가 신청한 시간에 모두 이미 배정됨" });
       return;
     }
     candidateTimes.sort(compareFn);
@@ -545,22 +549,125 @@ function runAutoMatch(content, reps) {
     return false;
   }
 
-  const supportStillUnplaced = [];
+  let supportStillUnplaced = [];
   supportSurplus.forEach((entry) => {
     if (!retryOtherTime(entry, ["support"])) supportStillUnplaced.push(entry);
   });
 
-  const tankStillUnplaced = [];
+  let tankStillUnplaced = [];
   tankSurplus.forEach((entry) => {
     if (!retryOtherTime(entry, ["tank", "dealer"])) tankStillUnplaced.push(entry);
   });
 
-  const dealerStillUnplaced = [];
+  let dealerStillUnplaced = [];
   dealerSurplus.forEach((entry) => {
     if (!retryOtherTime(entry, ["dealer"])) dealerStillUnplaced.push(entry);
   });
 
-  /* 서포터 잉여: 재시도까지 실패하면 교차 배치 없이 바로 미배정 처리 (수정안 4.1절) */
+  /* ---- 미배정 구제 재배치 (신설, 미배정_구제재배치_요청_프롬프트 2026-07-09 확정) ----
+     같은 대표의 다른 캐릭터 X가 시간 T를 이미 점유하고 있어서(슬롯 자체는 비어 있는데도
+     "동일 대표 동일 시간 1명" 제약 때문에) 배정되지 못한 미배정 후보에 대해, X를 X 자신의
+     다른 신청 시간으로 1-스텝만 이동시켜 T를 비우고 그 자리를 대신 채웁니다. 연쇄 이동은
+     하지 않으며(X를 옮기기 위해 또 다른 캐릭터를 옮기지 않음), X의 원래 자리는 빈 슬롯으로만
+     남기고 파티를 삭제·축소하지 않으므로 기존 배치자를 밀어내는 경우가 구조적으로 발생하지
+     않습니다 [Inference — 안전한 단순화: 원 문서는 "파티 축소로 밀려나면 포기"를 요구하는데,
+     파티를 절대 축소·삭제하지 않는 방식으로 구현해 그 위험 자체를 없앴습니다]. 전역 균형
+     스왑·지원 채우기보다 먼저 실행합니다. 후보 시간이 여럿이면 [Inference] 앞에서부터 순서대로
+     첫 성공을 채택합니다(균형 점수로 "최선"을 고르지는 않음 — 드문 예외 경로라 단순화). */
+  function findEmptySlotFor(role, t) {
+    const partiesAtT = Object.values(partiesByKey).filter((p) => p.time === t);
+    const tryRole = (slotRole) => {
+      for (const p of partiesAtT) {
+        const idx = p.slots.findIndex((s) => !s.nickname && s.role === slotRole);
+        if (idx !== -1) return { party: p, idx };
+      }
+      return null;
+    };
+    if (role === "support") return tryRole("support");
+    if (role === "tank") return tryRole("tank") || tryRole("dealer");
+    return tryRole("dealer");
+  }
+
+  function placeRescued(entry, party, idx) {
+    const power = charFinalPower(entry.char, content);
+    party.slots[idx] = { role: entry.char.role, nickname: entry.char.nickname, repName: entry.repName, characterId: entry.char.id, type: "normal" };
+    party._powerSum += power; party._filledCount++;
+    placedSlotOf[charKey(entry.repName, entry.char)] = { time: party.time, partyNumber: party.partyNumber, slotIndex: idx };
+    if (!repTimeUsed[entry.repName]) repTimeUsed[entry.repName] = new Set();
+    repTimeUsed[entry.repName].add(party.time);
+    const pnIdx = placedNormal.findIndex((p) => p.repName === entry.repName && p.char.id === entry.char.id);
+    if (pnIdx !== -1) placedNormal[pnIdx] = { ...placedNormal[pnIdx], time: party.time };
+  }
+
+  function vacate(repName, char) {
+    const key = charKey(repName, char);
+    const loc = placedSlotOf[key];
+    if (!loc) return;
+    const party = partiesByKey[`${loc.time}:${loc.partyNumber}`];
+    const power = charFinalPower(char, content);
+    party.slots[loc.slotIndex] = { role: party.slots[loc.slotIndex].role, nickname: null, repName: null, characterId: null, type: null };
+    party._powerSum -= power; party._filledCount--;
+    delete placedSlotOf[key];
+  }
+
+  function tryRescue(u) {
+    if (!u.allowedTimes) return false;
+    for (const t of u.allowedTimes) {
+      if (!Object.values(partiesByKey).some((p) => p.time === t)) continue; // 이 시간대엔 파티 자체가 없음
+      const slot = findEmptySlotFor(u.char.role, t);
+      if (!slot) continue;
+      // t가 자기 자신의 원래 신청 시간인 경우도 다시 확인합니다 — 다른 캐릭터의 구제 재배치
+      // 과정에서 새 파티가 생기거나 자리가 비었을 수 있기 때문입니다(자기 자신은 id 비교로
+      // 제외되므로 자기 자신과 충돌로 오판하지 않습니다).
+      const xEntry = placedNormal.find((p) => p.repName === u.repName && p.time === t && p.char.id !== u.char.id);
+      if (!xEntry) {
+        // 아무도 막고 있지 않음 — 자리가 비었으니 바로 배정합니다.
+        if (!repTimeUsed[u.repName]) repTimeUsed[u.repName] = new Set();
+        repTimeUsed[u.repName].add(t);
+        placeRescued(u, slot.party, slot.idx);
+        return true;
+      }
+
+      const candidateU = xEntry.allowedTimes.filter(
+        (ut) => ut !== t && !(repTimeUsed[xEntry.repName] && repTimeUsed[xEntry.repName].has(ut))
+      );
+      let moved = false;
+      for (const ut of candidateU) {
+        let slotX = findEmptySlotFor(xEntry.role, ut);
+        if (!slotX && xEntry.role === "dealer" && dealerSlots > 0) {
+          // 딜러는 빈 딜러 슬롯이 전혀 없으면(=이미 가득 참) 새 파티를 하나 만들어 이동시킵니다.
+          // 딜러 기준 ceil 공식상 딜러 +1은 항상 파티 하나를 정당화하므로(가득 찬 상태에서
+          // 하나 늘면 ceil이 반드시 한 단계 올라감) 별도 조건 계산 없이 바로 생성해도 공식과
+          // 어긋나지 않습니다 [Inference — 수학적으로 자명].
+          const newP = createNewParty(ut);
+          const idx = newP.slots.findIndex((s) => s.role === "dealer");
+          if (idx !== -1) slotX = { party: newP, idx };
+        }
+        if (!slotX) continue;
+        vacate(xEntry.repName, xEntry.char);
+        if (repTimeUsed[xEntry.repName]) repTimeUsed[xEntry.repName].delete(t);
+        placeRescued(xEntry, slotX.party, slotX.idx);
+        moved = true;
+        break;
+      }
+      if (!moved) continue;
+
+      if (!repTimeUsed[u.repName]) repTimeUsed[u.repName] = new Set();
+      repTimeUsed[u.repName].add(t);
+      placeRescued(u, slot.party, slot.idx);
+      return true;
+    }
+    return false;
+  }
+
+  const step1FailedStillUnplaced = step1Failed.filter((entry) => !tryRescue(entry));
+  step1FailedStillUnplaced.forEach((entry) => unassigned.push(entry));
+
+  supportStillUnplaced = supportStillUnplaced.filter((entry) => !tryRescue(entry));
+  tankStillUnplaced = tankStillUnplaced.filter((entry) => !tryRescue(entry));
+  dealerStillUnplaced = dealerStillUnplaced.filter((entry) => !tryRescue(entry));
+
+  /* 서포터 잉여: 구제 재배치까지 실패하면 교차 배치 없이 바로 미배정 처리 (수정안 4.1절) */
   supportStillUnplaced.forEach((entry) => unassigned.push({ ...entry, reason: "배정 가능한 서포터 자리가 없습니다." }));
 
   /* 탱커 잉여는 재시도까지 실패해도 즉시 미배정하지 않고, 아래 딜러 잉여 신규 파티 생성의
