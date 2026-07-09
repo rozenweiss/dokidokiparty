@@ -2025,7 +2025,9 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
                   >
                     <RoleIconBadge role={u.char.role} />
                     <span>{u.char.nickname} ({u.repName})</span>
-                    <span style={{ color: "var(--text-faint)" }}>{u.time}</span>
+                    <span style={{ color: "var(--text-faint)" }}>
+                      신청: {u.allowedTimes && u.allowedTimes.length ? u.allowedTimes.join(", ") : u.time}
+                    </span>
                     <span style={{ marginLeft: "auto", color: "var(--text-faint)" }}>{u.reason}</span>
                   </div>
                 ))}
