@@ -2149,6 +2149,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
                       const cls = ["gpa-slot"];
                       if (dragItem && dragItem.kind === "slot" && dragItem.partyIdx === p._idx && dragItem.slotIdx === si) cls.push("dragging");
                       if (dragOverKey === key) cls.push("dragover");
+                      const slotPower = s.characterId ? getCharFinalPower(s.repName, s.characterId) : null;
                       return (
                         <div
                           key={si}
@@ -2164,7 +2165,18 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
                           <span className={`gpa-slot-role ${s.role}`} title={ROLE_LABEL[s.role]} aria-label={ROLE_LABEL[s.role]}>
                             {ROLE_ICON[s.role] && React.createElement(ROLE_ICON[s.role], { size: 14, strokeWidth: 2.3 })}
                           </span>
-                          {s.nickname ? <span className="gpa-slot-name">{s.nickname}{s.type === "temp" && <span className="gpa-slot-tag"> · 임시</span>}{s.type === "support" && <span className="gpa-slot-tag gpa-slot-tag-support"> · 지원</span>}</span> : <span className="gpa-slot-empty">빈자리</span>}
+                          {s.nickname ? (
+                            <span className="gpa-slot-name">
+                              {s.nickname}
+                              {s.type === "temp" && <span className="gpa-slot-tag"> · 임시</span>}
+                              {s.type === "support" && <span className="gpa-slot-tag gpa-slot-tag-support"> · 지원</span>}
+                            </span>
+                          ) : <span className="gpa-slot-empty">빈자리</span>}
+                          {slotPower !== null && (
+                            <span className="gpa-slot-tag" style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--accent-soft)", marginLeft: "auto" }}>
+                              {slotPower.toLocaleString()}
+                            </span>
+                          )}
                         </div>
                       );
                     })}
