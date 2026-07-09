@@ -3251,8 +3251,6 @@ function DataView({ jobs, reps, onUpdateCharacter, onDeleteCharacter }) {
     </div>
   );
 }
-  );
-}
 
 /* ============================================================
    관리자 셸 + 루트
