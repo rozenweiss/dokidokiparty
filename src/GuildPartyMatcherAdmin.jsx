@@ -2357,8 +2357,14 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
     // 같은 대표 캐릭터가 이미 이 파티의 다른 자리에 있으면 배정을 막습니다 (드래그드롭 중복배정 방지 요청).
     if (newSlotValue.repName) {
       const targetParty = matchData.parties[partyIdx];
-      const conflict = targetParty.slots.some((s, si) => si !== slotIdx && s.repName === newSlotValue.repName);
-      if (conflict) { onToast("같은 대표 캐릭터의 다른 캐릭터가 이미 이 파티에 있어 배정할 수 없습니다."); return; }
+      const conflict = matchData.parties.some((p, pIdx) => {
+        if (p.time !== targetParty.time) return false;
+        return p.slots.some((s, si) => {
+          if (pIdx === partyIdx && si === slotIdx) return false;
+          return s.repName === newSlotValue.repName;
+        });
+      });
+      if (conflict) { onToast("해당 대표 캐릭터가 이미 동시간대의 파티에 배정되어 있어 중복 배정할 수 없습니다."); return; }
     }
     const oldSlot = matchData.parties[partyIdx].slots[slotIdx];
     const parties = matchData.parties.map((p, i) => {
@@ -2392,9 +2398,16 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
     const shownKeys = new Set();
     (matchData.unassigned || []).forEach((u) => shownKeys.add(`${u.repName}:${u.char.id}`));
     getRelocatableCandidates(slotRole, time).forEach((c) => shownKeys.add(`${c.repName}:${c.char.id}`));
-    // 현재 파티에 이미 있는 대표명
-    const party = editSlot ? matchData.parties[editSlot.partyIdx] : null;
-    const partyRepNames = new Set(party ? party.slots.filter((s) => s.repName).map((s) => s.repName) : []);
+    // 현재 시간대의 모든 파티에 이미 있는 대표명 수집
+    const timeRepNames = new Set();
+    matchData.parties.forEach((p, pIdx) => {
+      if (p.time === time) {
+        p.slots.forEach((s, sIdx) => {
+          if (editSlot && editSlot.partyIdx === pIdx && editSlot.slotIdx === sIdx) return;
+          if (s.repName) timeRepNames.add(s.repName);
+        });
+      }
+    });
 
     const result = [];
     Object.entries(reps).forEach(([repName, data]) => {
@@ -2407,7 +2420,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
           if (!char || char.active === false) return;
           const key = `${repName}:${cid}`;
           if (shownKeys.has(key)) return;      // 이미 위 섹션에 노출
-          if (partyRepNames.has(repName)) return; // 이미 이 파티에 있는 대표
+          if (timeRepNames.has(repName)) return; // 이미 동시간대 파티에 있는 대표
           const power = content ? charFinalPower(char, content) : null;
           result.push({ repName, char, appType: app.type, times: app.times || [], power });
         });
@@ -2439,14 +2452,21 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
           const key = `${repName}:${cid}`;
           if (seen.has(key)) return;
           let currentLoc = null;
+          let conflictAtTime = false;
           matchData.parties.forEach((p, pIdx) => {
+            if (p.time === time) {
+              p.slots.forEach((s, sIdx) => {
+                if (editSlot && editSlot.partyIdx === pIdx && editSlot.slotIdx === sIdx) return;
+                if (s.repName === repName) conflictAtTime = true;
+              });
+            }
             p.slots.forEach((s, sIdx) => {
               if (s.characterId === cid && s.repName === repName) {
                 currentLoc = { partyIdx: pIdx, slotIdx: sIdx, time: p.time, slotType: s.type };
               }
             });
           });
-          if (!currentLoc || currentLoc.time === time) return; // 미배정 목록에 이미 있거나, 이미 이 시간에 배정됨
+          if (!currentLoc || currentLoc.time === time || conflictAtTime) return; // 미배정 목록에 이미 있거나, 이미 이 시간에 배정됨, 혹은 동시간대 동일대표 있음
           seen.add(key);
           found.push({ repName, char, currentLoc });
         });
@@ -2465,8 +2485,14 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
     if (fromPartyIdx === partyIdx && fromSlotIdx === slotIdx) { setEditSlot(null); return; }
     const targetParty = matchData.parties[partyIdx];
     const newSlotValue = { role: cand.char.role, nickname: cand.char.nickname, repName: cand.repName, characterId: cand.char.id, type: slotType };
-    const conflict = targetParty.slots.some((s, si) => si !== slotIdx && s.repName === cand.repName);
-    if (conflict) { onToast("같은 대표 캐릭터의 다른 캐릭터가 이미 이 파티에 있어 배정할 수 없습니다."); return; }
+    const conflict = matchData.parties.some((p, pIdx) => {
+      if (p.time !== targetParty.time) return false;
+      return p.slots.some((s, si) => {
+        if (pIdx === partyIdx && si === slotIdx) return false;
+        return s.repName === cand.repName;
+      });
+    });
+    if (conflict) { onToast("해당 대표 캐릭터가 이미 동시간대의 다른 파티에 배정되어 있어 중복 배정할 수 없습니다."); return; }
     const parties = matchData.parties.map((p, i) => {
       const isTarget = i === partyIdx, isSource = i === fromPartyIdx;
       if (!isTarget && !isSource) return p;
@@ -2502,9 +2528,9 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
     if (sourcePartyIdx !== targetPartyIdx) {
       const targetParty = matchData.parties[targetPartyIdx];
       const sourceParty = matchData.parties[sourcePartyIdx];
-      const conflictAtTarget = sourceSlot.repName && targetParty.slots.some((s, si) => si !== targetSlotIdx && s.repName === sourceSlot.repName);
-      const conflictAtSource = targetSlot.repName && sourceParty.slots.some((s, si) => si !== sourceSlotIdx && s.repName === targetSlot.repName);
-      if (conflictAtTarget || conflictAtSource) { onToast("같은 대표 캐릭터의 다른 캐릭터가 이미 그 파티에 있어 이동할 수 없습니다."); return; }
+      const conflictAtTarget = sourceSlot.repName && matchData.parties.some((p, pIdx) => p.time === targetParty.time && p.slots.some((s, si) => !(pIdx === targetPartyIdx && si === targetSlotIdx) && !(pIdx === sourcePartyIdx && si === sourceSlotIdx) && s.repName === sourceSlot.repName));
+      const conflictAtSource = targetSlot.repName && matchData.parties.some((p, pIdx) => p.time === sourceParty.time && p.slots.some((s, si) => !(pIdx === sourcePartyIdx && si === sourceSlotIdx) && !(pIdx === targetPartyIdx && si === targetSlotIdx) && s.repName === targetSlot.repName));
+      if (conflictAtTarget || conflictAtSource) { onToast("해당 대표 캐릭터가 이미 그 시간대의 파티에 있어 맞바꿀 수 없습니다."); return; }
     }
     const newSource = { ...targetSlot };
     const newTarget = { ...sourceSlot };
