@@ -1566,9 +1566,10 @@ function ApplicationsView({ contents, reps, onExcludeCharacter }) {
 /* ============================================================
    자동 매칭 + 결과 편집 + 공개
    ============================================================ */
-function SlotPickModal({ role, unassigned, onPick, onTemp, onClear, onClose }) {
+function SlotPickModal({ role, unassigned, relocatable, onPick, onRelocate, onTemp, onClear, onClose }) {
   const [tempName, setTempName] = useState("");
   const roleCandidates = unassigned.filter((c) => c.char.role === role);
+  const relocatableCandidates = relocatable || [];
   return (
     <div className="gpa-modal-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="gpa-modal">
@@ -1581,7 +1582,25 @@ function SlotPickModal({ role, unassigned, onPick, onTemp, onClear, onClose }) {
             {roleCandidates.map((c, i) => (
               <button key={i} className="gpa-pick-btn" onClick={() => onPick(c)}>
                 <span>{c.char.nickname} <span style={{ color: "var(--text-faint)" }}>({c.repName})</span></span>
-                <span style={{ color: "var(--text-faint)" }}>{APP_TYPE_LABEL[c.type] || c.type}</span>
+                <span style={{ color: "var(--text-faint)", fontSize: 12 }}>
+                  {c.allowedTimes && c.allowedTimes.length ? c.allowedTimes.join(", ") : c.time}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+        {relocatableCandidates.length > 0 && (
+          <div style={{ marginBottom: 14 }}>
+            <div className="gpa-label" style={{ marginBottom: 8 }}>
+              다른 시간에 이미 배정됐지만, 이 시간·역할에도 신청한 캐릭터
+            </div>
+            <div className="gpa-hint" style={{ marginBottom: 8 }}>
+              옮기면 원래 있던 자리는 빈 슬롯이 됩니다 — 그 자리도 채울 수 있는지는 옮긴 뒤에 이어서 확인해주세요.
+            </div>
+            {relocatableCandidates.map((c, i) => (
+              <button key={i} className="gpa-pick-btn" onClick={() => onRelocate(c)}>
+                <span>{c.char.nickname} <span style={{ color: "var(--text-faint)" }}>({c.repName})</span></span>
+                <span style={{ color: "var(--text-faint)", fontSize: 12 }}>현재: {c.currentLoc.time}</span>
               </button>
             ))}
           </div>
@@ -1780,16 +1799,33 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
     onToast(`${time} 시간대에 빈 파티를 생성했습니다.`);
   }
 
+  function getAppliedTimesFor(repName, characterId) {
+    const data = reps[repName];
+    if (!data) return [];
+    const times = new Set();
+    (data.applications || []).forEach((app) => {
+      if (!content || app.contentId !== content.id || app.status === "cancelled") return;
+      if ((app.characterIds || []).includes(characterId)) {
+        (app.times || []).forEach((t) => times.add(t));
+      }
+    });
+    return [...times];
+  }
+
   function deleteParty(partyIdx) {
     const party = matchData.parties[partyIdx];
     // 이 파티에 배정되어 있던 인원은 삭제하지 않고 미배정 목록으로 돌려보냅니다.
     const returned = party.slots
       .filter((s) => s.nickname && s.characterId) // 임시 캐릭터(characterId 없음)는 미배정 목록으로 보내지 않음
-      .map((s) => ({
-        repName: s.repName, type: s.type, time: party.time,
-        char: { id: s.characterId, nickname: s.nickname, role: s.role, power: 0, resist: 0 },
-        reason: "파티 삭제로 제외됨",
-      }));
+      .map((s) => {
+        const allowedTimes = getAppliedTimesFor(s.repName, s.characterId);
+        return {
+          repName: s.repName, type: s.type, time: party.time,
+          char: { id: s.characterId, nickname: s.nickname, role: s.role, power: 0, resist: 0 },
+          allowedTimes: allowedTimes.length ? allowedTimes : [party.time],
+          reason: "파티 삭제로 제외됨",
+        };
+      });
     const parties = matchData.parties.filter((_, i) => i !== partyIdx);
     saveResult({ ...matchData, parties, unassigned: [...matchData.unassigned, ...returned] });
     onToast(`파티 ${party.partyNumber}을(를) 삭제했습니다.`);
@@ -1813,15 +1849,82 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
     let unassigned = matchData.unassigned || [];
     if (consumedCandidate) unassigned = unassigned.filter((c) => c !== consumedCandidate);
     if (oldSlot && oldSlot.nickname && oldSlot.characterId) {
-      // 기존 배정자를 미배정 목록으로 되돌림 (임시 캐릭터는 미배정 목록에 넣지 않음)
+      // 기존 배정자를 미배정 목록으로 되돌림 (임시 캐릭터는 미배정 목록에 넣지 않음). 신청한 시간
+      // 전체를 다시 조회해서 되돌아간 사람의 "신청:" 표시가 지금 이 슬롯의 시간 하나로 좁아지지
+      // 않도록 합니다(교환_되돌림_신청시간_누락_요청, 2026-07-09).
+      const allowedTimes = getAppliedTimesFor(oldSlot.repName, oldSlot.characterId);
       unassigned = [...unassigned, {
         repName: oldSlot.repName, type: oldSlot.type, time: parties[partyIdx].time,
         char: { id: oldSlot.characterId, nickname: oldSlot.nickname, role: oldSlot.role, power: 0, resist: 0 },
+        allowedTimes: allowedTimes.length ? allowedTimes : [parties[partyIdx].time],
         reason: "파티 편집 중 제외됨",
       }];
     }
     saveResult({ ...matchData, parties, unassigned });
   }
+
+  // 같은 시간·역할에 신청했지만 다른 시간에 이미 배정되어 "미배정 목록"에는 안 보이는 캐릭터를 찾습니다.
+  // (일반 신청 캐릭터는 전체 기간 중 최대 1회 배정 규칙 때문에, 이미 다른 시간에 쓰인 캐릭터는 여기
+  // 표시해줘야만 관리자가 "그 사람을 이 자리로 옮기면 어떨까"를 판단할 수 있습니다.)
+  function getRelocatableCandidates(role, time) {
+    if (!matchData || !content) return [];
+    const found = [];
+    const seen = new Set();
+    Object.entries(reps).forEach(([repName, data]) => {
+      (data.applications || []).forEach((app) => {
+        if (app.contentId !== content.id || app.status === "cancelled") return;
+        if (!(app.times || []).includes(time)) return;
+        (app.characterIds || []).forEach((cid) => {
+          const char = (data.subs || []).find((s) => s.id === cid);
+          if (!char || char.active === false || char.role !== role) return;
+          const key = `${repName}:${cid}`;
+          if (seen.has(key)) return;
+          let currentLoc = null;
+          matchData.parties.forEach((p, pIdx) => {
+            p.slots.forEach((s, sIdx) => {
+              if (s.characterId === cid && s.repName === repName) {
+                currentLoc = { partyIdx: pIdx, slotIdx: sIdx, time: p.time, slotType: s.type };
+              }
+            });
+          });
+          if (!currentLoc || currentLoc.time === time) return; // 미배정 목록에 이미 있거나, 이미 이 시간에 배정됨
+          seen.add(key);
+          found.push({ repName, char, currentLoc });
+        });
+      });
+    });
+    return found;
+  }
+
+  // "이동 후보"(다른 시간에 이미 배정된 캐릭터)를 이 슬롯으로 옮깁니다. 원래 있던 자리는 빈 슬롯으로
+  // 남습니다 — 그 자리가 다시 부족 인원으로 표시되니, 그 자리도 채울 수 있는지는 관리자가 이어서
+  // 판단하시면 됩니다.
+  function relocateExistingToSlot(cand) {
+    if (!editSlot) return;
+    const { partyIdx, slotIdx } = editSlot;
+    const { partyIdx: fromPartyIdx, slotIdx: fromSlotIdx, slotType } = cand.currentLoc;
+    if (fromPartyIdx === partyIdx && fromSlotIdx === slotIdx) { setEditSlot(null); return; }
+    const targetParty = matchData.parties[partyIdx];
+    const newSlotValue = { role: cand.char.role, nickname: cand.char.nickname, repName: cand.repName, characterId: cand.char.id, type: slotType };
+    const conflict = targetParty.slots.some((s, si) => si !== slotIdx && s.repName === cand.repName);
+    if (conflict) { onToast("같은 대표 캐릭터의 다른 캐릭터가 이미 이 파티에 있어 배정할 수 없습니다."); return; }
+    const parties = matchData.parties.map((p, i) => {
+      const isTarget = i === partyIdx, isSource = i === fromPartyIdx;
+      if (!isTarget && !isSource) return p;
+      const slots = p.slots.map((s, si) => {
+        if (isTarget && si === slotIdx) return newSlotValue;
+        if (isSource && si === fromSlotIdx) return { role: s.role, nickname: null, repName: null, characterId: null, type: null };
+        return s;
+      });
+      const np = { ...p, slots };
+      np.shortage = recomputeShortage(np);
+      return np;
+    });
+    saveResult({ ...matchData, parties });
+    setEditSlot(null);
+    onToast(`${cand.char.nickname}을(를) 이 자리로 옮겼습니다. 원래 있던 자리는 빈 슬롯이 되었습니다.`);
+  }
+
 
   function commitSlotEdit(newSlotValue, consumedCandidate) {
     const { partyIdx, slotIdx } = editSlot;
@@ -2072,7 +2175,9 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
         <SlotPickModal
           role={editSlot.role}
           unassigned={matchData.unassigned || []}
+          relocatable={getRelocatableCandidates(editSlot.role, matchData.parties[editSlot.partyIdx].time)}
           onPick={pickFromUnassigned}
+          onRelocate={relocateExistingToSlot}
           onTemp={setTempSlot}
           onClear={clearSlot}
           onClose={() => setEditSlot(null)}
