@@ -1655,47 +1655,6 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
 
   const availableTimes = useMemo(() => (content ? timeSlots(content.startTime, content.endTime, content.interval) : []), [content]);
 
-  // 지원 신청자 목록: type이 "support" 또는 "both"인 신청자를 캐릭터 단위로 펼칩니다.
-  // matchData가 있으면 파티에 배정된 지원자는 "(배정됨)" 표시합니다.
-  const supportApplicants = useMemo(() => {
-    if (!content) return [];
-    const out = [];
-    Object.entries(reps).forEach(([repName, data]) => {
-      (data.applications || []).forEach((app) => {
-        if (app.contentId !== content.id || app.status === "cancelled") return;
-        if (!appliesSupport(app.type)) return;
-        (app.characterIds || []).forEach((cid) => {
-          const char = (data.subs || []).find((s) => s.id === cid);
-          if (!char || char.active === false) return;
-          out.push({ repName, char, times: app.times || [], appType: app.type });
-        });
-      });
-    });
-    // 중복 제거: 같은 (repName, characterId) 조합은 하나만 유지하고 시간을 합칩니다.
-    const map = new Map();
-    out.forEach(({ repName, char, times, appType }) => {
-      const key = `${repName}:${char.id}`;
-      if (!map.has(key)) {
-        map.set(key, { repName, char, times: new Set(times), appType });
-      } else {
-        times.forEach((t) => map.get(key).times.add(t));
-      }
-    });
-    return [...map.values()].map((v) => ({ ...v, times: [...v.times].sort() }));
-  }, [content, reps]);
-
-  // 파티에 이미 배정된 (repName, characterId) 조합을 빠르게 찾기 위한 Set
-  const assignedKeys = useMemo(() => {
-    if (!matchData) return new Set();
-    const s = new Set();
-    matchData.parties.forEach((p) => {
-      p.slots.forEach((slot) => {
-        if (slot.repName && slot.characterId) s.add(`${slot.repName}:${slot.characterId}`);
-      });
-    });
-    return s;
-  }, [matchData]);
-
   const loadResult = useCallback(async () => {
     if (!content) return;
     setLoadingResult(true);
@@ -2175,35 +2134,6 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
                     <span style={{ marginLeft: "auto", color: "var(--text-faint)" }}>{u.reason}</span>
                   </div>
                 ))}
-              </div>
-            </div>
-          )}
-
-          {supportApplicants.length > 0 && (
-            <div style={{ marginTop: 22 }}>
-              <div className="gpa-time-title" style={{ color: "var(--warn)" }}>지원 신청자 ({supportApplicants.length}명)</div>
-              <div className="gpa-hint" style={{ marginBottom: 8 }}>지원 신청자는 자동 매칭 시 빈 슬롯을 채우는 후보 풀입니다. 이미 파티에 배정된 경우 <span style={{ color: "var(--success)", fontWeight: 700 }}>배정됨</span>으로 표시됩니다.</div>
-              <div className="gpa-unassigned-list">
-                {supportApplicants.map((sc, i) => {
-                  const isAssigned = assignedKeys.has(`${sc.repName}:${sc.char.id}`);
-                  return (
-                    <div
-                      key={i}
-                      className="gpa-unassigned-row"
-                      style={{ opacity: isAssigned ? 0.55 : 1, cursor: "default" }}
-                    >
-                      <RoleIconBadge role={sc.char.role} />
-                      <span>{sc.char.nickname} <span style={{ color: "var(--text-faint)" }}>({sc.repName})</span></span>
-                      <span className={`gpa-badge ${sc.appType === "both" ? "combo" : "supportApp"}`} style={{ fontSize: 11 }}>
-                        {APP_TYPE_LABEL[sc.appType] || sc.appType}
-                      </span>
-                      <span style={{ color: "var(--text-faint)" }}>신청: {sc.times.join(", ")}</span>
-                      {isAssigned && (
-                        <span style={{ marginLeft: "auto", color: "var(--success)", fontWeight: 700, fontSize: 12 }}>배정됨</span>
-                      )}
-                    </div>
-                  );
-                })}
               </div>
             </div>
           )}
