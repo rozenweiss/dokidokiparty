@@ -448,7 +448,7 @@ function GateFlow({ config, onEnter }) {
     <div className="gpm-gate-wrap">
       <div className="gpm-gate-card">
         <h1 className="gpm-gate-title">두근두근 파티 메이커 2.0</h1>
-        <p className="gpm-gate-desc">길드원만 입장할 수 있습니다.<br />길드 공용 비밀번호와 대표 캐릭터명을 입력해주세요.</p>
+        <p className="gpm-gate-desc">길드 공용 비밀번호와 대표 캐릭터명을 입력해주세요.</p>
 
         <div className="gpm-field">
           <label className="gpm-label">길드 공용 비밀번호</label>
@@ -462,7 +462,6 @@ function GateFlow({ config, onEnter }) {
             autoFocus
           />
           {pwError && <div className="gpm-error-text">{pwError}</div>}
-          <div className="gpm-hint-text">프로토타입 기본 비밀번호: {config.password}</div>
         </div>
 
         <div className="gpm-field">
@@ -551,7 +550,7 @@ function CharacterModal({ jobs, initial, onClose, onSave, onDelete }) {
 
         <div className="gpm-field">
           <label className="gpm-label">캐릭터 닉네임</label>
-          <input className={`gpm-input ${errors.nickname ? "error" : ""}`} value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="예: 달빛여행자" />
+          <input className={`gpm-input ${errors.nickname ? "error" : ""}`} value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="임땡" />
           {errors.nickname && <div className="gpm-error-text">{errors.nickname}</div>}
         </div>
 
@@ -872,9 +871,9 @@ function ApplyView({ contents, subs, jobs, initialContentId, editingApp, onCance
                       <span className="gpm-select-power">{charFinalPower(c, content).toLocaleString()}</span>
                       <span className="gpm-select-power-label" style={{ display: "block" }}>최종 전투력</span>
                     </div>
-                    <button 
-                      type="button" 
-                      className="gpm-btn gpm-btn-ghost gpm-btn-sm" 
+                    <button
+                      type="button"
+                      className="gpm-btn gpm-btn-ghost gpm-btn-sm"
                       onClick={(e) => { e.stopPropagation(); setEditSubCand(c); }}
                       style={{ padding: "4px 10px", fontSize: 12, height: "auto", minHeight: 28 }}
                     >

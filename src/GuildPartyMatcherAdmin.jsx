@@ -1639,7 +1639,7 @@ function ContentModal({ initial, onClose, onSave }) {
         <h3 className="gpa-modal-title">{initial ? "콘텐츠 수정" : "콘텐츠 등록"}</h3>
         <div className="gpa-field">
           <label className="gpa-label">콘텐츠명</label>
-          <input className="gpa-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 협곡의 결전" />
+          <input className="gpa-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="어비스" />
           {error && <div className="gpa-error">{error}</div>}
         </div>
         <div className="gpa-row">
