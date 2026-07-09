@@ -137,8 +137,8 @@ const GlobalStyle = () => (
     .gpa-slot.drag-reject { border-color: var(--danger); }
     .gpa-slot-role { width: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
     .gpa-slot-role.tank { color: var(--tank); } .gpa-slot-role.support { color: var(--support); } .gpa-slot-role.dealer { color: var(--dealer); }
-    .gpa-slot-name { flex: 1; color: var(--text); font-weight: 700; }
-    .gpa-slot-empty { flex: 1; color: var(--text-faint); font-style: italic; }
+    .gpa-slot-name { flex: 1; color: var(--text); font-weight: 700; font-size: 12.5px; }
+    .gpa-slot-empty { flex: 1; color: var(--text-faint); font-style: italic; font-size: 12.5px; }
     .gpa-slot-tag { font-size: 10.5px; color: var(--text-faint); }
     .gpa-slot-tag-support { color: var(--warn); font-weight: 700; }
     .gpa-party-short { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-soft); font-size: 12px; color: var(--danger); }
