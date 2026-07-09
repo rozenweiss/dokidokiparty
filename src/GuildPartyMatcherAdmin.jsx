@@ -66,7 +66,7 @@ const GlobalStyle = () => (
     .gpa-section-title h2 { font-size: 17px; }
     .gpa-section-desc { font-size: 13.5px; color: var(--text-faint); margin-top: 3px; }
 
-    .gpa-btn { border: none; border-radius: 15px; padding: 14px 20px; font-size: 16px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+    .gpa-btn { border: none; border-radius: 15px; padding: 14px 20px; font-size: 15px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0; }
     .gpa-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .gpa-btn-primary { background: linear-gradient(180deg, var(--accent-soft), var(--accent)); color: #FFFFFF; }
     .gpa-btn-primary:hover { filter: brightness(1.05); }
@@ -80,7 +80,10 @@ const GlobalStyle = () => (
     .gpa-label { display: block; font-size: 13px; color: var(--text-dim); margin-bottom: 6px; }
     .gpa-input { width: 100%; background: var(--bg-elev); border: 1px solid var(--border); color: var(--text); padding: 12px 16px; border-radius: 15px; font-size: 16px; outline: none; }
     .gpa-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(193,95,60,0.15); }
-    .gpa-row { display: flex; gap: 10px; }
+    .gpa-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .gpa-action-bar { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+    .gpa-action-row { display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+    .gpa-action-row::-webkit-scrollbar { height: 3px; } .gpa-action-row::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
     .gpa-hint { font-size: 12.5px; color: var(--text-faint); margin-top: 5px; }
     .gpa-error { font-size: 12.5px; color: var(--danger); margin-top: 5px; }
 
@@ -2431,24 +2434,40 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
           <div className="gpa-stat-card"><div className="gpa-stat-num">{preview.normal}</div><div className="gpa-stat-label">일반 신청 후보 (일반+지원 포함)</div></div>
           <div className="gpa-stat-card"><div className="gpa-stat-num">{preview.support}</div><div className="gpa-stat-label">지원 신청 후보 (일반+지원 포함)</div></div>
         </div>
-        <div className="gpa-row" style={{ marginTop: 16 }}>
-          <button className="gpa-btn gpa-btn-primary" onClick={runMatch} disabled={preview.candidateCount === 0}>{matchData ? "재매칭 실행" : "자동 매칭 실행"}</button>
-          {matchData && (
-            <button className="gpa-btn gpa-btn-ghost" onClick={togglePublish}>{matchData.published ? "결과 비공개로 전환" : "결과 공개하기"}</button>
-          )}
-          {matchData && matchData.parties.length > 0 && (
-            <button className="gpa-btn gpa-btn-ghost" onClick={downloadResultsImage} disabled={downloadingImage}>{downloadingImage ? "이미지 생성 중..." : "이미지로 다운로드"}</button>
-          )}
-          <button
-            className="gpa-btn gpa-btn-ghost"
-            disabled={loadingResult}
-            onClick={async () => { await loadResult(); if (onDataChanged) await onDataChanged(); onToast("새로고침했습니다."); }}
-          >
-            {loadingResult ? "새로고침 중..." : "새로고침"}
-          </button>
-          <button className="gpa-btn gpa-btn-ghost" onClick={() => { setCreatePartyTime(availableTimes[0] || ""); setShowCreateParty(true); }} disabled={availableTimes.length === 0}>
-            파티 생성
-          </button>
+        <div className="gpa-action-bar">
+          {/* 주 액션 행: 매칭 실행 + 공개/비공개 */}
+          <div className="gpa-action-row">
+            <button className="gpa-btn gpa-btn-primary" onClick={runMatch} disabled={preview.candidateCount === 0}>
+              {matchData ? "재매칭 실행" : "자동 매칭 실행"}
+            </button>
+            {matchData && (
+              <button className="gpa-btn gpa-btn-ghost" onClick={togglePublish}>
+                {matchData.published ? "결과 비공개로" : "결과 공개하기"}
+              </button>
+            )}
+          </div>
+          {/* 보조 액션 행: 이미지·새로고침·파티생성 */}
+          <div className="gpa-action-row">
+            {matchData && matchData.parties.length > 0 && (
+              <button className="gpa-btn gpa-btn-ghost gpa-btn-sm" onClick={downloadResultsImage} disabled={downloadingImage}>
+                {downloadingImage ? "생성 중..." : "🖼 이미지 저장"}
+              </button>
+            )}
+            <button
+              className="gpa-btn gpa-btn-ghost gpa-btn-sm"
+              disabled={loadingResult}
+              onClick={async () => { await loadResult(); if (onDataChanged) await onDataChanged(); onToast("새로고침했습니다."); }}
+            >
+              {loadingResult ? "새로고침 중..." : "↻ 새로고침"}
+            </button>
+            <button
+              className="gpa-btn gpa-btn-ghost gpa-btn-sm"
+              onClick={() => { setCreatePartyTime(availableTimes[0] || ""); setShowCreateParty(true); }}
+              disabled={availableTimes.length === 0}
+            >
+              + 파티 생성
+            </button>
+          </div>
         </div>
       </div>
 
