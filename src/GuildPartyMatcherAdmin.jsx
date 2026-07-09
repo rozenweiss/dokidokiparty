@@ -1264,6 +1264,75 @@ function runAutoMatch(content, reps, opts) {
     finalUnassigned.forEach((u) => unassigned.push(u));
   }
 
+  /* ---- 동일 시간대 파티 간 균형 재배치 (신설, "22:50 파티 간 전투력 편차" 요청 반영) ----
+     여기까지(구제 재배치·신규 파티 생성·스왑·지원 채우기·파티 병합·aggressive 복구)로 모든
+     인원 배정이 끝난 뒤, 마지막으로 같은 시간대에 파티가 2개 이상 있으면 그 사이에서만
+     "자리"를 맞바꿔 파티 평균 전투력의 표준편차를 줄입니다.
+
+     시간 자체를 옮기는 게 아니라 같은 시간대 안에서 소속 파티만 바꾸는 것이므로:
+     - 신청 시간(allowedTimes) 제약을 새로 확인할 필요가 없습니다 — 두 사람 모두 원래
+       신청해서 배정된 바로 그 시간에 계속 남기 때문입니다.
+     - "동일 대표 동일 시간 1명" 제약도 위반될 수 없습니다 — 대표 1명당 시간 1개에 캐릭터
+       1명만 배정된다는 불변 조건은 이 시점까지 이미 전 과정에서 유지되어 왔고, 같은 시간대
+       안에서 파티만 바꾸는 것은 그 불변 조건에 아무 영향도 주지 않습니다.
+     - 지원으로 채워진 자리도 대상에 포함합니다(시간이 바뀌지 않으므로 지원 신청 시간과
+       무관합니다). 다만 채워진 자리끼리만 맞바꾸고 빈 자리로 옮기지는 않습니다 — 그래야
+       각 파티의 인원수·부족 현황이 그대로 유지됩니다. */
+  function charFromSlot(slot) {
+    if (!slot.characterId) return null;
+    return (reps[slot.repName]?.subs || []).find((c) => c.id === slot.characterId) || null;
+  }
+
+  function rebalanceSameTime() {
+    const timeGroups = {};
+    Object.values(partiesByKey).forEach((p) => {
+      (timeGroups[p.time] = timeGroups[p.time] || []).push(p);
+    });
+    Object.values(timeGroups).forEach((partiesAtT) => {
+      if (partiesAtT.length < 2) return;
+      const MAX_ITER = 300;
+      let improved = true, iter = 0;
+      while (improved && iter < MAX_ITER) {
+        improved = false;
+        iter++;
+        outer:
+        for (let i = 0; i < partiesAtT.length; i++) {
+          for (let j = i + 1; j < partiesAtT.length; j++) {
+            const partyA = partiesAtT[i], partyB = partiesAtT[j];
+            for (let si = 0; si < partyA.slots.length; si++) {
+              const slotA = partyA.slots[si];
+              if (!slotA.nickname) continue;
+              for (let sj = 0; sj < partyB.slots.length; sj++) {
+                const slotB = partyB.slots[sj];
+                if (!slotB.nickname) continue;
+                if (slotA.role !== slotB.role) continue;
+                if (slotA.repName === slotB.repName) continue; // 안전 가드 — 이론상 발생하지 않음(동일 대표 동일 시간 1명 불변 조건)
+
+                const charA = charFromSlot(slotA), charB = charFromSlot(slotB);
+                const powerA = charA ? charFinalPower(charA, content) : 0;
+                const powerB = charB ? charFinalPower(charB, content) : 0;
+
+                const before = objective();
+                partyA.slots[si] = slotB; partyB.slots[sj] = slotA;
+                partyA._powerSum += powerB - powerA; partyB._powerSum += powerA - powerB;
+                const after = objective();
+
+                if (after < before - 1e-9) {
+                  improved = true;
+                  break outer;
+                } else {
+                  partyA.slots[si] = slotA; partyB.slots[sj] = slotB;
+                  partyA._powerSum += powerA - powerB; partyB._powerSum += powerB - powerA;
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+  rebalanceSameTime();
+
   /* ---- 결과 정리 ---- */
   const parties = Object.values(partiesByKey)
     .map((p) => {
