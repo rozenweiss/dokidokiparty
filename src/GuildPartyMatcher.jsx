@@ -220,10 +220,10 @@ const GlobalStyle = () => (
     .gpm-result-group-title { display: flex; align-items: center; gap: 10px; margin: 22px 0 12px; }
     .gpm-result-group-title h3 { font-size: 16.5px; color: var(--gold-soft); }
     .gpm-result-group-line { flex: 1; height: 1px; background: var(--border-soft); }
-    .gpm-party-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px,1fr)); gap: 12px; }
+    .gpm-party-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); gap: 12px; }
     .gpm-party-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 15px; padding: 14px; }
     .gpm-party-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-    .gpm-party-num { font-family: var(--font-mono); font-size: 14.5px; font-weight: 700; color: var(--text); }
+    .gpm-party-num { font-family: var(--font-display); font-size: 16px; font-weight: 800; color: var(--text); }
     .gpm-party-slot { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 15px; border-radius: 11px; margin-bottom: 6px; }
     .gpm-party-slot.tank { background: rgba(76,113,150,0.18); }
     .gpm-party-slot.support { background: rgba(111,196,138,0.18); }
@@ -1013,8 +1013,8 @@ function ResultsView({ contents }) {
             contentName: c.name,
             time: p.time,
             partyNumber: p.partyNumber,
-            // 공개 정보만 전달: 캐릭터 닉네임, 역할, 빈자리/부족 인원
-            slots: (p.slots || []).map((s) => ({ role: s.role, nickname: s.nickname || null })),
+            // 공개 정보만 전달: 캐릭터 닉네임, 역할, 빈자리/부족 인원, type
+            slots: (p.slots || []).map((s) => ({ role: s.role, nickname: s.nickname || null, type: s.type || null })),
             shortage: p.shortage || null,
           });
         }
@@ -1024,14 +1024,14 @@ function ResultsView({ contents }) {
     return () => { cancelled = true; };
   }, [contents]);
 
-  const groups = useMemo(() => {
-    const byContentTime = {};
+  const groupsByContent = useMemo(() => {
+    const byContent = {};
     for (const r of results) {
-      const key = `${r.contentName} · ${r.time}`;
-      if (!byContentTime[key]) byContentTime[key] = [];
-      byContentTime[key].push(r);
+      if (!byContent[r.contentName]) byContent[r.contentName] = {};
+      if (!byContent[r.contentName][r.time]) byContent[r.contentName][r.time] = [];
+      byContent[r.contentName][r.time].push(r);
     }
-    return byContentTime;
+    return byContent;
   }, [results]);
 
   if (!loaded) {
@@ -1061,25 +1061,52 @@ function ResultsView({ contents }) {
   return (
     <div>
       <div className="gpm-section-title"><h2>매칭 결과</h2></div>
-      {Object.entries(groups).map(([key, parties]) => (
-        <div key={key}>
-          <div className="gpm-result-group-title"><h3>{key}</h3><div className="gpm-result-group-line" /></div>
-          <div className="gpm-party-grid">
-            {parties.map((p) => (
-              <div key={p.partyNumber} className="gpm-party-card">
-                <div className="gpm-party-top"><span className="gpm-party-num">파티 {p.partyNumber}</span></div>
-                {p.slots.map((s, i) => (
-                  <div key={i} className={`gpm-party-slot ${s.nickname ? s.role : "empty"}`}>
-                    <span className={`gpm-party-slot-role ${s.role}`} title={ROLE_LABEL[s.role]} aria-label={ROLE_LABEL[s.role]}>
-                      {ROLE_ICON[s.role] && React.createElement(ROLE_ICON[s.role], { size: 15, strokeWidth: 2.3 })}
-                    </span>
-                    {s.nickname ? <span className="gpm-party-slot-name">{s.nickname}</span> : <span className="gpm-party-slot-empty">모집 중</span>}
-                  </div>
-                ))}
-                {p.shortage && <div className="gpm-party-short">부족 인원: {p.shortage}</div>}
+      {Object.entries(groupsByContent).map(([contentName, timeGroups]) => (
+        <div key={contentName} style={{ marginBottom: 32 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text-dim)", marginBottom: 16 }}>{contentName}</div>
+          {Object.entries(timeGroups).map(([time, parties]) => {
+            const totalParticipants = parties.reduce((acc, p) => acc + p.slots.filter((s) => s.nickname).length, 0);
+            return (
+              <div key={time} style={{ marginBottom: 24 }}>
+                <div className="gpm-result-group-title">
+                  <h3 style={{ fontSize: 20, color: "var(--text)", fontWeight: 800, margin: 0 }}>{time} 출발</h3>
+                  <span style={{ fontSize: 13, background: "var(--surface-2)", color: "var(--text-dim)", padding: "4px 10px", borderRadius: 20, fontWeight: 600, marginLeft: 10 }}>총 {totalParticipants}명</span>
+                  <div className="gpm-result-group-line" style={{ marginLeft: 12 }} />
+                </div>
+                <div className="gpm-party-grid">
+                  {parties.map((p) => (
+                    <div key={p.partyNumber} className="gpm-party-card">
+                      <div className="gpm-party-top"><span className="gpm-party-num">파티 {p.partyNumber}</span></div>
+                      {p.slots.map((s, i) => {
+                        const isSupport = s.type === "support" || (s.nickname && s.nickname.includes("(지원)"));
+                        const displayName = s.nickname ? s.nickname.replace("(지원)", "").trim() : "";
+                        return (
+                          <div key={i} className={`gpm-party-slot ${s.nickname ? s.role : "empty"}`}>
+                            <span className={`gpm-party-slot-role ${s.role}`} title={ROLE_LABEL[s.role]} aria-label={ROLE_LABEL[s.role]}>
+                              {ROLE_ICON[s.role] && React.createElement(ROLE_ICON[s.role], { size: 15, strokeWidth: 2.3 })}
+                            </span>
+                            {s.nickname ? (
+                              <span className="gpm-party-slot-name">
+                                {displayName}
+                                {isSupport && (
+                                  <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", marginLeft: 6, color: "var(--gold)", background: "rgba(193,95,60,0.1)", borderRadius: "50%", width: 18, height: 18 }} title="지원 신청">
+                                    <HeartPulse size={11} strokeWidth={2.5} />
+                                  </span>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="gpm-party-slot-empty">모집 중</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {p.shortage && <div className="gpm-party-short">부족 인원: {p.shortage}</div>}
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
       ))}
     </div>
