@@ -714,6 +714,11 @@ function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onS
   const activeChars = subs.filter((c) => c.active !== false);
   // "일반+지원" 동시 선택 조건 (12.2절): 신청 시간 수가 신청 캐릭터 수보다 많아야 함
   const comboAllowed = selectedTimes.size > selectedChars.size;
+  // 버그 수정: comboAllowed는 원래 토글을 켜는 순간(toggleNormal/toggleSupport)에만 확인되고
+  // 있었습니다. 이미 둘 다 켜진 상태에서 캐릭터를 추가하거나 시간을 줄이면 조건이 깨져도
+  // 재검증이 없어 "시간 수 <= 캐릭터 수"인 both 신청이 그대로 제출될 수 있었습니다.
+  // comboBroken을 selectedChars/selectedTimes 변화마다 다시 계산해 canSubmit과 화면 경고에 반영합니다.
+  const comboBroken = wantNormal && wantSupport && !comboAllowed;
 
   function toggleChar(id, disabled) {
     if (disabled) return;
@@ -741,7 +746,7 @@ function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onS
     setWantSupport(!wantSupport);
   }
 
-  const canSubmit = content && selectedChars.size > 0 && selectedTimes.size > 0 && (wantNormal || wantSupport);
+  const canSubmit = content && selectedChars.size > 0 && selectedTimes.size > 0 && (wantNormal || wantSupport) && !comboBroken;
 
   if (!content) {
     return <div className="gpm-card"><div className="gpm-empty"><div className="gpm-empty-title">신청 가능한 콘텐츠가 없습니다.</div></div></div>;
@@ -900,6 +905,11 @@ function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onS
         {comboBlockedMsg && <div className="gpm-error-text" style={{ marginTop: 10 }}>{comboBlockedMsg}</div>}
         {!comboAllowed && !(wantNormal && wantSupport) && (
           <div className="gpm-hint" style={{ marginTop: 10 }}>일반+지원을 함께 선택하려면 신청 시간 수가 신청 캐릭터 수보다 많아야 합니다. (현재 캐릭터 {selectedChars.size}명 · 시간 {selectedTimes.size}개)</div>
+        )}
+        {comboBroken && (
+          <div className="gpm-error-text" style={{ marginTop: 10 }}>
+            일반+지원 동시 신청 조건이 깨졌습니다 — 선택 시간 수({selectedTimes.size}개)가 선택 캐릭터 수({selectedChars.size}명)보다 많아야 합니다. 캐릭터를 줄이거나 시간을 추가해주세요. 신청은 조건을 다시 만족할 때까지 제출할 수 없습니다.
+          </div>
         )}
       </div>
 
