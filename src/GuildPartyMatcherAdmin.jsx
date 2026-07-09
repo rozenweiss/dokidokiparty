@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import html2canvas from "html2canvas";
-import { Shield, Swords, HeartPulse } from "lucide-react";
+import { Shield, Swords, HeartPulse, Bird } from "lucide-react";
 import { storageGet, storageSet, storageDelete, storageListWithValues, storageGetSafe, pullFromSheets, backupKv, storageSetMany, syncMirror } from "./lib/storage";
 
 /* ============================================================
@@ -2195,11 +2195,11 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
     if (!matchData || !content) return {};
     const g = {};
     matchData.parties.forEach((p) => {
-      const key = `${content.name} · ${p.time}`;
+      const key = p.time;
       if (!g[key]) g[key] = [];
       g[key].push({
         partyNumber: p.partyNumber,
-        slots: (p.slots || []).map((s) => ({ role: s.role, nickname: s.nickname || null })),
+        slots: (p.slots || []).map((s) => ({ role: s.role, nickname: s.nickname || null, type: s.type || null })),
         shortage: p.shortage || null,
       });
     });
@@ -2806,27 +2806,50 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
       {matchData && content && (
         <div style={{ position: "fixed", top: 0, left: "-99999px", width: 900 }}>
           <div ref={publicPreviewRef} style={{ background: "#F7F5F0", padding: 24 }}>
-            {Object.entries(publicResultGroups).map(([key, parties]) => (
-              <div key={key} style={{ marginBottom: 20 }}>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: 15, color: "var(--accent-soft)", fontWeight: 700, marginBottom: 10 }}>{key}</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px,1fr))", gap: 12 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text-dim)", marginBottom: 16 }}>{content.name}</div>
+            {Object.entries(publicResultGroups).map(([time, parties]) => {
+              const totalParticipants = parties.reduce((acc, p) => acc + p.slots.filter(s => s.nickname).length, 0);
+              return (
+              <div key={time} style={{ marginBottom: 24 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "22px 0 12px" }}>
+                  <h3 style={{ fontSize: 20, color: "var(--text)", fontWeight: 800, margin: 0 }}>{time} 출발</h3>
+                  <span style={{ fontSize: 13, background: "var(--surface-2)", color: "var(--text-dim)", padding: "4px 10px", borderRadius: 20, fontWeight: 600, marginLeft: 10 }}>총 {totalParticipants}명</span>
+                  <div style={{ flex: 1, height: 1, background: "var(--border-soft)", marginLeft: 12 }} />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px,1fr))", gap: 12 }}>
                   {parties.map((p) => (
                     <div key={p.partyNumber} className="gpa-party-card">
-                      <div className="gpa-party-top"><span>파티 {p.partyNumber}</span></div>
-                      {p.slots.map((s, si) => (
+                      <div className="gpa-party-top" style={{ fontSize: 16, fontWeight: 800, color: "var(--text)", fontFamily: "var(--font-display)" }}><span>파티 {p.partyNumber}</span></div>
+                      {p.slots.map((s, si) => {
+                        const isSupport = s.type === "support" || (s.nickname && s.nickname.includes("(지원)"));
+                        const displayName = s.nickname ? s.nickname.replace("(지원)", "").trim() : "";
+                        return (
                         <div key={si} className={`gpa-slot ${s.nickname ? s.role : "empty"}`} style={{ cursor: "default" }}>
                           <span className={`gpa-slot-role ${s.role}`} title={ROLE_LABEL[s.role]} aria-label={ROLE_LABEL[s.role]}>
                             {ROLE_ICON[s.role] && React.createElement(ROLE_ICON[s.role], { size: 14, strokeWidth: 2.3 })}
                           </span>
-                          {s.nickname ? <span className="gpa-slot-name">{s.nickname}</span> : <span className="gpa-slot-empty">모집 중</span>}
+                          {s.nickname ? (
+                            <span className="gpa-slot-name">
+                              {displayName}
+                              {isSupport && (
+                                <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", marginLeft: 6, color: "var(--gold)", background: "rgba(193,95,60,0.1)", borderRadius: "50%", width: 18, height: 18 }} title="지원 신청">
+                                  <Bird size={12} strokeWidth={2.2} />
+                                </span>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="gpa-slot-empty">모집 중</span>
+                          )}
                         </div>
-                      ))}
-                      {p.shortage && <div className="gpa-party-short">부족 인원: {p.shortage}</div>}
+                        );
+                      })}
+                      {p.shortage && <div className="gpa-party-short" style={{ marginTop: 10, fontSize: 13, color: "var(--danger)", background: "rgba(192,57,43,0.06)", padding: "8px 10px", borderRadius: 8 }}>부족 인원: {p.shortage}</div>}
                     </div>
                   ))}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

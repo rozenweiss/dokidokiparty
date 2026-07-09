@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { Shield, Swords, HeartPulse } from "lucide-react";
+import { Shield, Swords, HeartPulse, Bird } from "lucide-react";
 import { storageGet, storageSet, storageGetSafe } from "./lib/storage";
 
 /* ============================================================
@@ -1090,7 +1090,7 @@ function ResultsView({ contents }) {
                                 {displayName}
                                 {isSupport && (
                                   <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", marginLeft: 6, color: "var(--gold)", background: "rgba(193,95,60,0.1)", borderRadius: "50%", width: 18, height: 18 }} title="지원 신청">
-                                    <HeartPulse size={11} strokeWidth={2.5} />
+                                    <Bird size={12} strokeWidth={2.2} />
                                   </span>
                                 )}
                               </span>
