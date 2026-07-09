@@ -92,6 +92,9 @@ const GlobalStyle = () => (
     .gpa-error { font-size: 12.5px; color: var(--danger); margin-top: 5px; }
 
     .gpa-dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap: 10px; }
+    @media (min-width: 768px) {
+      .gpa-dash-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+    }
     .gpa-stat-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 15px; padding: 14px 16px; }
     .gpa-stat-num { font-family: var(--font-mono); font-size: 22px; color: var(--accent-soft); }
     .gpa-stat-label { font-size: 12.5px; color: var(--text-faint); margin-top: 3px; }
@@ -1464,14 +1467,13 @@ function Dashboard({ config, reps, resultsMeta, onRefresh, refreshing }) {
         <div><h2>대시보드</h2><div className="gpa-section-desc">서비스 운영 현황 요약</div></div>
         <button className="gpa-btn gpa-btn-ghost gpa-btn-sm" onClick={onRefresh} disabled={refreshing}>{refreshing ? "새로고침 중..." : "새로고침"}</button>
       </div>
-      <div className="gpa-dash-grid">
+      <div className="gpa-dash-grid cols-3">
         <div className="gpa-stat-card"><div className="gpa-stat-num">{stats.repCount}</div><div className="gpa-stat-label">등록된 대표 캐릭터</div></div>
         <div className="gpa-stat-card"><div className="gpa-stat-num">{stats.subCount}</div><div className="gpa-stat-label">등록된 하위 캐릭터</div></div>
         <div className="gpa-stat-card"><div className="gpa-stat-num">{config.contents.filter((c) => c.active).length}</div><div className="gpa-stat-label">활성 콘텐츠</div></div>
         <div className="gpa-stat-card"><div className="gpa-stat-num">{stats.appCount}</div><div className="gpa-stat-label">전체 신청 건수</div></div>
-        <div className="gpa-stat-card"><div className="gpa-stat-num">{stats.normalCount}</div><div className="gpa-stat-label">일반 신청 (일반+지원 포함)</div></div>
-        <div className="gpa-stat-card"><div className="gpa-stat-num">{stats.supportCount}</div><div className="gpa-stat-label">지원 신청 (일반+지원 포함)</div></div>
-        <div className="gpa-stat-card"><div className="gpa-stat-num">{stats.comboCount}</div><div className="gpa-stat-label">일반+지원 조합</div></div>
+        <div className="gpa-stat-card"><div className="gpa-stat-num">{stats.normalCount}</div><div className="gpa-stat-label">일반 신청</div></div>
+        <div className="gpa-stat-card"><div className="gpa-stat-num">{stats.supportCount}</div><div className="gpa-stat-label">지원 신청</div></div>
       </div>
 
       <div className="gpa-card" style={{ marginTop: 14 }}>
@@ -2511,8 +2513,8 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
         <div className="gpa-dash-grid">
           <div className="gpa-stat-card"><div className="gpa-stat-num">{preview.repCount}</div><div className="gpa-stat-label">신청 대표 캐릭터 수</div></div>
           <div className="gpa-stat-card"><div className="gpa-stat-num">{preview.candidateCount}</div><div className="gpa-stat-label">캐릭터×시간 후보 수</div></div>
-          <div className="gpa-stat-card"><div className="gpa-stat-num">{preview.normal}</div><div className="gpa-stat-label">일반 신청 후보 (일반+지원 포함)</div></div>
-          <div className="gpa-stat-card"><div className="gpa-stat-num">{preview.support}</div><div className="gpa-stat-label">지원 신청 후보 (일반+지원 포함)</div></div>
+          <div className="gpa-stat-card"><div className="gpa-stat-num">{preview.normal}</div><div className="gpa-stat-label">일반 신청 후보</div></div>
+          <div className="gpa-stat-card"><div className="gpa-stat-num">{preview.support}</div><div className="gpa-stat-label">지원 신청 후보</div></div>
         </div>
         <div className="gpa-action-bar">
           {/* 주 액션 행: 매칭 실행 + 공개/비공개 */}
