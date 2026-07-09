@@ -84,6 +84,10 @@ const GlobalStyle = () => (
     .gpa-action-bar { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
     .gpa-action-row { display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
     .gpa-action-row::-webkit-scrollbar { height: 3px; } .gpa-action-row::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    @media (min-width: 768px) {
+      .gpa-action-bar { flex-direction: row; flex-wrap: wrap; }
+      .gpa-action-row { overflow-x: visible; padding-bottom: 0; }
+    }
     .gpa-hint { font-size: 12.5px; color: var(--text-faint); margin-top: 5px; }
     .gpa-error { font-size: 12.5px; color: var(--danger); margin-top: 5px; }
 
@@ -2525,19 +2529,19 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
           {/* 보조 액션 행: 이미지·새로고침·파티생성 */}
           <div className="gpa-action-row">
             {matchData && matchData.parties.length > 0 && (
-              <button className="gpa-btn gpa-btn-ghost gpa-btn-sm" onClick={downloadResultsImage} disabled={downloadingImage}>
+              <button className="gpa-btn gpa-btn-ghost" onClick={downloadResultsImage} disabled={downloadingImage}>
                 {downloadingImage ? "생성 중..." : "🖼 이미지 저장"}
               </button>
             )}
             <button
-              className="gpa-btn gpa-btn-ghost gpa-btn-sm"
+              className="gpa-btn gpa-btn-ghost"
               disabled={loadingResult}
               onClick={async () => { await loadResult(); if (onDataChanged) await onDataChanged(); onToast("새로고침했습니다."); }}
             >
               {loadingResult ? "새로고침 중..." : "↻ 새로고침"}
             </button>
             <button
-              className="gpa-btn gpa-btn-ghost gpa-btn-sm"
+              className="gpa-btn gpa-btn-ghost"
               onClick={() => { setCreatePartyTime(availableTimes[0] || ""); setShowCreateParty(true); }}
               disabled={availableTimes.length === 0}
             >
