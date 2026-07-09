@@ -3107,11 +3107,14 @@ function PasswordView({ config, onChange, onToast, reps, contents, onAfterDelete
       return;
     }
 
+    const items = [];
     for (const repName of repNames) {
       const data = reps[repName];
       const next = { ...data, applications: [...(data.applications || []), ...byRep[repName]] };
-      await storageSet(`rep:${repName}`, next, true);
+      items.push({ key: `rep:${repName}`, value: next, shared: true });
     }
+    await storageSetMany(items, { skipMirror: true });
+    await syncMirror();
 
     setBulkApplying(false);
     onToast(`백업(${backup.name})을 만든 뒤, 대표 캐릭터 ${repNames.length}명에 걸쳐 총 ${totalApps}건의 테스트 신청을 생성했습니다.`);
