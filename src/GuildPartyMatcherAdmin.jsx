@@ -1662,10 +1662,13 @@ function ContentModal({ initial, onClose, onSave }) {
   );
 }
 
-function ContentsView({ contents, onChange, onToast, onAfterDelete }) {
+function ContentsView({ contents, onChange, onToast, onAfterDelete, resultsMeta }) {
   const [modal, setModal] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  
+  const [busyId, setBusyId] = useState(null);
+  const [confirmDeleteContentData, setConfirmDeleteContentData] = useState(null);
 
   function saveContent(c) {
     const exists = contents.some((x) => x.id === c.id);
@@ -1680,6 +1683,14 @@ function ContentsView({ contents, onChange, onToast, onAfterDelete }) {
     onChange(contents.filter((x) => x.id !== content.id));
     setDeleting(false);
     onToast(`'${content.name}' 콘텐츠를 삭제했습니다. (관련 신청 내역·매칭 결과도 함께 삭제됨)`);
+    if (onAfterDelete) onAfterDelete();
+  }
+
+  async function doDeleteContentData(content) {
+    setBusyId(content.id);
+    await purgeContentData(content);
+    setBusyId(null);
+    onToast(`'${content.name}'의 신청/매칭 데이터를 삭제했습니다.`);
     if (onAfterDelete) onAfterDelete();
   }
 
@@ -1725,6 +1736,42 @@ function ContentsView({ contents, onChange, onToast, onAfterDelete }) {
           danger
           onConfirm={async () => { const c = confirmDelete; setConfirmDelete(null); await doDelete(c); }}
           onCancel={() => setConfirmDelete(null)}
+        />
+      )}
+      
+      <div className="gpa-card" style={{ marginTop: 14 }}>
+        <div className="gpa-section-title"><h2 style={{ fontSize: 14 }}>콘텐츠 신청 초기화</h2></div>
+        <div className="gpa-hint" style={{ marginBottom: 14 }}>대표 캐릭터, 하위 캐릭터, 직업 목록, 콘텐츠 설정은 삭제되지 않습니다. 이 기능은 선택한 콘텐츠의 신청 내역과 매칭 결과만 삭제합니다. 자동 매칭 실행 후 48시간이 지나면 자동으로 삭제됩니다.</div>
+        <div className="gpa-table-wrap">
+          <table className="gpa-table">
+            <thead><tr><th>콘텐츠</th><th>자동 매칭 실행</th><th>자동 삭제 예정</th><th>남은 시간</th><th></th></tr></thead>
+            <tbody>
+              {contents.map((c) => {
+                const meta = resultsMeta && resultsMeta[c.id];
+                const deleteAt = meta ? meta.generatedAt + RETENTION_MS : null;
+                return (
+                  <tr key={c.id}>
+                    <td>{c.name}</td>
+                    <td style={{ fontFamily: "var(--font-mono)", fontSize: 11.5 }}>{meta ? formatDateTime(meta.generatedAt) : "-"}</td>
+                    <td style={{ fontFamily: "var(--font-mono)", fontSize: 11.5 }}>{deleteAt ? formatDateTime(deleteAt) : "-"}</td>
+                    <td>{deleteAt ? <span className={`gpa-badge ${deleteAt - Date.now() <= 0 ? "off" : "on"}`}>{formatRemaining(deleteAt - Date.now())}</span> : <span style={{ color: "var(--text-faint)" }}>-</span>}</td>
+                    <td><button className="gpa-btn gpa-btn-danger gpa-btn-sm" disabled={busyId === c.id} onClick={() => setConfirmDeleteContentData(c)}>{busyId === c.id ? "삭제 중..." : "지금 삭제"}</button></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      {confirmDeleteContentData && (
+        <ConfirmModal
+          title="데이터 삭제 확인"
+          message={`'${confirmDeleteContentData.name}'의 현재 신청 정보와 매칭 결과를 모두 삭제하시겠습니까?\n삭제된 정보는 복구할 수 없습니다.`}
+          confirmLabel="삭제"
+          danger
+          onConfirm={async () => { const c = confirmDeleteContentData; setConfirmDeleteContentData(null); await doDeleteContentData(c); }}
+          onCancel={() => setConfirmDeleteContentData(null)}
         />
       )}
     </div>
@@ -3028,14 +3075,60 @@ function AllCharactersSection({ reps, jobs, onUpdateCharacter, onDeleteCharacter
 }
 
 /* ============================================================
-   비밀번호 관리
+   관리자 메뉴 (비밀번호 + 시스템 연동)
    ============================================================ */
-function PasswordView({ config, onChange, onToast }) {
+function PasswordView({ config, onChange, onToast, reps, contents, onAfterDelete }) {
   const [guildPw, setGuildPw] = useState(config.password || "");
   const [adminPw, setAdminPw] = useState(config.adminPassword || "");
   const [guildError, setGuildError] = useState("");
   const [adminError, setAdminError] = useState("");
   const [confirmSave, setConfirmSave] = useState(null); // 'guild' | 'admin' | null
+  
+  const [bulkApplying, setBulkApplying] = useState(false);
+  const [pulling, setPulling] = useState(false);
+  const [confirmBulkApply, setConfirmBulkApply] = useState(false);
+  const [confirmPull, setConfirmPull] = useState(false);
+
+  async function doBulkTestApply() {
+    setBulkApplying(true);
+
+    const backup = await backupKv();
+    if (!backup.ok) {
+      setBulkApplying(false);
+      onToast("구글 시트 백업에 실패해서 일괄 신청을 진행하지 않았습니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+
+    const { byRep, totalApps } = buildBulkTestApplications(reps, contents);
+    const repNames = Object.keys(byRep);
+    if (repNames.length === 0) {
+      setBulkApplying(false);
+      onToast(`백업(${backup.name})은 만들었지만, 신청 가능한 활성 콘텐츠나 조건에 맞는 캐릭터가 없어 신청은 생성되지 않았습니다.`);
+      return;
+    }
+
+    for (const repName of repNames) {
+      const data = reps[repName];
+      const next = { ...data, applications: [...(data.applications || []), ...byRep[repName]] };
+      await storageSet(`rep:${repName}`, next, true);
+    }
+
+    setBulkApplying(false);
+    onToast(`백업(${backup.name})을 만든 뒤, 대표 캐릭터 ${repNames.length}명에 걸쳐 총 ${totalApps}건의 테스트 신청을 생성했습니다.`);
+    if (onAfterDelete) onAfterDelete();
+  }
+
+  async function doPullFromSheets() {
+    setPulling(true);
+    const ok = await pullFromSheets();
+    setPulling(false);
+    if (ok) {
+      onToast("구글 시트 내용을 불러왔습니다. 형식이 어긋난 값이 있으면 일부 필드가 다르게 반영될 수 있으니 직업/콘텐츠/캐릭터 목록을 확인해주세요.");
+    } else {
+      onToast("구글 시트 불러오기에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    }
+    if (onAfterDelete) onAfterDelete();
+  }
 
   function saveGuildPw() {
     if (!guildPw.trim()) { setGuildError("빈 값으로는 저장할 수 없습니다."); return; }
@@ -3060,7 +3153,7 @@ function PasswordView({ config, onChange, onToast }) {
 
   return (
     <div>
-      <div className="gpa-section-title"><div><h2>비밀번호 관리</h2><div className="gpa-section-desc">길드 입장 비밀번호와 관리자 비밀번호를 확인하고 변경합니다.</div></div></div>
+      <div className="gpa-section-title"><div><h2>관리자 메뉴</h2><div className="gpa-section-desc">길드 파티 매칭의 시스템 설정과 비밀번호를 관리합니다.</div></div></div>
 
       <div className="gpa-card">
         <div className="gpa-section-title"><h2 style={{ fontSize: 14 }}>길드 공용 비밀번호</h2></div>
@@ -3105,75 +3198,8 @@ function PasswordView({ config, onChange, onToast }) {
           onCancel={() => setConfirmSave(null)}
         />
       )}
-    </div>
-  );
-}
 
-/* ============================================================
-   데이터 관리
-   ============================================================ */
-function DataView({ contents, jobs, reps, onUpdateCharacter, onDeleteCharacter, resultsMeta, onToast, onAfterDelete }) {
-  const [busyId, setBusyId] = useState(null);
-  const [bulkApplying, setBulkApplying] = useState(false);
-  const [pulling, setPulling] = useState(false);
-  const [confirmDeleteContent, setConfirmDeleteContent] = useState(null);
-  const [confirmBulkApply, setConfirmBulkApply] = useState(false);
-  const [confirmPull, setConfirmPull] = useState(false);
-
-  async function doDeleteContentData(content) {
-    setBusyId(content.id);
-    await purgeContentData(content);
-    setBusyId(null);
-    onToast(`'${content.name}'의 신청/매칭 데이터를 삭제했습니다.`);
-    onAfterDelete();
-  }
-
-  async function doBulkTestApply() {
-    setBulkApplying(true);
-
-    const backup = await backupKv();
-    if (!backup.ok) {
-      setBulkApplying(false);
-      onToast("구글 시트 백업에 실패해서 일괄 신청을 진행하지 않았습니다. 잠시 후 다시 시도해주세요.");
-      return;
-    }
-
-    const { byRep, totalApps } = buildBulkTestApplications(reps, contents);
-    const repNames = Object.keys(byRep);
-    if (repNames.length === 0) {
-      setBulkApplying(false);
-      onToast(`백업(${backup.name})은 만들었지만, 신청 가능한 활성 콘텐츠나 조건에 맞는 캐릭터가 없어 신청은 생성되지 않았습니다.`);
-      return;
-    }
-
-    for (const repName of repNames) {
-      const data = reps[repName];
-      const next = { ...data, applications: [...(data.applications || []), ...byRep[repName]] };
-      await storageSet(`rep:${repName}`, next, true);
-    }
-
-    setBulkApplying(false);
-    onToast(`백업(${backup.name})을 만든 뒤, 대표 캐릭터 ${repNames.length}명에 걸쳐 총 ${totalApps}건의 테스트 신청을 생성했습니다.`);
-    onAfterDelete();
-  }
-
-  async function doPullFromSheets() {
-    setPulling(true);
-    const ok = await pullFromSheets();
-    setPulling(false);
-    if (ok) {
-      onToast("구글 시트 내용을 불러왔습니다. 형식이 어긋난 값이 있으면 일부 필드가 다르게 반영될 수 있으니 직업/콘텐츠/캐릭터 목록을 확인해주세요.");
-    } else {
-      onToast("구글 시트 불러오기에 실패했습니다. 잠시 후 다시 시도해주세요.");
-    }
-    onAfterDelete();
-  }
-
-  return (
-    <div>
-      <div className="gpa-section-title"><div><h2>데이터 관리</h2><div className="gpa-section-desc">콘텐츠별 신청 및 매칭 데이터를 수동으로 삭제할 수 있습니다. 자동 매칭 실행 후 48시간이 지나면 자동으로 삭제됩니다.</div></div></div>
-
-      <div className="gpa-card">
+      <div className="gpa-card" style={{ marginTop: 14 }}>
         <div className="gpa-section-title"><h2 style={{ fontSize: 14 }}>구글 시트 연동</h2></div>
         <div className="gpa-hint" style={{ marginBottom: 14 }}>
           직업/콘텐츠/캐릭터/신청 데이터는 앱에서 저장할 때마다 구글 시트의 "jobs" · "contents" · "characters" · "applications" 탭에 자동으로 복사됩니다.
@@ -3182,39 +3208,13 @@ function DataView({ contents, jobs, reps, onUpdateCharacter, onDeleteCharacter, 
         <button className="gpa-btn gpa-btn-primary gpa-btn-sm" disabled={pulling} onClick={() => setConfirmPull(true)}>{pulling ? "불러오는 중..." : "구글 시트에서 다시 불러오기"}</button>
       </div>
 
-      <AllCharactersSection reps={reps} jobs={jobs} onUpdateCharacter={onUpdateCharacter} onDeleteCharacter={onDeleteCharacter} />
-
-      <div className="gpa-card">
+      <div className="gpa-card" style={{ marginTop: 14 }}>
         <div className="gpa-section-title"><h2 style={{ fontSize: 14 }}>테스트용 일괄 신청</h2></div>
         <div className="gpa-hint" style={{ marginBottom: 14 }}>
           현재 등록된 전체 캐릭터가, 활성화된 모든 콘텐츠에 각각 신청합니다. 캐릭터×콘텐츠 조합마다 신청 유형(일반/지원/일반+지원)은 무작위, 신청 시간은 해당 콘텐츠의 가능한 시간대 중 2~3개를 무작위로 선택합니다.
           필요 마도 저항을 충족하지 못하는 조합은 제외됩니다. 실행 전에 구글 시트의 kv 탭을 자동으로 백업합니다.
         </div>
         <button className="gpa-btn gpa-btn-primary gpa-btn-sm" disabled={bulkApplying} onClick={() => setConfirmBulkApply(true)}>{bulkApplying ? "처리 중..." : "테스트용 일괄 신청 실행"}</button>
-      </div>
-
-      <div className="gpa-card">
-        <div className="gpa-hint" style={{ marginBottom: 14 }}>대표 캐릭터, 하위 캐릭터, 직업 목록, 콘텐츠 설정은 삭제되지 않습니다. 이 화면은 신청 내역과 매칭 결과만 삭제합니다.</div>
-        <div className="gpa-table-wrap">
-          <table className="gpa-table">
-            <thead><tr><th>콘텐츠</th><th>자동 매칭 실행</th><th>자동 삭제 예정</th><th>남은 시간</th><th></th></tr></thead>
-            <tbody>
-              {contents.map((c) => {
-                const meta = resultsMeta[c.id];
-                const deleteAt = meta ? meta.generatedAt + RETENTION_MS : null;
-                return (
-                  <tr key={c.id}>
-                    <td>{c.name}</td>
-                    <td style={{ fontFamily: "var(--font-mono)", fontSize: 11.5 }}>{meta ? formatDateTime(meta.generatedAt) : "-"}</td>
-                    <td style={{ fontFamily: "var(--font-mono)", fontSize: 11.5 }}>{deleteAt ? formatDateTime(deleteAt) : "-"}</td>
-                    <td>{deleteAt ? <span className={`gpa-badge ${deleteAt - Date.now() <= 0 ? "off" : "on"}`}>{formatRemaining(deleteAt - Date.now())}</span> : <span style={{ color: "var(--text-faint)" }}>-</span>}</td>
-                    <td><button className="gpa-btn gpa-btn-danger gpa-btn-sm" disabled={busyId === c.id} onClick={() => setConfirmDeleteContent(c)}>{busyId === c.id ? "삭제 중..." : "지금 삭제"}</button></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
       </div>
 
       {confirmPull && (
@@ -3236,18 +3236,21 @@ function DataView({ contents, jobs, reps, onUpdateCharacter, onDeleteCharacter, 
           onCancel={() => setConfirmBulkApply(false)}
         />
       )}
-
-      {confirmDeleteContent && (
-        <ConfirmModal
-          title="데이터 삭제 확인"
-          message={`'${confirmDeleteContent.name}'의 현재 신청 정보와 매칭 결과를 모두 삭제하시겠습니까?\n삭제된 정보는 복구할 수 없습니다.`}
-          confirmLabel="삭제"
-          danger
-          onConfirm={async () => { const c = confirmDeleteContent; setConfirmDeleteContent(null); await doDeleteContentData(c); }}
-          onCancel={() => setConfirmDeleteContent(null)}
-        />
-      )}
     </div>
+  );
+}
+
+/* ============================================================
+   캐릭터 목록
+   ============================================================ */
+function DataView({ jobs, reps, onUpdateCharacter, onDeleteCharacter }) {
+  return (
+    <div>
+      <div className="gpa-section-title"><div><h2>캐릭터 목록</h2><div className="gpa-section-desc">등록된 모든 캐릭터 정보를 확인하고 수정할 수 있습니다.</div></div></div>
+      <AllCharactersSection reps={reps} jobs={jobs} onUpdateCharacter={onUpdateCharacter} onDeleteCharacter={onDeleteCharacter} />
+    </div>
+  );
+}
   );
 }
 
@@ -3260,8 +3263,8 @@ const NAV_ITEMS = [
   { key: "contents", label: "콘텐츠 관리" },
   { key: "applications", label: "신청 현황" },
   { key: "matching", label: "자동 매칭" },
-  { key: "data", label: "데이터 관리" },
-  { key: "password", label: "비밀번호 관리" },
+  { key: "data", label: "캐릭터 목록" },
+  { key: "password", label: "관리자 메뉴" },
 ];
 
 function AdminShell({ config, setConfig }) {
@@ -3341,11 +3344,11 @@ function AdminShell({ config, setConfig }) {
 
       {view === "dashboard" && <Dashboard config={config} reps={reps} resultsMeta={resultsMeta} onRefresh={refresh} refreshing={refreshing} />}
       {view === "jobs" && <JobsView jobs={config.jobs} onChange={(jobs) => updateConfig({ jobs })} />}
-      {view === "contents" && <ContentsView contents={config.contents} onChange={(contents) => updateConfig({ contents })} onToast={showToast} onAfterDelete={refresh} />}
+      {view === "contents" && <ContentsView contents={config.contents} onChange={(contents) => updateConfig({ contents })} onToast={showToast} onAfterDelete={refresh} resultsMeta={resultsMeta} />}
       {view === "applications" && <ApplicationsView contents={config.contents} reps={reps} onExcludeCharacter={excludeCharacter} />}
       {view === "matching" && <MatchingView contents={config.contents} reps={reps} onToast={showToast} onDataChanged={refresh} />}
-      {view === "data" && <DataView contents={config.contents} jobs={config.jobs} resultsMeta={resultsMeta} reps={reps} onUpdateCharacter={updateCharacterAdmin} onDeleteCharacter={deleteCharacterAdmin} onToast={showToast} onAfterDelete={refresh} />}
-      {view === "password" && <PasswordView config={config} onChange={updateConfig} onToast={showToast} />}
+      {view === "data" && <DataView jobs={config.jobs} reps={reps} onUpdateCharacter={updateCharacterAdmin} onDeleteCharacter={deleteCharacterAdmin} />}
+      {view === "password" && <PasswordView config={config} onChange={updateConfig} onToast={showToast} reps={reps} contents={config.contents} onAfterDelete={refresh} />}
 
       <Toast message={toast} />
     </div>
