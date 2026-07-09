@@ -597,7 +597,22 @@ function runAutoMatch(content, reps, opts) {
     if (!repTimeUsed[entry.repName]) repTimeUsed[entry.repName] = new Set();
     repTimeUsed[entry.repName].add(party.time);
     const pnIdx = placedNormal.findIndex((p) => p.repName === entry.repName && p.char.id === entry.char.id);
-    if (pnIdx !== -1) placedNormal[pnIdx] = { ...placedNormal[pnIdx], time: party.time };
+    if (pnIdx !== -1) {
+      placedNormal[pnIdx] = { ...placedNormal[pnIdx], time: party.time };
+    } else {
+      // step1Failed 출신(1단계에서 즉시 배정 실패해 placedNormal에 등록된 적 없는 항목)은
+      // 여기서 새로 push해야 합니다. 그렇지 않으면 placedSlotOf에는 등록되었지만
+      // placedNormal에는 없는 상태로 남아, 이후 스왑 단계의 placedNormal 조회에서
+      // undefined가 되어 크래시가 발생합니다 (버그 ① 수정).
+      placedNormal.push({
+        repName: entry.repName,
+        char: entry.char,
+        role: entry.char.role,
+        time: party.time,
+        allowedTimes: entry.allowedTimes,
+        type: entry.type,
+      });
+    }
   }
 
   function vacate(repName, char) {
@@ -857,6 +872,20 @@ function runAutoMatch(content, reps, opts) {
   });
   tankPoolForNewParty.forEach((entry) => unassigned.push({ ...entry, reason: "배정 가능한 탱커 또는 딜러 자리가 없습니다." }));
 
+  /* ---- 신규 파티 생성 이후 미배정 일반(및 both) 재구제 패스 (신설, "일반 우선" 원칙 수정,
+     재매칭_크래시_일반우선_수정_요청_프롬프트 2026-07-09 확정, 버그 ②) ----
+     여기까지 온 unassigned 항목(1단계 실패/서포터·탱커·딜러 잉여)은 각자 재시도를 시도한
+     시점에는 존재하지 않았던 빈 슬롯 — 특히 위 딜러 잉여 신규 파티 생성 단계에서 지원
+     서포터를 구하지 못해 서포터 자리가 빈 채로 남은 새 파티 — 을 다시 받아보지 못한 채
+     미배정으로 확정되어 있었습니다. 그 결과 아래 "잔여 지원 신청 배치"(9.10절) 단계에서
+     지원 신청자가 먼저 그 빈 자리를 채워버려, "일반 배정이 지원보다 우선"이라는 원칙이
+     깨지는 문제가 있었습니다. 지원 채우기보다 먼저, 현재 unassigned 전원을 대상으로
+     기존 구제 로직(tryRescue)을 한 번 더 시도해 이 문제를 해결합니다. */
+  const secondRescuePassCandidates = unassigned.splice(0, unassigned.length);
+  secondRescuePassCandidates.forEach((entry) => {
+    if (!tryRescue(entry)) unassigned.push(entry);
+  });
+
   /* ---- 균형 조정: 같은 역할·서로 다른 시간 사이의 지역 탐색 (신규 파티 포함, 9.9절) ----
      신청한 시간 범위 안에서만 스왑을 시도합니다. 지원 배치(placeDirect의 registerNormal=false)로
      채운 자리는 스왑 후보에서 제외되지만, 파티 전투력 합계 계산에는 포함됩니다. */
@@ -865,11 +894,18 @@ function runAutoMatch(content, reps, opts) {
   }
   function objective() { return stdev(partyAverages()); }
 
-  const placedList = Object.entries(placedSlotOf).map(([key, loc]) => {
-    const [repName, characterId] = key.split(":");
-    const info = placedNormal.find((p) => p.repName === repName && p.char.id === characterId);
-    return { repName, characterId, role: info.char.role, loc, allowedTimes: info.allowedTimes, char: info.char };
-  });
+  const placedList = Object.entries(placedSlotOf)
+    .map(([key, loc]) => {
+      const [repName, characterId] = key.split(":");
+      const info = placedNormal.find((p) => p.repName === repName && p.char.id === characterId);
+      // [Inference] 방어적 가드: 근본 수정(placeRescued의 placedNormal 등록)으로 이 경로가
+      // 정상적으로는 발생하지 않아야 하지만, 예기치 못한 경로로 placedSlotOf에만 등록되고
+      // placedNormal에는 없는 상태가 생기더라도 크래시 대신 해당 항목만 스왑 후보에서 조용히
+      // 제외합니다 (버그 ① 방어 가드).
+      if (!info) return null;
+      return { repName, characterId, role: info.char.role, loc, allowedTimes: info.allowedTimes, char: info.char };
+    })
+    .filter(Boolean);
 
   const MAX_SWAP_ITER = 300;
   let improved = true, iter = 0;
