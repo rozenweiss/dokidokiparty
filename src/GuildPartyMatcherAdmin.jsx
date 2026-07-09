@@ -353,7 +353,8 @@ function stdev(nums) {
  *    최종 실패하면 지원 후보에서도 완전히 제외됩니다(정합화 노트 2.4 — "일반 실패 시 지원도
  *    실패"). 성공한 both 캐릭터는 최종 배정된 시간만 지원 후보에서 제외됩니다.
  */
-function runAutoMatch(content, reps) {
+function runAutoMatch(content, reps, opts) {
+  const aggressive = !!(opts && opts.aggressive);
   const dealerSlots = Math.max(content.partySize - 2, 0);
   const slotOrder = ["tank", "support", ...Array(dealerSlots).fill("dealer")];
   const allTimes = timeSlots(content.startTime, content.endTime, content.interval);
@@ -1059,6 +1060,162 @@ function runAutoMatch(content, reps) {
   }
   mergePartiesAtSameTime();
 
+  /* ---- aggressive 모드: 미배정 복구 패스 (Pass A → Pass B) ----
+   *
+   * 기존 단계(1~9)에서 남은 미배정자를 대상으로, 지원 슬롯 교체 → 일반 배정자와
+   * 교환을 추가로 시도합니다. 모두 1-스텝 이동만 검토하며 연쇄 이동은 하지 않습니다.
+   * [Inference] 그리디 휴리스틱으로 전국 최적해를 비보장합니다.
+   */
+  if (aggressive && unassigned.length > 0) {
+    /* 파티 목록(partiesByKey)에서 역할 기준으로 빈 슬롯이 있는 파티를
+       repName 충돌 없이 찾아 주는 보조 함수. */
+    function findEmptySlotGlobal(role, time, excludeRepName) {
+      const partiesAtTime = Object.values(partiesByKey).filter((p) => p.time === time);
+      for (const p of partiesAtTime) {
+        if (excludeRepName && p.slots.some((s) => s.repName === excludeRepName && s.nickname)) continue;
+        const idx = p.slots.findIndex((s) => !s.nickname && s.role === role);
+        if (idx !== -1) return { party: p, idx };
+      }
+      return null;
+    }
+
+    /* 슬롯에 새 캐릭터를 직접 숕어넣는 보조 함수(repTimeUsed 업데이트 포함). */
+    function writeSlot(party, slotIdx, repName, char, slotType) {
+      const power = charFinalPower(char, content);
+      party.slots[slotIdx] = { role: char.role, nickname: char.nickname, repName, characterId: char.id, type: slotType };
+      party._powerSum += power; party._filledCount++;
+      if (!repTimeUsed[repName]) repTimeUsed[repName] = new Set();
+      repTimeUsed[repName].add(party.time);
+    }
+
+    /* 슬롯에서 현재 배정자를 제거하는 보조 함수. */
+    function clearSlotData(party, slotIdx) {
+      const s = party.slots[slotIdx];
+      if (!s.nickname) return;
+      const power = s.characterId ? charFinalPower(
+        (reps[s.repName]?.subs || []).find((c) => c.id === s.characterId) || { power: 0, resist: 0 }, content
+      ) : 0;
+      party._powerSum -= power; party._filledCount--;
+      if (repTimeUsed[s.repName]) repTimeUsed[s.repName].delete(party.time);
+      party.slots[slotIdx] = { role: s.role, nickname: null, repName: null, characterId: null, type: null };
+    }
+
+    /* --- Pass A: 미배정자 U의 시간대에 지원 타입 슬롯이 있으면,
+       그 지원 신청자를 다른 시간에 옮기고 U를 이 자리에 배정. --- */
+    const stillUnassignedAfterA = [];
+    for (const u of unassigned) {
+      if (!u.char.id) { stillUnassignedAfterA.push(u); continue; } // 임시 캐릭터 불가
+      const uChar = (reps[u.repName]?.subs || []).find((s) => s.id === u.char.id);
+      if (!uChar) { stillUnassignedAfterA.push(u); continue; }
+      const uTimes = u.allowedTimes && u.allowedTimes.length ? u.allowedTimes : [u.time];
+      let placed = false;
+
+      outerA:
+      for (const t of uTimes) {
+        const partiesAtT = Object.values(partiesByKey).filter((p) => p.time === t);
+        for (const party of partiesAtT) {
+          // U가 이 파티에 들어갈 때 대표 충돌 확인
+          if (party.slots.some((s) => s.repName === u.repName && s.nickname)) continue;
+
+          // 같은 역할의 지원 타입 슬롯 선택
+          const supportSlotIdx = party.slots.findIndex(
+            (s) => s.nickname && s.role === u.char.role && s.type === "support" && s.repName !== u.repName && s.characterId
+          );
+          if (supportSlotIdx === -1) continue;
+
+          const sv = party.slots[supportSlotIdx];
+          const svChar = (reps[sv.repName]?.subs || []).find((c) => c.id === sv.characterId);
+          if (!svChar) continue;
+
+          // 지원자의 다른 신청 시간에 빈 슬롯 탐색
+          const svAllowedTimes = Object.values(reps[sv.repName]?.applications || []);
+          const svTimes = new Set();
+          (reps[sv.repName]?.applications || []).forEach((app) => {
+            if (app.contentId !== content.id || app.status === "cancelled") return;
+            if ((app.characterIds || []).includes(sv.characterId)) (app.times || []).forEach((t2) => svTimes.add(t2));
+          });
+          let svMoved = false;
+          for (const svT of svTimes) {
+            if (svT === t) continue;
+            const dest = findEmptySlotGlobal(svChar.role, svT, sv.repName);
+            if (!dest) continue;
+            // 지원자를 새 슬롯으로 이동, 원래 자리 비우기
+            clearSlotData(party, supportSlotIdx);
+            writeSlot(dest.party, dest.idx, sv.repName, svChar, "support");
+            svMoved = true;
+            break;
+          }
+          if (!svMoved) continue;
+
+          // 빈 자리에 U 배정
+          writeSlot(party, supportSlotIdx, u.repName, uChar, u.type || "normal");
+          placed = true;
+          break outerA;
+        }
+      }
+      if (!placed) stillUnassignedAfterA.push(u);
+    }
+
+    /* --- Pass B: Pass A 이후도 미배정인 U에 대해,
+       이미 일반 배정된 같은 역할 캐릭터를 다른 시간으로 옮기고 U를 배정. --- */
+    const finalUnassigned = [];
+    for (const u of stillUnassignedAfterA) {
+      if (!u.char.id) { finalUnassigned.push(u); continue; }
+      const uChar = (reps[u.repName]?.subs || []).find((s) => s.id === u.char.id);
+      if (!uChar) { finalUnassigned.push(u); continue; }
+      const uTimes = u.allowedTimes && u.allowedTimes.length ? u.allowedTimes : [u.time];
+      let placed = false;
+
+      outerB:
+      for (const t of uTimes) {
+        const partiesAtT = Object.values(partiesByKey).filter((p) => p.time === t);
+        for (const party of partiesAtT) {
+          if (party.slots.some((s) => s.repName === u.repName && s.nickname)) continue;
+
+          // 같은 역할의 일반 슬롯 선택 (다른 대표의 정상 배정자, 지원 아님)
+          const normalSlots = party.slots.filter(
+            (s) => s.nickname && s.role === u.char.role && s.repName !== u.repName && s.characterId && s.type !== "support"
+          );
+          for (const nv of normalSlots) {
+            const nvChar = (reps[nv.repName]?.subs || []).find((c) => c.id === nv.characterId);
+            if (!nvChar) continue;
+            const nvSlotIdx = party.slots.indexOf(nv);
+
+            // nv의 다른 신청 시간 연산
+            const nvTimes = new Set();
+            (reps[nv.repName]?.applications || []).forEach((app) => {
+              if (app.contentId !== content.id || app.status === "cancelled") return;
+              if ((app.characterIds || []).includes(nv.characterId)) (app.times || []).forEach((t2) => nvTimes.add(t2));
+            });
+
+            let nvMoved = false;
+            for (const nvT of nvTimes) {
+              if (nvT === t) continue;
+              // repTimeUsed 충돌 확인 (이미 nv가 nvT에 있으면 안 됨)
+              if (repTimeUsed[nv.repName] && repTimeUsed[nv.repName].has(nvT)) continue;
+              const dest = findEmptySlotGlobal(nvChar.role, nvT, nv.repName);
+              if (!dest) continue;
+              clearSlotData(party, nvSlotIdx);
+              writeSlot(dest.party, dest.idx, nv.repName, nvChar, "normal");
+              nvMoved = true;
+              break;
+            }
+            if (!nvMoved) continue;
+
+            writeSlot(party, nvSlotIdx, u.repName, uChar, u.type || "normal");
+            placed = true;
+            break outerB;
+          }
+        }
+      }
+      if (!placed) finalUnassigned.push(u);
+    }
+
+    // 복구 패스 결과를 unassigned 어레이에 반영
+    unassigned.length = 0;
+    finalUnassigned.forEach((u) => unassigned.push(u));
+  }
+
   /* ---- 결과 정리 ---- */
   const parties = Object.values(partiesByKey)
     .map((p) => {
@@ -1741,11 +1898,11 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
     await syncMirror();
   }
 
-  async function doRunMatch() {
-    const result = runAutoMatch(content, reps);
+  async function doRunMatch(aggressive = false) {
+    const result = runAutoMatch(content, reps, aggressive ? { aggressive: true } : undefined);
     await saveResult(result);
     await setApplicationStatusForContent("matched");
-    onToast("자동 매칭을 실행했습니다.");
+    onToast(aggressive ? "적극적 재매칭을 실행했습니다. (미배정자 추가 배정 시도 포함)" : "자동 매칭을 실행했습니다.");
   }
 
   async function runMatch() {
@@ -1753,7 +1910,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
       setShowRematchConfirm(true);
       return;
     }
-    await doRunMatch();
+    await doRunMatch(false);
   }
 
   async function togglePublish() {
@@ -2412,10 +2569,10 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
       {showRematchConfirm && (
         <ConfirmModal
           title="재매칭 확인"
-          message={"기존 매칭 결과와 관리자가 수정한 내용이 모두 삭제됩니다.\n최신 신청 데이터를 기준으로 다시 매칭하시겠습니까?"}
+          message={"미배정자 추가 배정을 시도하는 적극적 재매칭을 실행합니다.\n기존 배정 결과와 관리자가 수정한 내용은 모두 초기화됩니다.\n(Pass A: 지원 슬롯 교체 → Pass B: 일반 배정자와 교환)"}
           confirmLabel="재매칭 실행"
           danger
-          onConfirm={async () => { setShowRematchConfirm(false); await doRunMatch(); }}
+          onConfirm={async () => { setShowRematchConfirm(false); await doRunMatch(true); }}
           onCancel={() => setShowRematchConfirm(false)}
         />
       )}
