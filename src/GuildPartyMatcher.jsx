@@ -700,8 +700,9 @@ function ContentsView({ contents, applications, onApply }) {
 /* ============================================================
    1.9 / 1.10 / 1.11 — 파티 신청 · 신청 확인 · 신청 완료
    ============================================================ */
-function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onSubmit }) {
+function ApplyView({ contents, subs, jobs, initialContentId, editingApp, onCancel, onSubmit, onUpdateSub, onDeleteSub }) {
   const [phase, setPhase] = useState("form"); // form | confirm | done
+  const [editSubCand, setEditSubCand] = useState(null);
   const [contentId, setContentId] = useState(initialContentId || editingApp?.contentId || contents[0]?.id || "");
   const [selectedChars, setSelectedChars] = useState(new Set(editingApp?.characterIds || []));
   const [selectedTimes, setSelectedTimes] = useState(new Set(editingApp?.times || []));
@@ -866,9 +867,19 @@ function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onS
                       </div>
                     )}
                   </div>
-                  <div>
-                    <span className="gpm-select-power">{charFinalPower(c, content).toLocaleString()}</span>
-                    <span className="gpm-select-power-label">최종 전투력</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ textAlign: "right" }}>
+                      <span className="gpm-select-power">{charFinalPower(c, content).toLocaleString()}</span>
+                      <span className="gpm-select-power-label" style={{ display: "block" }}>최종 전투력</span>
+                    </div>
+                    <button 
+                      type="button" 
+                      className="gpm-btn gpm-btn-ghost gpm-btn-sm" 
+                      onClick={(e) => { e.stopPropagation(); setEditSubCand(c); }}
+                      style={{ padding: "4px 10px", fontSize: 12, height: "auto", minHeight: 28 }}
+                    >
+                      수정
+                    </button>
                   </div>
                 </div>
               );
@@ -917,6 +928,16 @@ function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onS
         <div className="gpm-summary-info">캐릭터 <b>{selectedChars.size}</b>명 · 시간 <b>{selectedTimes.size}</b>개 선택됨</div>
         <button className="gpm-btn gpm-btn-primary" disabled={!canSubmit} onClick={() => setPhase("confirm")}>신청 내용 확인</button>
       </div>
+
+      {editSubCand && (
+        <CharacterModal
+          jobs={jobs}
+          initial={editSubCand}
+          onClose={() => setEditSubCand(null)}
+          onSave={(c) => { onUpdateSub(c); setEditSubCand(null); }}
+          onDelete={(id) => { onDeleteSub(id); setEditSubCand(null); }}
+        />
+      )}
     </div>
   );
 }
@@ -1240,10 +1261,13 @@ function AppShell({ repName, repData, setRepData, config }) {
           <ApplyView
             contents={config.contents}
             subs={activeSubs}
+            jobs={config.jobs}
             initialContentId={applyCtx.contentId}
             editingApp={applyCtx.editingApp}
             onCancel={() => { setApplyCtx(null); setView("contents"); }}
             onSubmit={submitApplication}
+            onUpdateSub={updateChar}
+            onDeleteSub={deleteChar}
           />
         )
       )}
