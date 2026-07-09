@@ -126,14 +126,18 @@ const GlobalStyle = () => (
     .gpa-party-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 13.5px; color: var(--text-faint); font-family: var(--font-mono); }
     .gpa-party-delete-btn { background: transparent; border: none; color: var(--text-faint); font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 10px; }
     .gpa-party-delete-btn:hover { color: var(--danger); background: rgba(226,87,76,0.1); }
-    .gpa-slot { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 11px; font-size: 13.5px; cursor: pointer; border: 1px dashed transparent; }
-    .gpa-slot:hover { border-color: var(--accent); background: rgba(193,95,60,0.06); }
+    .gpa-slot { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 11px; font-size: 14.5px; cursor: pointer; border: 1px dashed transparent; margin-bottom: 6px; transition: filter 0.1s; }
+    .gpa-slot.tank { background: rgba(76,113,150,0.18); border-style: solid; }
+    .gpa-slot.support { background: rgba(111,196,138,0.18); border-style: solid; }
+    .gpa-slot.dealer { background: rgba(224,112,95,0.18); border-style: solid; }
+    .gpa-slot.empty { border-color: var(--border-soft); background: transparent; }
+    .gpa-slot:hover { filter: brightness(0.95); border-color: var(--accent); }
     .gpa-slot.dragging { opacity: 0.4; }
-    .gpa-slot.dragover { border-color: var(--accent-soft); background: rgba(193,95,60,0.16); }
+    .gpa-slot.dragover { border-color: var(--accent-soft); filter: brightness(0.9); }
     .gpa-slot.drag-reject { border-color: var(--danger); }
     .gpa-slot-role { width: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
     .gpa-slot-role.tank { color: var(--tank); } .gpa-slot-role.support { color: var(--support); } .gpa-slot-role.dealer { color: var(--dealer); }
-    .gpa-slot-name { flex: 1; color: var(--text); }
+    .gpa-slot-name { flex: 1; color: var(--text); font-weight: 700; }
     .gpa-slot-empty { flex: 1; color: var(--text-faint); font-style: italic; }
     .gpa-slot-tag { font-size: 10.5px; color: var(--text-faint); }
     .gpa-slot-tag-support { color: var(--warn); font-weight: 700; }
@@ -2665,7 +2669,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
                     </div>
                     {p.slots.map((s, si) => {
                       const key = `${p._idx}-${si}`;
-                      const cls = ["gpa-slot"];
+                      const cls = ["gpa-slot", s.nickname ? s.role : "empty"];
                       if (dragItem && dragItem.kind === "slot" && dragItem.partyIdx === p._idx && dragItem.slotIdx === si) cls.push("dragging");
                       if (dragOverKey === key) cls.push("dragover");
                       const slotPower = s.characterId ? getCharFinalPower(s.repName, s.characterId) : null;
@@ -2810,7 +2814,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
                     <div key={p.partyNumber} className="gpa-party-card">
                       <div className="gpa-party-top"><span>파티 {p.partyNumber}</span></div>
                       {p.slots.map((s, si) => (
-                        <div key={si} className="gpa-slot" style={{ cursor: "default" }}>
+                        <div key={si} className={`gpa-slot ${s.nickname ? s.role : "empty"}`} style={{ cursor: "default" }}>
                           <span className={`gpa-slot-role ${s.role}`} title={ROLE_LABEL[s.role]} aria-label={ROLE_LABEL[s.role]}>
                             {ROLE_ICON[s.role] && React.createElement(ROLE_ICON[s.role], { size: 14, strokeWidth: 2.3 })}
                           </span>

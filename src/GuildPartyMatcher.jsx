@@ -221,14 +221,18 @@ const GlobalStyle = () => (
     .gpm-result-group-title h3 { font-size: 16.5px; color: var(--gold-soft); }
     .gpm-result-group-line { flex: 1; height: 1px; background: var(--border-soft); }
     .gpm-party-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px,1fr)); gap: 12px; }
-    .gpm-party-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 15px; padding: 16px; }
+    .gpm-party-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 15px; padding: 14px; }
     .gpm-party-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-    .gpm-party-num { font-family: var(--font-mono); font-size: 13.5px; color: var(--text-faint); }
-    .gpm-party-slot { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 14px; }
+    .gpm-party-num { font-family: var(--font-mono); font-size: 14.5px; font-weight: 700; color: var(--text); }
+    .gpm-party-slot { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 15px; border-radius: 11px; margin-bottom: 6px; }
+    .gpm-party-slot.tank { background: rgba(76,113,150,0.18); }
+    .gpm-party-slot.support { background: rgba(111,196,138,0.18); }
+    .gpm-party-slot.dealer { background: rgba(224,112,95,0.18); }
+    .gpm-party-slot.empty { border: 1px dashed var(--border-soft); background: transparent; }
     .gpm-party-slot-role { width: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
     .gpm-party-slot-role.tank { color: var(--tank); } .gpm-party-slot-role.support { color: var(--support); } .gpm-party-slot-role.dealer { color: var(--dealer); }
-    .gpm-party-slot-name { color: var(--text); }
-    .gpm-party-slot-empty { color: var(--text-faint); font-style: italic; }
+    .gpm-party-slot-name { color: var(--text); font-weight: 700; flex: 1; }
+    .gpm-party-slot-empty { color: var(--text-faint); font-style: italic; flex: 1; }
     .gpm-party-short { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-soft); font-size: 12.5px; color: var(--danger); }
 
     /* --- 모달 --- */
@@ -1065,7 +1069,7 @@ function ResultsView({ contents }) {
               <div key={p.partyNumber} className="gpm-party-card">
                 <div className="gpm-party-top"><span className="gpm-party-num">파티 {p.partyNumber}</span></div>
                 {p.slots.map((s, i) => (
-                  <div key={i} className="gpm-party-slot">
+                  <div key={i} className={`gpm-party-slot ${s.nickname ? s.role : "empty"}`}>
                     <span className={`gpm-party-slot-role ${s.role}`} title={ROLE_LABEL[s.role]} aria-label={ROLE_LABEL[s.role]}>
                       {ROLE_ICON[s.role] && React.createElement(ROLE_ICON[s.role], { size: 15, strokeWidth: 2.3 })}
                     </span>
