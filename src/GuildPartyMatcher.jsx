@@ -499,7 +499,7 @@ function GateFlow({ config, onEnter }) {
           </button>
         )}
 
-        <a href="/admin.html" className="gpm-btn gpm-btn-ghost gpm-btn-block" style={{ textDecoration: "none", marginTop: 12 }}>Admin</a>
+        <a href="/admin.html" className="gpm-btn gpm-btn-ghost gpm-btn-block" style={{ textDecoration: "none", marginTop: 12 }}>ADMIN PAGE</a>
       </div>
     </div>
   );
@@ -1190,7 +1190,7 @@ function AppShell({ repName, repData, setRepData, config }) {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <a href="/admin.html" className="gpm-btn gpm-btn-ghost gpm-btn-sm" style={{ textDecoration: "none" }}>Admin</a>
+          <a href="/admin.html" className="gpm-btn gpm-btn-ghost gpm-btn-sm" style={{ textDecoration: "none" }}>ADMIN PAGE</a>
           <div className="gpm-rep-badge">
             <div className="gpm-rep-avatar">{repName.slice(0, 1)}</div>
             <div>

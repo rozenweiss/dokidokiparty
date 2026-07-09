@@ -1670,7 +1670,7 @@ function ContentsView({ contents, onChange, onToast, onAfterDelete, resultsMeta 
   const [modal, setModal] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
-  
+
   const [busyId, setBusyId] = useState(null);
   const [confirmDeleteContentData, setConfirmDeleteContentData] = useState(null);
 
@@ -1742,7 +1742,7 @@ function ContentsView({ contents, onChange, onToast, onAfterDelete, resultsMeta 
           onCancel={() => setConfirmDelete(null)}
         />
       )}
-      
+
       <div className="gpa-card" style={{ marginTop: 14 }}>
         <div className="gpa-section-title"><h2 style={{ fontSize: 14 }}>콘텐츠 신청 초기화</h2></div>
         <div className="gpa-hint" style={{ marginBottom: 14 }}>대표 캐릭터, 하위 캐릭터, 직업 목록, 콘텐츠 설정은 삭제되지 않습니다. 이 기능은 선택한 콘텐츠의 신청 내역과 매칭 결과만 삭제합니다. 자동 매칭 실행 후 48시간이 지나면 자동으로 삭제됩니다.</div>
@@ -1767,7 +1767,7 @@ function ContentsView({ contents, onChange, onToast, onAfterDelete, resultsMeta 
           </table>
         </div>
       </div>
-      
+
       {confirmDeleteContentData && (
         <ConfirmModal
           title="데이터 삭제 확인"
@@ -2331,7 +2331,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
     });
 
     return result;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchData, reps, content]);
 
   function deleteParty(partyIdx) {
@@ -2836,44 +2836,44 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
             {Object.entries(publicResultGroups).map(([time, parties]) => {
               const totalParticipants = parties.reduce((acc, p) => acc + p.slots.filter(s => s.nickname).length, 0);
               return (
-              <div key={time} style={{ marginBottom: 24 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "22px 0 12px" }}>
-                  <h3 style={{ fontSize: 20, color: "var(--text)", fontWeight: 800, margin: 0 }}>{time} 출발</h3>
-                  <span style={{ fontSize: 13, background: "var(--surface-2)", color: "var(--text-dim)", padding: "4px 10px", borderRadius: 20, fontWeight: 600, marginLeft: 10 }}>총 {totalParticipants}명</span>
-                  <div style={{ flex: 1, height: 1, background: "var(--border-soft)", marginLeft: 12 }} />
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px,1fr))", gap: 12 }}>
-                  {parties.map((p) => (
-                    <div key={p.partyNumber} className="gpa-party-card">
-                      <div className="gpa-party-top" style={{ fontSize: 16, fontWeight: 800, color: "var(--text)", fontFamily: "var(--font-display)" }}><span>파티 {p.partyNumber}</span></div>
-                      {p.slots.map((s, si) => {
-                        const isSupport = s.type === "support" || (s.nickname && s.nickname.includes("(지원)"));
-                        const displayName = s.nickname ? s.nickname.replace("(지원)", "").trim() : "";
-                        return (
-                        <div key={si} className={`gpa-slot ${s.nickname ? s.role : "empty"}`} style={{ cursor: "default" }}>
-                          <span className={`gpa-slot-role ${s.role}`} title={ROLE_LABEL[s.role]} aria-label={ROLE_LABEL[s.role]}>
-                            {ROLE_ICON[s.role] && React.createElement(ROLE_ICON[s.role], { size: 14, strokeWidth: 2.3 })}
-                          </span>
-                          {s.nickname ? (
-                            <span className="gpa-slot-name">
-                              {displayName}
-                              {isSupport && (
-                                <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", marginLeft: 6, color: "var(--gold)", background: "rgba(193,95,60,0.1)", borderRadius: "50%", width: 18, height: 18 }} title="지원 신청">
-                                  <Bird size={12} strokeWidth={2.2} />
+                <div key={time} style={{ marginBottom: 24 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "22px 0 12px" }}>
+                    <h3 style={{ fontSize: 20, color: "var(--text)", fontWeight: 800, margin: 0 }}>{time} 출발</h3>
+                    <span style={{ fontSize: 13, background: "var(--surface-2)", color: "var(--text-dim)", padding: "4px 10px", borderRadius: 20, fontWeight: 600, marginLeft: 10 }}>총 {totalParticipants}명</span>
+                    <div style={{ flex: 1, height: 1, background: "var(--border-soft)", marginLeft: 12 }} />
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px,1fr))", gap: 12 }}>
+                    {parties.map((p) => (
+                      <div key={p.partyNumber} className="gpa-party-card">
+                        <div className="gpa-party-top" style={{ fontSize: 16, fontWeight: 800, color: "var(--text)", fontFamily: "var(--font-display)" }}><span>파티 {p.partyNumber}</span></div>
+                        {p.slots.map((s, si) => {
+                          const isSupport = s.type === "support" || (s.nickname && s.nickname.includes("(지원)"));
+                          const displayName = s.nickname ? s.nickname.replace("(지원)", "").trim() : "";
+                          return (
+                            <div key={si} className={`gpa-slot ${s.nickname ? s.role : "empty"}`} style={{ cursor: "default" }}>
+                              <span className={`gpa-slot-role ${s.role}`} title={ROLE_LABEL[s.role]} aria-label={ROLE_LABEL[s.role]}>
+                                {ROLE_ICON[s.role] && React.createElement(ROLE_ICON[s.role], { size: 14, strokeWidth: 2.3 })}
+                              </span>
+                              {s.nickname ? (
+                                <span className="gpa-slot-name">
+                                  {displayName}
+                                  {isSupport && (
+                                    <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", marginLeft: 6, color: "var(--gold)", background: "rgba(193,95,60,0.1)", borderRadius: "50%", width: 18, height: 18 }} title="지원 신청">
+                                      <Bird size={12} strokeWidth={2.2} />
+                                    </span>
+                                  )}
                                 </span>
+                              ) : (
+                                <span className="gpa-slot-empty">모집 중</span>
                               )}
-                            </span>
-                          ) : (
-                            <span className="gpa-slot-empty">모집 중</span>
-                          )}
-                        </div>
-                        );
-                      })}
-                      {p.shortage && <div className="gpa-party-short" style={{ marginTop: 10, fontSize: 13, color: "var(--danger)", background: "rgba(192,57,43,0.06)", padding: "8px 10px", borderRadius: 8 }}>부족 인원: {p.shortage}</div>}
-                    </div>
-                  ))}
+                            </div>
+                          );
+                        })}
+                        {p.shortage && <div className="gpa-party-short" style={{ marginTop: 10, fontSize: 13, color: "var(--danger)", background: "rgba(192,57,43,0.06)", padding: "8px 10px", borderRadius: 8 }}>부족 인원: {p.shortage}</div>}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
               );
             })}
           </div>
@@ -3136,7 +3136,7 @@ function PasswordView({ config, onChange, onToast, reps, contents, onAfterDelete
   const [guildError, setGuildError] = useState("");
   const [adminError, setAdminError] = useState("");
   const [confirmSave, setConfirmSave] = useState(null); // 'guild' | 'admin' | null
-  
+
   const [bulkApplying, setBulkApplying] = useState(false);
   const [pulling, setPulling] = useState(false);
   const [confirmBulkApply, setConfirmBulkApply] = useState(false);
@@ -3388,9 +3388,9 @@ function AdminShell({ config, setConfig }) {
       <div className="gpa-header">
         <div className="gpa-brand">
           <span className="gpa-brand-badge">ADMIN</span>
-          <span className="gpa-brand-title">길드 파티 매칭 · 관리자</span>
+          <span className="gpa-brand-title">두두파 2.0</span>
         </div>
-        <a href="/" className="gpa-btn gpa-btn-ghost gpa-btn-sm" style={{ textDecoration: "none" }}>← 사용자 화면</a>
+        <a href="/" className="gpa-btn gpa-btn-ghost gpa-btn-sm" style={{ textDecoration: "none" }}>USER PAGE</a>
       </div>
       <div className="gpa-nav">
         {NAV_ITEMS.map((n) => <button key={n.key} className={`gpa-nav-item ${view === n.key ? "active" : ""}`} onClick={() => setView(n.key)}>{n.label}</button>)}
