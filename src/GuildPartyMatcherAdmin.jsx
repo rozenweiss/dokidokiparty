@@ -1696,6 +1696,17 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
     return s;
   }, [matchData]);
 
+  // repName + characterId로 reps에서 실제 캐릭터를 찾아 최종 전투력을 반환합니다.
+  // 임시 캐릭터(characterId 없음)나 데이터 누락 시 null을 반환합니다.
+  const getCharFinalPower = useCallback((repName, characterId) => {
+    if (!characterId || !content) return null;
+    const data = reps[repName];
+    if (!data) return null;
+    const char = (data.subs || []).find((s) => s.id === characterId);
+    if (!char) return null;
+    return charFinalPower(char, content);
+  }, [reps, content]);
+
   const loadResult = useCallback(async () => {
     if (!content) return;
     setLoadingResult(true);
@@ -2113,6 +2124,16 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
                   <div key={p.partyNumber} className="gpa-party-card">
                     <div className="gpa-party-top">
                       <span>파티 {p.partyNumber}</span>
+                      {(() => {
+                        const powers = p.slots
+                          .filter((s) => s.nickname && s.characterId)
+                          .map((s) => getCharFinalPower(s.repName, s.characterId))
+                          .filter((v) => v !== null);
+                        const avg = powers.length > 0 ? Math.round(powers.reduce((a, b) => a + b, 0) / powers.length) : null;
+                        return avg !== null ? (
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--text-faint)" }}>평균 {avg.toLocaleString()}</span>
+                        ) : null;
+                      })()}
                       <button
                         type="button"
                         className="gpa-party-delete-btn"
@@ -2159,22 +2180,28 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
               <div className="gpa-time-title">미배정 신청자 ({matchData.unassigned.length}명)</div>
               <div className="gpa-hint" style={{ marginBottom: 8 }}>카드를 파티 슬롯으로 드래그하면 바로 배정됩니다. (역할 제한 없이 아무 슬롯에나 놓을 수 있어요)</div>
               <div className="gpa-unassigned-list">
-                {matchData.unassigned.map((u, i) => (
-                  <div
-                    key={i}
-                    className={`gpa-unassigned-row ${dragItem && dragItem.kind === "unassigned" && dragItem.candidate === u ? "dragging" : ""}`}
-                    draggable
-                    onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", `unassigned-${i}`); setDragItem({ kind: "unassigned", candidate: u, role: u.char.role }); }}
-                    onDragEnd={() => { setDragItem(null); setDragOverKey(null); }}
-                  >
-                    <RoleIconBadge role={u.char.role} />
-                    <span>{u.char.nickname} ({u.repName})</span>
-                    <span style={{ color: "var(--text-faint)" }}>
-                      신청: {u.allowedTimes && u.allowedTimes.length ? u.allowedTimes.join(", ") : u.time}
-                    </span>
-                    <span style={{ marginLeft: "auto", color: "var(--text-faint)" }}>{u.reason}</span>
-                  </div>
-                ))}
+                {matchData.unassigned.map((u, i) => {
+                  const uPower = getCharFinalPower(u.repName, u.char.id);
+                  return (
+                    <div
+                      key={i}
+                      className={`gpa-unassigned-row ${dragItem && dragItem.kind === "unassigned" && dragItem.candidate === u ? "dragging" : ""}`}
+                      draggable
+                      onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", `unassigned-${i}`); setDragItem({ kind: "unassigned", candidate: u, role: u.char.role }); }}
+                      onDragEnd={() => { setDragItem(null); setDragOverKey(null); }}
+                    >
+                      <RoleIconBadge role={u.char.role} />
+                      <span>{u.char.nickname} ({u.repName})</span>
+                      {uPower !== null && (
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--accent-soft)" }}>{uPower.toLocaleString()}</span>
+                      )}
+                      <span style={{ color: "var(--text-faint)" }}>
+                        신청: {u.allowedTimes && u.allowedTimes.length ? u.allowedTimes.join(", ") : u.time}
+                      </span>
+                      <span style={{ marginLeft: "auto", color: "var(--text-faint)" }}>{u.reason}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -2186,6 +2213,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
               <div className="gpa-unassigned-list">
                 {supportApplicants.map((sc, i) => {
                   const isAssigned = assignedKeys.has(`${sc.repName}:${sc.char.id}`);
+                  const scPower = content ? charFinalPower(sc.char, content) : null;
                   return (
                     <div
                       key={i}
@@ -2197,6 +2225,9 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
                       <span className={`gpa-badge ${sc.appType === "both" ? "combo" : "supportApp"}`} style={{ fontSize: 11 }}>
                         {APP_TYPE_LABEL[sc.appType] || sc.appType}
                       </span>
+                      {scPower !== null && (
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--accent-soft)" }}>{scPower.toLocaleString()}</span>
+                      )}
                       <span style={{ color: "var(--text-faint)" }}>신청: {sc.times.join(", ")}</span>
                       {isAssigned && (
                         <span style={{ marginLeft: "auto", color: "var(--success)", fontWeight: 700, fontSize: 12 }}>배정됨</span>
