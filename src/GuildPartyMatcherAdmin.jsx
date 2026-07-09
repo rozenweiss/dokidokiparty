@@ -916,7 +916,12 @@ function runAutoMatch(content, reps, opts) {
     for (let i = 0; i < placedList.length; i++) {
       for (let j = i + 1; j < placedList.length; j++) {
         const a = placedList[i], b = placedList[j];
-        if (a.role !== b.role || a.loc.time === b.loc.time) continue;
+        // 스왑 호환성은 캐릭터 역할이 아닌 원래 슬롯 타입(slotOrder 기준)으로 판단합니다.
+        // 탱커가 딜러 슬롯에 교차배치된 경우 a.role="tank"이지만 slotOrder 인덱스는 딜러
+        // 구간에 속하므로, 동일 딜러 슬롯의 일반 딜러(a.role="dealer")와 스왑이 허용됩니다.
+        const slotTypeA = slotOrder[a.loc.slotIndex];
+        const slotTypeB = slotOrder[b.loc.slotIndex];
+        if (slotTypeA !== slotTypeB || a.loc.time === b.loc.time) continue;
         if (!a.allowedTimes.includes(b.loc.time) || !b.allowedTimes.includes(a.loc.time)) continue;
         const collideA = placedList.some((x) => x !== a && x.repName === a.repName && x.loc.time === b.loc.time);
         const collideB = placedList.some((x) => x !== b && x.repName === b.repName && x.loc.time === a.loc.time);
@@ -926,8 +931,9 @@ function runAutoMatch(content, reps, opts) {
         const partyB = partiesByKey[`${b.loc.time}:${b.loc.partyNumber}`];
         const slotA = partyA.slots[a.loc.slotIndex];
         const slotB = partyB.slots[b.loc.slotIndex];
-        // 슬롯의 role은 실제 배정된 캐릭터의 역할을 그대로 반영하므로(교차배정 포함),
-        // a.role === b.role(위에서 이미 확인)이면 slotA.role === slotB.role도 항상 성립합니다.
+        // 슬롯 타입이 동일함은 위에서 slotOrder 기준으로 확인했습니다.
+        // 교차배정으로 slotA.role ≠ slotB.role일 수 있으나(예: "tank" vs "dealer"),
+        // 두 슬롯 모두 원래 딜러 슬롯이므로 맞교환이 유효합니다.
         const powerA = charFinalPower(a.char, content), powerB = charFinalPower(b.char, content);
 
         const before = objective();
@@ -1305,7 +1311,10 @@ function runAutoMatch(content, reps, opts) {
               for (let sj = 0; sj < partyB.slots.length; sj++) {
                 const slotB = partyB.slots[sj];
                 if (!slotB.nickname) continue;
-                if (slotA.role !== slotB.role) continue;
+                // 슬롯 타입을 slotOrder 원본 기준으로 비교합니다. 탱커가 딜러 슬롯에
+                // 교차배치된 경우 slotA.role="tank"/slotB.role="dealer"가 되어 이전에는
+                // 스왑이 차단됐지만, 두 슬롯 모두 딜러 슬롯이면 맞교환이 유효합니다.
+                if (slotOrder[si] !== slotOrder[sj]) continue;
                 if (slotA.repName === slotB.repName) continue; // 안전 가드 — 이론상 발생하지 않음(동일 대표 동일 시간 1명 불변 조건)
 
                 const charA = charFromSlot(slotA), charB = charFromSlot(slotB);
