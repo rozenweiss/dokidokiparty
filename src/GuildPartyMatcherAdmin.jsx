@@ -1852,10 +1852,12 @@ function ApplicationsView({ contents, reps, onExcludeCharacter }) {
 /* ============================================================
    자동 매칭 + 결과 편집 + 공개
    ============================================================ */
-function SlotPickModal({ role, unassigned, relocatable, onPick, onRelocate, onTemp, onClear, onClose }) {
+function SlotPickModal({ role, unassigned, relocatable, supportCandidates, onPick, onRelocate, onPickSupport, onTemp, onClear, onClose }) {
   const [tempName, setTempName] = useState("");
+  const [supportOpen, setSupportOpen] = useState(false);
   const roleCandidates = unassigned.filter((c) => c.char.role === role);
   const relocatableCandidates = relocatable || [];
+  const supCands = supportCandidates || [];
   return (
     <div className="gpa-modal-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="gpa-modal">
@@ -1889,6 +1891,43 @@ function SlotPickModal({ role, unassigned, relocatable, onPick, onRelocate, onTe
                 <span style={{ color: "var(--text-faint)", fontSize: 12 }}>현재: {c.currentLoc.time}</span>
               </button>
             ))}
+          </div>
+        )}
+        {/* 지원 가능한 지원자 드롭다운 */}
+        {supCands.length > 0 && (
+          <div style={{ marginBottom: 14 }}>
+            <button
+              style={{
+                width: "100%", background: "var(--bg-elev)", border: "1px solid var(--border-soft)",
+                borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center",
+                justifyContent: "space-between", cursor: "pointer", color: "var(--text-dim)", fontSize: 13.5
+              }}
+              onClick={() => setSupportOpen((v) => !v)}
+            >
+              <span>지원 가능한 지원자 <span style={{ color: "var(--warn)", fontWeight: 700 }}>({supCands.length}명)</span></span>
+              <span style={{ fontSize: 11, transition: "transform .2s", display: "inline-block", transform: supportOpen ? "rotate(180deg)" : "rotate(0deg)" }}>▼</span>
+            </button>
+            {supportOpen && (
+              <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 4 }}>
+                {supCands.map((c, i) => (
+                  <button key={i} className="gpa-pick-btn" style={{ borderColor: "rgba(181,140,74,0.3)" }} onClick={() => onPickSupport(c)}>
+                    <span>
+                      {c.char.nickname}
+                      <span style={{ color: "var(--text-faint)" }}> ({c.repName})</span>
+                      {c.char.role !== role && (
+                        <span style={{ fontSize: 11, color: "var(--warn)", marginLeft: 6 }}>역할: {ROLE_LABEL[c.char.role]}</span>
+                      )}
+                    </span>
+                    <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1 }}>
+                      {c.power !== null && (
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--accent-soft)" }}>{c.power.toLocaleString()}</span>
+                      )}
+                      <span style={{ color: "var(--text-faint)", fontSize: 11 }}>지원 신청</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
         <div className="gpa-field">
@@ -2289,9 +2328,46 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
     saveResult({ ...matchData, parties, unassigned });
   }
 
-  // 같은 시간·역할에 신청했지만 다른 시간에 이미 배정되어 "미배정 목록"에는 안 보이는 캐릭터를 찾습니다.
-  // (일반 신청 캐릭터는 전체 기간 중 최대 1회 배정 규칙 때문에, 이미 다른 시간에 쓰인 캐릭터는 여기
-  // 표시해줘야만 관리자가 "그 사람을 이 자리로 옮기면 어떨까"를 판단할 수 있습니다.)
+  // 슬롯 시간에 지원 신청한 사람 중, 미배정 목록·다른시간배정 목록에 이미 노출된 사람은 제외합니다.
+  function getAvailableSupportCandidates(slotRole, time) {
+    if (!matchData || !content || !reps) return [];
+    // 이미 위 섹션에 보이는 사람 키 집합 (repName:characterId)
+    const shownKeys = new Set();
+    (matchData.unassigned || []).forEach((u) => shownKeys.add(`${u.repName}:${u.char.id}`));
+    getRelocatableCandidates(slotRole, time).forEach((c) => shownKeys.add(`${c.repName}:${c.char.id}`));
+    // 현재 파티에 이미 있는 대표명
+    const party = editSlot ? matchData.parties[editSlot.partyIdx] : null;
+    const partyRepNames = new Set(party ? party.slots.filter((s) => s.repName).map((s) => s.repName) : []);
+
+    const result = [];
+    Object.entries(reps).forEach(([repName, data]) => {
+      (data.applications || []).forEach((app) => {
+        if (!content || app.contentId !== content.id || app.status === "cancelled") return;
+        if (!(app.type === "support" || app.type === "both")) return; // 지원 신청만
+        if (!(app.times || []).includes(time)) return;               // 이 시간 신청만
+        (app.characterIds || []).forEach((cid) => {
+          const char = (data.subs || []).find((s) => s.id === cid);
+          if (!char || char.active === false) return;
+          const key = `${repName}:${cid}`;
+          if (shownKeys.has(key)) return;      // 이미 위 섹션에 노출
+          if (partyRepNames.has(repName)) return; // 이미 이 파티에 있는 대표
+          const power = content ? charFinalPower(char, content) : null;
+          result.push({ repName, char, appType: app.type, times: app.times || [], power });
+        });
+      });
+    });
+    // 전투력 내림차순 정렬
+    result.sort((a, b) => (b.power || 0) - (a.power || 0));
+    // 중복 제거 (같은 repName:charId가 여러 신청에 걸쳐 올 수 있음)
+    const seen = new Set();
+    return result.filter(({ repName, char }) => {
+      const k = `${repName}:${char.id}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  }
+
   function getRelocatableCandidates(role, time) {
     if (!matchData || !content) return [];
     const found = [];
@@ -2698,18 +2774,28 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
         </div>
       )}
 
-      {editSlot && matchData && (
-        <SlotPickModal
-          role={editSlot.role}
-          unassigned={matchData.unassigned || []}
-          relocatable={getRelocatableCandidates(editSlot.role, matchData.parties[editSlot.partyIdx].time)}
-          onPick={pickFromUnassigned}
-          onRelocate={relocateExistingToSlot}
-          onTemp={setTempSlot}
-          onClear={clearSlot}
-          onClose={() => setEditSlot(null)}
-        />
-      )}
+      {editSlot && matchData && (() => {
+        const slotTime = matchData.parties[editSlot.partyIdx].time;
+        const supCands = getAvailableSupportCandidates(editSlot.role, slotTime);
+        return (
+          <SlotPickModal
+            role={editSlot.role}
+            unassigned={matchData.unassigned || []}
+            relocatable={getRelocatableCandidates(editSlot.role, slotTime)}
+            supportCandidates={supCands}
+            onPick={pickFromUnassigned}
+            onRelocate={relocateExistingToSlot}
+            onPickSupport={(c) => {
+              const { partyIdx, slotIdx } = editSlot;
+              assignToSlot(partyIdx, slotIdx, { role: c.char.role, nickname: c.char.nickname, repName: c.repName, characterId: c.char.id, type: "support" }, null);
+              setEditSlot(null);
+            }}
+            onTemp={setTempSlot}
+            onClear={clearSlot}
+            onClose={() => setEditSlot(null)}
+          />
+        );
+      })()}
 
       {showRematchConfirm && (
         <ConfirmModal
