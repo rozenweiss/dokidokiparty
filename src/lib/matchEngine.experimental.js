@@ -464,35 +464,31 @@ function runAutoMatch(content, reps, opts) {
     for (let iter = 0; iter < MAX_ITER && noImprove < 1; iter++) {
       let bestNext = null, bestObj = obj;
 
+      /* 모든 이웃 연산자를 단일 풀로 평가한다 (Swap통합수정_및_포니테일안전항목_통합_요청_프롬프트 1-3절 확정).
+         기존에는 미배정자 이동→Merge→Swap 순으로 앞 단계가 성공하면 뒷 단계를 시도하지 않았다.
+         우선순위는 objectiveOf([미배정수, 초과파티수, 표준편차])의 사전식 비교에 이미 내장되어 있으므로,
+         Swap이 미배정수를 줄이는 후보보다 좋게 평가되는 일은 구조적으로 불가능하다. */
+      const consider = (cand) => {
+        if (!cand) return;
+        const co = objectiveOf(cand);
+        if (better(co, bestObj)) { bestObj = co; bestNext = cand; }
+      };
+
       const unassignedKeys = [...charInfo.keys()].filter((k) => !state.placement[k]);
       for (const key of unassignedKeys) {
         const info = charInfo.get(key);
-        const candidates = [];
-        info.times.forEach((t) => { const m = tryTimeMove(state, key, t); if (m) candidates.push(m); });
-        const rc = tryRoleCross(state, key); if (rc) candidates.push(rc);
-        const rr = tryRepReshuffle(state, key); if (rr) candidates.push(rr);
-        if (info.char.role === "dealer") { const np = tryCreateDealerParty(state, key); if (np) candidates.push(np); }
-        candidates.forEach((cand) => {
-          const co = objectiveOf(cand);
-          if (better(co, bestObj)) { bestObj = co; bestNext = cand; }
-        });
+        info.times.forEach((t) => consider(tryTimeMove(state, key, t)));
+        consider(tryRoleCross(state, key));
+        consider(tryRepReshuffle(state, key));
+        if (info.char.role === "dealer") consider(tryCreateDealerParty(state, key));
       }
 
-      if (!bestNext) {
-        const merged = tryMerge(state);
-        if (merged) { const mo = objectiveOf(merged); if (better(mo, bestObj)) { bestObj = mo; bestNext = merged; } }
-      }
+      consider(tryMerge(state));
 
-      if (!bestNext) {
-        const placedKeys = [...charInfo.keys()].filter((k) => state.placement[k]);
-        outer:
-        for (let i = 0; i < placedKeys.length; i++) {
-          for (let j = i + 1; j < placedKeys.length; j++) {
-            const sw = trySwap(state, placedKeys[i], placedKeys[j]);
-            if (!sw) continue;
-            const so = objectiveOf(sw);
-            if (better(so, bestObj)) { bestObj = so; bestNext = sw; break outer; }
-          }
+      const placedKeys = [...charInfo.keys()].filter((k) => state.placement[k]);
+      for (let i = 0; i < placedKeys.length; i++) {
+        for (let j = i + 1; j < placedKeys.length; j++) {
+          consider(trySwap(state, placedKeys[i], placedKeys[j]));
         }
       }
 
