@@ -3,3 +3,8 @@ dist
 .env
 .env.local
 .DS_Store
+.impeccable/config.local.json
+.impeccable/hook.cache.json
+.impeccable/*.png
+.impeccable/live/sessions/
+.impeccable/live/previews/

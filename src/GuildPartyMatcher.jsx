@@ -13,22 +13,22 @@ import { storageGet, storageSet, storageGetSafe } from "./lib/storage";
 const GlobalStyle = () => (
   <style>{`
     .gpm-root {
-      --bg: #F7F5F0;
-      --bg-elev: #FFFFFF;
-      --surface: #FFFFFF;
-      --surface-2: #F0ECE3;
-      --border: #E4DFD3;
-      --border-soft: #ECE7DB;
-      --text: #2B2822;
-      --text-dim: #6E6A5E;
-      --text-faint: #A19C8C;
-      --gold: #C15F3C;
-      --gold-soft: #D97757;
-      --tank: #4C7196;
-      --support: #4F7A5B;
-      --dealer: #A85A38;
-      --danger: #C0392B;
-      --success: #4F7A5B;
+      --bg: oklch(98.5% 0.005 350);
+      --bg-elev: oklch(100% 0 0);
+      --surface: oklch(100% 0 0);
+      --surface-2: oklch(96% 0.01 350);
+      --border: oklch(90% 0.01 350);
+      --border-soft: oklch(94% 0.01 350);
+      --text: oklch(20% 0.02 350);
+      --text-dim: oklch(45% 0.015 350);
+      --text-faint: oklch(70% 0.01 350);
+      --brand: oklch(55% 0.22 350);
+      --brand-soft: oklch(65% 0.18 350);
+      --tank: oklch(55% 0.12 250);
+      --support: oklch(60% 0.14 150);
+      --dealer: oklch(55% 0.15 40);
+      --danger: oklch(55% 0.18 20);
+      --success: oklch(60% 0.14 150);
       --font-display: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
       --font-body: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
       --font-mono: 'JetBrains Mono', 'Consolas', monospace;
@@ -43,15 +43,32 @@ const GlobalStyle = () => (
       width: 100%;
       position: relative;
       line-height: 1.5;
-      background-image:
-        radial-gradient(ellipse 900px 500px at 15% -10%, rgba(193,95,60,0.08), transparent 60%),
-        radial-gradient(ellipse 700px 500px at 100% 0%, rgba(76,113,150,0.06), transparent 60%);
     }
     .gpm-root h1, .gpm-root h2, .gpm-root h3, .gpm-root h4 { font-family: var(--font-display); margin: 0; color: var(--text); letter-spacing: 0.01em; }
     .gpm-root p { margin: 0; }
     .gpm-root button { font-family: var(--font-body); cursor: pointer; }
     .gpm-root input, .gpm-root select { font-family: var(--font-body); }
-    .gpm-root ::selection { background: rgba(193,95,60,0.35); }
+    .gpm-root ::selection { background: color-mix(in oklch, var(--brand) 35%, transparent); }
+
+    @media (prefers-color-scheme: dark) {
+      .gpm-root {
+        --bg: oklch(20% 0.01 350);
+        --bg-elev: oklch(25% 0.01 350);
+        --surface: oklch(25% 0.01 350);
+        --surface-2: oklch(30% 0.01 350);
+        --border: oklch(40% 0.01 350);
+        --border-soft: oklch(35% 0.01 350);
+        --text: oklch(98% 0.01 350);
+        --text-dim: oklch(80% 0.01 350);
+        --text-faint: oklch(65% 0.01 350);
+        --brand: oklch(65% 0.2 350);
+        --brand-soft: oklch(50% 0.15 350);
+      }
+    }
+    
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+    }
 
     .gpm-scroll { min-height: 100vh; padding: 28px 18px 80px; display: flex; flex-direction: column; align-items: center; }
     .gpm-frame { width: 100%; max-width: 720px; }
@@ -60,59 +77,58 @@ const GlobalStyle = () => (
     .gpm-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
     .gpm-emblem { flex-shrink: 0; }
     .gpm-brand-text { display: flex; flex-direction: column; }
-    .gpm-brand-title { font-family: var(--font-display); font-size: 16.5px; color: var(--gold-soft); letter-spacing: 0.08em; }
+    .gpm-brand-title { font-family: var(--font-display); font-size: 16.5px; color: var(--brand); letter-spacing: 0.08em; }
     .gpm-brand-sub { font-size: 12.5px; color: var(--text-faint); letter-spacing: 0.05em; }
 
     /* --- 카드 --- */
-    .gpm-card { background: var(--surface); border: 1px solid var(--border-soft); border-radius: 22px; padding: 24px; box-shadow: 0 1px 2px rgba(43,40,34,0.04), 0 12px 28px -20px rgba(43,40,34,0.12); }
+    .gpm-card { background: var(--surface); border: 1px solid var(--border-soft); border-radius: 12px; padding: 24px; }
     .gpm-card + .gpm-card { margin-top: 14px; }
 
     /* --- 게이트(입장/대표캐릭터) 화면 --- */
     .gpm-gate-wrap { min-height: 92vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
-    .gpm-gate-card { width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 21px; padding: 40px 32px; box-shadow: 0 1px 2px rgba(43,40,34,0.04), 0 20px 44px -24px rgba(43,40,34,0.16); position: relative; overflow: hidden; }
-    .gpm-gate-card::before { content: ''; position: absolute; top: -60px; right: -60px; width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle, rgba(193,95,60,0.18), transparent 70%); pointer-events: none; z-index: 0; }
+    .gpm-gate-card { width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 16px; padding: 40px 32px; position: relative; overflow: hidden; }
     .gpm-gate-card > * { position: relative; z-index: 1; }
     .gpm-gate-emblem { display: flex; justify-content: center; margin-bottom: 18px; }
-    .gpm-gate-title { text-align: center; font-size: 22px; color: var(--gold-soft); margin-bottom: 6px; }
+    .gpm-gate-title { text-align: center; font-size: 22px; color: var(--brand); margin-bottom: 6px; }
     .gpm-gate-desc { text-align: center; font-size: 14px; color: var(--text-dim); margin-bottom: 26px; line-height: 1.6; }
 
     .gpm-field { margin-bottom: 16px; }
     .gpm-label { display: block; font-size: 13.5px; color: var(--text-dim); margin-bottom: 7px; letter-spacing: 0.02em; }
-    .gpm-input { width: 100%; background: var(--bg-elev); border: 1px solid var(--border); color: var(--text); padding: 12px 16px; border-radius: 15px; font-size: 16px; outline: none; transition: border-color .15s, box-shadow .15s; }
-    .gpm-input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(193,95,60,0.15); }
+    .gpm-input { width: 100%; background: var(--bg-elev); border: 1px solid var(--border); color: var(--text); padding: 12px 16px; border-radius: 8px; font-size: 16px; outline: none; transition: border-color .15s, box-shadow .15s; }
+    .gpm-input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px color-mix(in oklch, var(--brand) 15%, transparent); }
     .gpm-input::placeholder { color: var(--text-faint); }
     .gpm-input.error { border-color: var(--danger); }
     .gpm-error-text { color: var(--danger); font-size: 13px; margin-top: 6px; }
     .gpm-hint-text { color: var(--text-faint); font-size: 13px; margin-top: 6px; }
 
-    .gpm-btn { border: none; border-radius: 15px; padding: 14px 20px; font-size: 16px; font-weight: 600; transition: transform .12s, filter .12s, background .12s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+    .gpm-btn { border: none; border-radius: 8px; padding: 14px 20px; font-size: 16px; font-weight: 600; transition: transform .12s, filter .12s, background .12s, border-color .12s, color .12s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
     .gpm-btn:active { transform: translateY(1px); }
     .gpm-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .gpm-btn-primary { background: linear-gradient(180deg, var(--gold-soft), var(--gold)); color: #FFFFFF; width: 100%; }
+    .gpm-btn-primary { background: linear-gradient(180deg, var(--brand-soft), var(--brand)); color: #FFFFFF; width: 100%; box-shadow: 0 2px 4px color-mix(in oklch, var(--brand) 20%, transparent); }
     .gpm-btn-primary:not(:disabled):hover { filter: brightness(1.06); }
     .gpm-btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
-    .gpm-btn-ghost:not(:disabled):hover { border-color: var(--gold); color: var(--gold-soft); }
+    .gpm-btn-ghost:not(:disabled):hover { border-color: var(--brand); color: var(--brand); background: color-mix(in oklch, var(--brand) 4%, transparent); }
     .gpm-btn-block { width: 100%; }
-    .gpm-btn-danger { background: rgba(192,57,43,0.1); color: var(--danger); border: 1px solid rgba(192,57,43,0.3); }
-    .gpm-btn-danger:hover { background: rgba(192,57,43,0.2); }
-    .gpm-btn-sm { padding: 10px 14px; font-size: 13.5px; border-radius: 11px; }
+    .gpm-btn-danger { background: color-mix(in oklch, var(--danger) 10%, transparent); color: var(--danger); border: 1px solid color-mix(in oklch, var(--danger) 30%, transparent); }
+    .gpm-btn-danger:hover { background: color-mix(in oklch, var(--danger) 15%, transparent); }
+    .gpm-btn-sm { padding: 10px 14px; font-size: 13.5px; border-radius: 6px; }
 
     .gpm-row { display: flex; gap: 10px; }
     .gpm-recents { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-    .gpm-recent-chip { font-size: 13px; color: var(--text-dim); background: var(--bg-elev); border: 1px solid var(--border-soft); padding: 5px 10px; border-radius: 20px; }
-    .gpm-recent-chip:hover { border-color: var(--gold); color: var(--gold-soft); }
+    .gpm-recent-chip { font-size: 13px; color: var(--text-dim); background: var(--bg-elev); border: 1px solid var(--border-soft); padding: 5px 10px; border-radius: 20px; transition: color .12s, border-color .12s; }
+    .gpm-recent-chip:hover { border-color: var(--brand); color: var(--brand); }
 
     /* --- 앱 셸 --- */
     .gpm-shell-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; gap: 12px; flex-wrap: wrap; }
     .gpm-rep-badge { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border-soft); padding: 7px 12px 7px 8px; border-radius: 30px; }
-    .gpm-rep-avatar { width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, var(--gold-soft), var(--gold)); display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 700; color: #FFFFFF; }
+    .gpm-rep-avatar { width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, var(--brand-soft), var(--brand)); display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 700; color: #FFFFFF; }
     .gpm-rep-name { font-size: 14.5px; color: var(--text); font-weight: 600; }
     .gpm-rep-tag { font-size: 11.5px; color: var(--text-faint); }
 
-    .gpm-nav { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 15px; padding: 4px; margin-bottom: 20px; overflow-x: auto; }
-    .gpm-nav-item { flex: 1; white-space: nowrap; text-align: center; padding: 9px 10px; border-radius: 13px; font-size: 14px; color: var(--text-dim); background: transparent; border: none; font-weight: 600; }
-    .gpm-nav-item.active { background: var(--surface-2); color: var(--gold-soft); }
-    .gpm-nav-item:hover:not(.active) { color: var(--text); }
+    .gpm-nav { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 8px; padding: 4px; margin-bottom: 20px; overflow-x: auto; }
+    .gpm-nav-item { flex: 1; white-space: nowrap; text-align: center; padding: 9px 10px; border-radius: 6px; font-size: 14px; color: var(--text-dim); background: transparent; border: none; font-weight: 600; transition: color .15s, background .15s; }
+    .gpm-nav-item.active { background: color-mix(in oklch, var(--brand) 8%, transparent); color: var(--brand); }
+    .gpm-nav-item:hover:not(.active) { color: var(--text); background: var(--surface-2); }
 
     .gpm-section-title { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; gap: 10px; flex-wrap: wrap; }
     .gpm-section-title h2 { font-size: 18px; }
@@ -122,20 +138,21 @@ const GlobalStyle = () => (
 
     /* --- 빈 상태 --- */
     .gpm-empty { text-align: center; padding: 46px 20px; color: var(--text-faint); }
-    .gpm-empty-icon { font-size: 26px; margin-bottom: 10px; opacity: 0.6; }
+    .gpm-empty-icon { font-size: 26px; margin-bottom: 10px; opacity: 0.6; color: var(--brand-soft); }
     .gpm-empty-title { color: var(--text-dim); font-size: 15px; margin-bottom: 4px; }
     .gpm-empty-desc { font-size: 13.5px; }
 
     /* --- 캐릭터 카드 --- */
     .gpm-char-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px,1fr)); gap: 12px; }
-    .gpm-char-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 15px; padding: 16px; position: relative; }
-    .gpm-char-card.inactive { opacity: 0.45; }
+    .gpm-char-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 8px; padding: 16px; position: relative; transition: border-color .15s; }
+    .gpm-char-card:hover { border-color: var(--border); }
+    .gpm-char-card.inactive { opacity: 0.45; filter: grayscale(50%); }
     .gpm-char-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
     .gpm-char-name { font-size: 16px; font-weight: 700; color: var(--text); }
     .gpm-role-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 20px; letter-spacing: 0.02em; }
-    .gpm-role-badge.tank { background: rgba(76,113,150,0.12); color: var(--tank); }
-    .gpm-role-badge.support { background: rgba(79,122,91,0.12); color: var(--support); }
-    .gpm-role-badge.dealer { background: rgba(168,90,56,0.12); color: var(--dealer); }
+    .gpm-role-badge.tank { background: color-mix(in oklch, var(--tank) 12%, transparent); color: var(--tank); }
+    .gpm-role-badge.support { background: color-mix(in oklch, var(--support) 12%, transparent); color: var(--support); }
+    .gpm-role-badge.dealer { background: color-mix(in oklch, var(--dealer) 12%, transparent); color: var(--dealer); }
     .gpm-char-job { font-size: 13.5px; color: var(--text-dim); margin-bottom: 10px; }
     .gpm-char-stats { display: flex; gap: 14px; margin-bottom: 12px; }
     .gpm-stat { display: flex; flex-direction: column; gap: 2px; }
@@ -143,16 +160,16 @@ const GlobalStyle = () => (
     .gpm-stat-value { font-family: var(--font-mono); font-size: 14.5px; color: var(--text); }
     .gpm-char-actions { display: flex; gap: 6px; }
 
-    .gpm-fab-add { border: 1px dashed var(--border); background: transparent; border-radius: 15px; min-height: 120px; display: flex; align-items: center; justify-content: center; color: var(--text-faint); font-size: 14.5px; gap: 6px; }
-    .gpm-fab-add:hover { border-color: var(--gold); color: var(--gold-soft); }
+    .gpm-fab-add { border: 1px dashed var(--border); background: transparent; border-radius: 8px; min-height: 120px; display: flex; align-items: center; justify-content: center; color: var(--text-faint); font-size: 14.5px; gap: 6px; transition: color .15s, border-color .15s, background .15s; }
+    .gpm-fab-add:hover { border-color: var(--brand); color: var(--brand); background: color-mix(in oklch, var(--brand) 3%, transparent); }
 
     /* --- 콘텐츠 카드 --- */
-    .gpm-content-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 15px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+    .gpm-content-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 8px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
     .gpm-content-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
     .gpm-content-name { font-family: var(--font-display); font-size: 16px; }
     .gpm-status-pill { font-size: 12px; padding: 4px 10px; border-radius: 20px; font-weight: 700; white-space: nowrap; }
-    .gpm-status-pill.open { background: rgba(79,122,91,0.15); color: var(--success); }
-    .gpm-status-pill.closed { background: rgba(143,138,126,0.2); color: var(--text-faint); }
+    .gpm-status-pill.open { background: color-mix(in oklch, var(--success) 15%, transparent); color: var(--success); }
+    .gpm-status-pill.closed { background: color-mix(in oklch, var(--text-faint) 20%, transparent); color: var(--text-faint); }
     .gpm-content-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px,1fr)); gap: 10px; }
     .gpm-meta-item { display: flex; flex-direction: column; gap: 2px; }
     .gpm-meta-label { font-size: 12px; color: var(--text-faint); }
@@ -160,35 +177,38 @@ const GlobalStyle = () => (
 
     /* --- 신청 화면 --- */
     .gpm-select-list { display: flex; flex-direction: column; gap: 8px; }
-    .gpm-select-row { display: flex; align-items: center; gap: 12px; background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 14px; padding: 12px 14px; transition: border-color .12s; }
-    .gpm-select-row.checked { border-color: var(--gold); background: rgba(193,95,60,0.06); }
-    .gpm-select-row.disabled { opacity: 0.5; }
-    .gpm-checkbox { width: 18px; height: 18px; flex-shrink: 0; border-radius: 9px; border: 1.5px solid var(--border); background: var(--surface); display: flex; align-items: center; justify-content: center; }
-    .gpm-checkbox.checked { background: var(--gold); border-color: var(--gold); }
+    .gpm-select-row { display: flex; align-items: center; gap: 12px; background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 8px; padding: 12px 14px; transition: border-color .12s, background .12s; }
+    .gpm-select-row.checked { border-color: var(--brand); background: color-mix(in oklch, var(--brand) 6%, transparent); }
+    .gpm-select-row.disabled { opacity: 0.5; filter: grayscale(100%); }
+    .gpm-checkbox { appearance: none; -webkit-appearance: none; width: 18px; height: 18px; flex-shrink: 0; border-radius: 6px; border: 1.5px solid var(--border); background: var(--surface); cursor: pointer; position: relative; margin: 0; display: inline-block; vertical-align: middle; transition: background .15s, border-color .15s; }
+    .gpm-checkbox:checked { background: var(--brand); border-color: var(--brand); }
+    .gpm-checkbox:checked::after { content: "✓"; position: absolute; color: white; font-size: 12px; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; font-weight: bold; }
+    .gpm-checkbox:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
     .gpm-select-info { flex: 1; min-width: 0; }
     .gpm-select-name-row { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; flex-wrap: wrap; }
     .gpm-select-name { font-size: 15px; font-weight: 700; }
     .gpm-select-sub { font-size: 13px; color: var(--text-dim); }
     .gpm-select-warn { font-size: 12.5px; color: var(--danger); margin-top: 3px; }
-    .gpm-select-power { text-align: right; font-family: var(--font-mono); font-size: 14.5px; color: var(--gold-soft); white-space: nowrap; }
+    .gpm-select-power { text-align: right; font-family: var(--font-mono); font-size: 14.5px; color: var(--brand); white-space: nowrap; font-weight: 600; }
     .gpm-select-power-label { font-size: 11px; color: var(--text-faint); display: block; text-align: right; }
 
     .gpm-time-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-    .gpm-time-chip { padding: 9px 16px; border-radius: 13px; border: 1px solid var(--border); background: var(--bg-elev); color: var(--text-dim); font-size: 14.5px; font-family: var(--font-mono); font-weight: 600; }
-    .gpm-time-chip.checked { border-color: var(--gold); background: rgba(193,95,60,0.14); color: var(--gold-soft); }
+    .gpm-time-chip { padding: 9px 16px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-elev); color: var(--text-dim); font-size: 14.5px; font-family: var(--font-mono); font-weight: 600; transition: border-color .12s, color .12s, background .12s; cursor: pointer; }
+    .gpm-time-chip:hover { border-color: var(--brand-soft); color: var(--brand); }
+    .gpm-time-chip.checked { border-color: var(--brand); background: color-mix(in oklch, var(--brand) 12%, transparent); color: var(--brand); }
 
     .gpm-type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .gpm-type-card { border: 1px solid var(--border); background: var(--bg-elev); border-radius: 15px; padding: 16px; text-align: left; }
-    .gpm-type-card.checked { border-color: var(--gold); background: rgba(193,95,60,0.08); }
+    .gpm-type-card { border: 1px solid var(--border); background: var(--bg-elev); border-radius: 8px; padding: 16px; text-align: left; transition: border-color .12s, background .12s; cursor: pointer; }
+    .gpm-type-card.checked { border-color: var(--brand); background: color-mix(in oklch, var(--brand) 8%, transparent); }
     .gpm-type-card:disabled { opacity: 0.45; cursor: not-allowed; }
     .gpm-type-title { font-size: 15.5px; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 7px; }
     .gpm-type-desc { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
 
-    .gpm-notice { display: flex; gap: 10px; background: rgba(193,95,60,0.07); border: 1px solid rgba(193,95,60,0.22); border-radius: 14px; padding: 12px 14px; font-size: 13.5px; color: var(--gold-soft); line-height: 1.6; }
+    .gpm-notice { display: flex; gap: 10px; background: color-mix(in oklch, var(--brand) 7%, transparent); border: 1px solid color-mix(in oklch, var(--brand) 22%, transparent); border-radius: 14px; padding: 12px 14px; font-size: 13.5px; color: var(--brand); line-height: 1.6; }
 
-    .gpm-summary-bar { position: sticky; bottom: 16px; margin-top: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 17px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; box-shadow: 0 1px 2px rgba(43,40,34,0.04), 0 14px 28px -18px rgba(43,40,34,0.14); flex-wrap: wrap; }
+    .gpm-summary-bar { position: sticky; bottom: 16px; margin-top: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; box-shadow: 0 4px 16px color-mix(in oklch, var(--text) 8%, transparent); flex-wrap: wrap; }
     .gpm-summary-info { font-size: 13.5px; color: var(--text-dim); }
-    .gpm-summary-info b { color: var(--gold-soft); font-weight: 700; }
+    .gpm-summary-info b { color: var(--brand); font-weight: 700; }
 
     /* --- 확인/완료 화면 --- */
     .gpm-review-block { margin-bottom: 16px; }
@@ -198,36 +218,36 @@ const GlobalStyle = () => (
     .gpm-chip { font-size: 13.5px; background: var(--bg-elev); border: 1px solid var(--border-soft); padding: 5px 10px; border-radius: 11px; color: var(--text); }
 
     .gpm-done-wrap { text-align: center; padding: 30px 10px 6px; }
-    .gpm-done-icon { width: 60px; height: 60px; margin: 0 auto 18px; border-radius: 50%; background: rgba(79,122,91,0.15); display: flex; align-items: center; justify-content: center; }
-    .gpm-done-title { font-size: 19px; margin-bottom: 8px; }
+    .gpm-done-icon { width: 60px; height: 60px; margin: 0 auto 18px; border-radius: 50%; background: color-mix(in oklch, var(--success) 15%, transparent); color: var(--success); display: flex; align-items: center; justify-content: center; }
+    .gpm-done-title { font-size: 19px; margin-bottom: 8px; color: var(--text); font-weight: 700; }
     .gpm-done-desc { font-size: 14.5px; color: var(--text-dim); margin-bottom: 24px; line-height: 1.6; }
     .gpm-done-stats { display: flex; justify-content: center; gap: 22px; margin-bottom: 26px; flex-wrap: wrap; }
-    .gpm-done-stat-num { font-family: var(--font-mono); font-size: 20px; color: var(--gold-soft); }
+    .gpm-done-stat-num { font-family: var(--font-display); font-size: 22px; color: var(--brand); font-weight: 800; }
     .gpm-done-stat-label { font-size: 12.5px; color: var(--text-faint); margin-top: 2px; }
 
     /* --- 신청 내역 --- */
-    .gpm-app-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 15px; padding: 16px 18px; }
+    .gpm-app-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 8px; padding: 16px 18px; }
     .gpm-app-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
     .gpm-app-content { font-size: 16px; font-weight: 700; font-family: var(--font-display); }
     .gpm-app-meta { font-size: 13px; color: var(--text-faint); margin-top: 3px; }
     .gpm-status-tag { font-size: 12px; padding: 4px 10px; border-radius: 20px; font-weight: 700; white-space: nowrap; }
-    .gpm-status-tag.applied { background: rgba(76,113,150,0.15); color: var(--tank); }
-    .gpm-status-tag.waiting { background: rgba(193,95,60,0.15); color: var(--gold-soft); }
-    .gpm-status-tag.matched { background: rgba(79,122,91,0.15); color: var(--success); }
-    .gpm-status-tag.revealed { background: rgba(79,122,91,0.22); color: var(--success); }
+    .gpm-status-tag.applied { background: color-mix(in oklch, var(--tank) 15%, transparent); color: var(--tank); }
+    .gpm-status-tag.waiting { background: color-mix(in oklch, var(--brand) 15%, transparent); color: var(--brand); }
+    .gpm-status-tag.matched { background: color-mix(in oklch, var(--success) 15%, transparent); color: var(--success); }
+    .gpm-status-tag.revealed { background: color-mix(in oklch, var(--success) 22%, transparent); color: var(--success); }
 
     /* --- 매칭 결과 --- */
     .gpm-result-group-title { display: flex; align-items: center; gap: 10px; margin: 22px 0 12px; }
-    .gpm-result-group-title h3 { font-size: 16.5px; color: var(--gold-soft); }
+    .gpm-result-group-title h3 { font-size: 16.5px; color: var(--brand); }
     .gpm-result-group-line { flex: 1; height: 1px; background: var(--border-soft); }
     .gpm-party-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); gap: 12px; }
-    .gpm-party-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 15px; padding: 14px; }
+    .gpm-party-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 8px; padding: 14px; }
     .gpm-party-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .gpm-party-num { font-family: var(--font-display); font-size: 16px; font-weight: 800; color: var(--text); }
-    .gpm-party-slot { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 15px; border-radius: 11px; margin-bottom: 6px; }
-    .gpm-party-slot.tank { background: rgba(76,113,150,0.18); }
-    .gpm-party-slot.support { background: rgba(111,196,138,0.18); }
-    .gpm-party-slot.dealer { background: rgba(224,112,95,0.18); }
+    .gpm-party-slot { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 15px; border-radius: 8px; margin-bottom: 6px; }
+    .gpm-party-slot.tank { background: color-mix(in oklch, var(--tank) 12%, transparent); }
+    .gpm-party-slot.support { background: color-mix(in oklch, var(--support) 12%, transparent); }
+    .gpm-party-slot.dealer { background: color-mix(in oklch, var(--dealer) 12%, transparent); }
     .gpm-party-slot.empty { border: 1px dashed var(--border-soft); background: transparent; }
     .gpm-party-slot-role { width: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
     .gpm-party-slot-role.tank { color: var(--tank); } .gpm-party-slot-role.support { color: var(--support); } .gpm-party-slot-role.dealer { color: var(--dealer); }
@@ -236,20 +256,13 @@ const GlobalStyle = () => (
     .gpm-party-short { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-soft); font-size: 12.5px; color: var(--danger); }
 
     /* --- 모달 --- */
-    .gpm-modal-overlay { position: fixed; inset: 0; background: rgba(6,7,12,0.72); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 100; }
-    .gpm-modal { width: 100%; max-width: 440px; background: var(--surface); border: 1px solid var(--border); border-radius: 19px; padding: 26px; max-height: 88vh; overflow-y: auto; }
-    .gpm-modal-title { font-size: 16px; margin-bottom: 18px; }
+    .gpm-modal-overlay { position: fixed; inset: 0; background: color-mix(in oklch, var(--text) 72%, transparent); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 100; }
+    .gpm-modal { width: 100%; max-width: 440px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 26px; max-height: 88vh; overflow-y: auto; box-shadow: 0 16px 40px rgba(0,0,0,0.15); }
+    .gpm-modal-title { font-size: 16px; margin-bottom: 18px; font-weight: 700; color: var(--brand); }
     .gpm-modal-actions { display: flex; gap: 10px; margin-top: 20px; }
 
-    /* --- 콤보박스(직업 검색) --- */
-    .gpm-combo { position: relative; }
-    .gpm-combo-list { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 14px; max-height: 220px; overflow-y: auto; z-index: 10; box-shadow: 0 1px 2px rgba(43,40,34,0.04), 0 14px 28px -16px rgba(43,40,34,0.14); }
-    .gpm-combo-opt { padding: 10px 14px; font-size: 14.5px; display: flex; align-items: center; justify-content: space-between; }
-    .gpm-combo-opt:hover { background: var(--surface-2); }
-    .gpm-combo-empty { padding: 14px; font-size: 13.5px; color: var(--text-faint); text-align: center; }
-
     /* --- 토스트 --- */
-    .gpm-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 12px 20px; border-radius: 30px; font-size: 14.5px; box-shadow: 0 4px 16px -6px rgba(43,40,34,0.22); z-index: 200; }
+    .gpm-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--text); border: 1px solid var(--border-soft); color: var(--bg); padding: 12px 20px; border-radius: 8px; font-size: 14.5px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); z-index: 200; font-weight: 500; }
 
     @media (max-width: 480px) {
       .gpm-type-grid { grid-template-columns: 1fr; }
@@ -344,48 +357,36 @@ function Toast({ message }) {
   return <div className="gpm-toast">{message}</div>;
 }
 
-function Checkbox({ checked }) {
-  return <div className={`gpm-checkbox ${checked ? "checked" : ""}`}>{checked ? "✓" : ""}</div>;
+function Checkbox({ checked, onChange, disabled, id }) {
+  return (
+    <input
+      type="checkbox"
+      id={id}
+      checked={checked}
+      onChange={onChange || (() => {})}
+      disabled={disabled}
+      className="gpm-checkbox"
+    />
+  );
 }
 
 /* ---------------- 직업 검색 콤보박스 ---------------- */
-function JobCombo({ jobs, value, onChange }) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const ref = useRef(null);
-  const selected = jobs.find((j) => j.id === value);
-
-  useEffect(() => {
-    function onDocClick(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
-  }, []);
-
-  const filtered = jobs.filter((j) => j.active !== false && (j.name.includes(query) || (j.keywords || "").toLowerCase().includes(query.toLowerCase())));
-
+function JobCombo({ jobs, value, onChange, id }) {
   return (
-    <div className="gpm-combo" ref={ref}>
-      <input
-        className="gpm-input"
-        placeholder="직업을 검색하세요"
-        value={open ? query : selected ? selected.name : ""}
-        onFocus={() => { setOpen(true); setQuery(""); }}
-        onChange={(e) => setQuery(e.target.value)}
-      />
-      {open && (
-        <div className="gpm-combo-list">
-          {filtered.length === 0 && <div className="gpm-combo-empty">일치하는 직업이 없습니다</div>}
-          {filtered.map((j) => (
-            <div key={j.id} className="gpm-combo-opt" onMouseDown={() => { onChange(j.id); setOpen(false); }}>
-              <span>{j.name}</span>
-              <RoleBadge role={j.role} />
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+    <select
+      id={id}
+      className="gpm-input"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      aria-label="직업 선택"
+    >
+      <option value="" disabled>직업을 선택하세요</option>
+      {jobs.filter((j) => j.active !== false).map((j) => (
+        <option key={j.id} value={j.id}>
+          {j.name} ({ROLE_LABEL[j.role]})
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -451,8 +452,9 @@ function GateFlow({ config, onEnter }) {
         <p className="gpm-gate-desc">길드 공용 비밀번호와 대표 캐릭터명을 입력해주세요.</p>
 
         <div className="gpm-field">
-          <label className="gpm-label">길드 공용 비밀번호</label>
+          <label className="gpm-label" htmlFor="gate-pw">길드 공용 비밀번호</label>
           <input
+            id="gate-pw"
             type="password"
             className={`gpm-input ${pwError ? "error" : ""}`}
             value={pw}
@@ -465,8 +467,9 @@ function GateFlow({ config, onEnter }) {
         </div>
 
         <div className="gpm-field">
-          <label className="gpm-label">대표 캐릭터명</label>
+          <label className="gpm-label" htmlFor="gate-rep">대표 캐릭터명</label>
           <input
+            id="gate-rep"
             className="gpm-input"
             value={repInput}
             onChange={(e) => { setRepInput(e.target.value); setLookupState(null); }}
@@ -549,36 +552,36 @@ function CharacterModal({ jobs, initial, onClose, onSave, onDelete }) {
         <h3 className="gpm-modal-title">{isEdit ? "캐릭터 정보 수정" : "캐릭터 등록"}</h3>
 
         <div className="gpm-field">
-          <label className="gpm-label">캐릭터 닉네임</label>
-          <input className={`gpm-input ${errors.nickname ? "error" : ""}`} value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="임땡" />
+          <label className="gpm-label" htmlFor="char-nickname">캐릭터 닉네임</label>
+          <input id="char-nickname" className={`gpm-input ${errors.nickname ? "error" : ""}`} value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="임땡" />
           {errors.nickname && <div className="gpm-error-text">{errors.nickname}</div>}
         </div>
 
         <div className="gpm-field">
-          <label className="gpm-label">직업 {jobId && <span style={{ marginLeft: 6 }}><RoleBadge role={jobs.find((j) => j.id === jobId)?.role} /></span>}</label>
-          <JobCombo jobs={jobs} value={jobId} onChange={setJobId} />
+          <label className="gpm-label" htmlFor="char-job">직업 {jobId && <span style={{ marginLeft: 6 }}><RoleBadge role={jobs.find((j) => j.id === jobId)?.role} /></span>}</label>
+          <JobCombo id="char-job" jobs={jobs} value={jobId} onChange={setJobId} />
           {errors.jobId && <div className="gpm-error-text">{errors.jobId}</div>}
           <div className="gpm-hint-text">직업은 목록에서만 선택할 수 있습니다. 역할은 자동으로 지정됩니다.</div>
         </div>
 
         <div className="gpm-row">
           <div className="gpm-field" style={{ flex: 1 }}>
-            <label className="gpm-label">기본 전투력</label>
-            <input className={`gpm-input ${errors.power ? "error" : ""}`} type="number" min="0" value={power} onChange={(e) => setPower(e.target.value)} placeholder="0" />
+            <label className="gpm-label" htmlFor="char-power">기본 전투력</label>
+            <input id="char-power" className={`gpm-input ${errors.power ? "error" : ""}`} type="number" min="0" value={power} onChange={(e) => setPower(e.target.value)} placeholder="0" />
             {errors.power && <div className="gpm-error-text">{errors.power}</div>}
           </div>
           <div className="gpm-field" style={{ flex: 1 }}>
-            <label className="gpm-label">마도 저항</label>
-            <input className={`gpm-input ${errors.resist ? "error" : ""}`} type="number" min="0" value={resist} onChange={(e) => setResist(e.target.value)} placeholder="0" />
+            <label className="gpm-label" htmlFor="char-resist">마도 저항</label>
+            <input id="char-resist" className={`gpm-input ${errors.resist ? "error" : ""}`} type="number" min="0" value={resist} onChange={(e) => setResist(e.target.value)} placeholder="0" />
             {errors.resist && <div className="gpm-error-text">{errors.resist}</div>}
           </div>
         </div>
 
         {isEdit && (
-          <div className="gpm-field" style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => setActive(!active)}>
-            <Checkbox checked={active} />
+          <label className="gpm-field" style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+            <Checkbox checked={active} onChange={(e) => setActive(e.target.checked)} />
             <span style={{ fontSize: 13 }}>활성화 상태 (비활성화 시 파티 신청에서 제외됩니다)</span>
-          </div>
+          </label>
         )}
 
         <div className="gpm-modal-actions">
@@ -825,8 +828,8 @@ function ApplyView({ contents, subs, jobs, initialContentId, editingApp, onCance
 
       <div className="gpm-card">
         <div className="gpm-field">
-          <label className="gpm-label">콘텐츠</label>
-          <select className="gpm-input" value={contentId} onChange={(e) => { setContentId(e.target.value); setSelectedTimes(new Set()); }} disabled={!!editingApp}>
+          <label className="gpm-label" htmlFor="apply-content">콘텐츠</label>
+          <select id="apply-content" className="gpm-input" value={contentId} onChange={(e) => { setContentId(e.target.value); setSelectedTimes(new Set()); }} disabled={!!editingApp}>
             {contents.filter((c) => c.active || c.id === contentId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
@@ -852,8 +855,8 @@ function ApplyView({ contents, subs, jobs, initialContentId, editingApp, onCance
               const short = content.requiredResist > 0 && c.resist < content.requiredResist;
               const checked = selectedChars.has(c.id);
               return (
-                <div key={c.id} className={`gpm-select-row ${checked ? "checked" : ""} ${short ? "disabled" : ""}`} onClick={() => toggleChar(c.id, short)}>
-                  <Checkbox checked={checked} />
+                <label key={c.id} htmlFor={`char-${c.id}`} className={`gpm-select-row ${checked ? "checked" : ""} ${short ? "disabled" : ""}`}>
+                  <Checkbox id={`char-${c.id}`} checked={checked} onChange={() => toggleChar(c.id, short)} disabled={short} />
                   <div className="gpm-select-info">
                     <div className="gpm-select-name-row">
                       <span className="gpm-select-name">{c.nickname}</span>
@@ -874,13 +877,13 @@ function ApplyView({ contents, subs, jobs, initialContentId, editingApp, onCance
                     <button
                       type="button"
                       className="gpm-btn gpm-btn-ghost gpm-btn-sm"
-                      onClick={(e) => { e.stopPropagation(); setEditSubCand(c); }}
+                      onClick={(e) => { e.preventDefault(); setEditSubCand(c); }}
                       style={{ padding: "4px 10px", fontSize: 12, height: "auto", minHeight: 28 }}
                     >
                       수정
                     </button>
                   </div>
-                </div>
+                </label>
               );
             })}
           </div>
@@ -900,14 +903,14 @@ function ApplyView({ contents, subs, jobs, initialContentId, editingApp, onCance
       <div className="gpm-card">
         <div className="gpm-label" style={{ marginBottom: 12 }}>신청 유형 (동시 선택 가능)</div>
         <div className="gpm-type-grid">
-          <button type="button" className={`gpm-type-card ${wantNormal ? "checked" : ""}`} onClick={toggleNormal} disabled={wantSupport && !wantNormal && !comboAllowed}>
-            <div className="gpm-type-title"><Checkbox checked={wantNormal} /> 일반 신청</div>
+          <label htmlFor="type-normal" className={`gpm-type-card ${wantNormal ? "checked" : ""}`} style={wantSupport && !wantNormal && !comboAllowed ? { opacity: 0.45, cursor: "not-allowed" } : {}}>
+            <div className="gpm-type-title"><Checkbox id="type-normal" checked={wantNormal} onChange={toggleNormal} disabled={wantSupport && !wantNormal && !comboAllowed} /> 일반 신청</div>
             <div className="gpm-type-desc">선택한 각 캐릭터는 최대 한 번만 배정됩니다.<br />동일 대표 캐릭터는 같은 시간에 한 캐릭터만 배정됩니다.</div>
-          </button>
-          <button type="button" className={`gpm-type-card ${wantSupport ? "checked" : ""}`} onClick={toggleSupport} disabled={wantNormal && !wantSupport && !comboAllowed}>
-            <div className="gpm-type-title"><Checkbox checked={wantSupport} /> 지원 신청</div>
+          </label>
+          <label htmlFor="type-support" className={`gpm-type-card ${wantSupport ? "checked" : ""}`} style={wantNormal && !wantSupport && !comboAllowed ? { opacity: 0.45, cursor: "not-allowed" } : {}}>
+            <div className="gpm-type-title"><Checkbox id="type-support" checked={wantSupport} onChange={toggleSupport} disabled={wantNormal && !wantSupport && !comboAllowed} /> 지원 신청</div>
             <div className="gpm-type-desc">부족한 역할과 빈자리 보완에 사용됩니다.<br />서로 다른 시간에는 같은 캐릭터가 반복 배정될 수 있습니다 (0회~여러 번).</div>
-          </button>
+          </label>
         </div>
         {wantNormal && wantSupport && (
           <div className="gpm-hint" style={{ marginTop: 10 }}>일반+지원 조합: 신청 시간 중 1개는 일반으로 필수 배정되고, 나머지 시간에는 지원으로 0회~여러 번 배정될 수 있습니다.</div>

@@ -26,19 +26,57 @@ import { runAutoMatch as runAutoMatchOptimized } from "./lib/matchEngine.experim
 const GlobalStyle = () => (
   <style>{`
     .gpa-root {
-      --bg: #F7F5F0; --bg-elev: #FFFFFF; --surface: #FFFFFF; --surface-2: #F0ECE3;
-      --border: #E4DFD3; --border-soft: #ECE7DB;
-      --text: #2B2822; --text-dim: #6E6A5E; --text-faint: #A19C8C;
-      --accent: #C15F3C; --accent-soft: #D97757;
-      --tank: #4C7196; --support: #4F7A5B; --dealer: #A85A38;
-      --danger: #C0392B; --success: #4F7A5B; --warn: #B8823A;
+      --bg: oklch(98.5% 0.005 350);
+      --bg-elev: oklch(100% 0 0);
+      --surface: oklch(100% 0 0);
+      --surface-2: oklch(96% 0.01 350);
+      --border: oklch(90% 0.01 350);
+      --border-soft: oklch(94% 0.01 350);
+      --text: oklch(20% 0.02 350);
+      --text-dim: oklch(45% 0.015 350);
+      --text-faint: oklch(70% 0.01 350);
+      --accent: oklch(55% 0.22 350);
+      --accent-soft: oklch(65% 0.18 350);
+      --tank: oklch(55% 0.12 250);
+      --support: oklch(60% 0.14 150);
+      --dealer: oklch(55% 0.15 40);
+      --danger: oklch(55% 0.18 20);
+      --success: oklch(60% 0.14 150);
+      --warn: oklch(65% 0.16 70);
       --font-display: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
       --font-body: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
       --font-mono: 'JetBrains Mono', 'Consolas', monospace;
-      all: initial; *, *::before, *::after { box-sizing: border-box; }
-      display: block; background: var(--bg); color: var(--text); font-family: var(--font-body);
-      min-height: 100%; width: 100%; position: relative; line-height: 1.5;
-      background-image: radial-gradient(ellipse 900px 500px at 85% -10%, rgba(193,95,60,0.08), transparent 60%);
+
+      all: initial;
+      *, *::before, *::after { box-sizing: border-box; }
+      display: block;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      min-height: 100%;
+      width: 100%;
+      position: relative;
+      line-height: 1.5;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .gpa-root {
+        --bg: oklch(20% 0.01 350);
+        --bg-elev: oklch(25% 0.01 350);
+        --surface: oklch(25% 0.01 350);
+        --surface-2: oklch(30% 0.01 350);
+        --border: oklch(40% 0.01 350);
+        --border-soft: oklch(35% 0.01 350);
+        --text: oklch(98% 0.01 350);
+        --text-dim: oklch(80% 0.01 350);
+        --text-faint: oklch(65% 0.01 350);
+        --accent: oklch(65% 0.2 350);
+        --accent-soft: oklch(50% 0.15 350);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
     }
     .gpa-root h1, .gpa-root h2, .gpa-root h3, .gpa-root h4 { font-family: var(--font-display); margin: 0; color: var(--text); }
     .gpa-root p { margin: 0; }
@@ -49,7 +87,7 @@ const GlobalStyle = () => (
     .gpa-frame { width: 100%; max-width: 920px; }
 
     .gpa-gate-wrap { min-height: 92vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
-    .gpa-gate-card { width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 21px; padding: 38px 30px; box-shadow: 0 1px 2px rgba(43,40,34,0.04), 0 20px 44px -24px rgba(43,40,34,0.16); }
+    .gpa-gate-card { width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 16px; padding: 38px 30px; }
     .gpa-gate-title { text-align: center; font-size: 20px; color: var(--accent-soft); margin-bottom: 8px; }
     .gpa-gate-desc { text-align: center; font-size: 14px; color: var(--text-dim); margin-bottom: 24px; line-height: 1.6; }
 
@@ -62,26 +100,26 @@ const GlobalStyle = () => (
     .gpa-nav-item { flex: 1; white-space: nowrap; text-align: center; padding: 9px 12px; border-radius: 13px; font-size: 14px; color: var(--text-dim); background: transparent; border: none; font-weight: 600; }
     .gpa-nav-item.active { background: var(--surface-2); color: var(--accent-soft); }
 
-    .gpa-card { background: var(--surface); border: 1px solid var(--border-soft); border-radius: 22px; padding: 24px; box-shadow: 0 1px 2px rgba(43,40,34,0.04), 0 12px 28px -20px rgba(43,40,34,0.12); }
+    .gpa-card { background: var(--surface); border: 1px solid var(--border-soft); border-radius: 12px; padding: 24px; }
     .gpa-card + .gpa-card { margin-top: 14px; }
     .gpa-section-title { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; gap: 10px; flex-wrap: wrap; }
     .gpa-section-title h2 { font-size: 17px; }
     .gpa-section-desc { font-size: 13.5px; color: var(--text-faint); margin-top: 3px; }
 
-    .gpa-btn { border: none; border-radius: 15px; padding: 14px 20px; font-size: 15px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0; }
+    .gpa-btn { border: none; border-radius: 15px; padding: 14px 20px; font-size: 15px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0; transition: filter .15s, background-color .15s, border-color .15s, color .15s; }
     .gpa-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .gpa-btn-primary { background: linear-gradient(180deg, var(--accent-soft), var(--accent)); color: #FFFFFF; }
     .gpa-btn-primary:hover { filter: brightness(1.05); }
     .gpa-btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
     .gpa-btn-ghost:hover { color: var(--text); border-color: var(--accent); }
-    .gpa-btn-danger { background: rgba(192,57,43,0.1); color: var(--danger); border: 1px solid rgba(192,57,43,0.3); }
-    .gpa-btn-danger:hover { background: rgba(192,57,43,0.18); }
+    .gpa-btn-danger { background: color-mix(in oklch, var(--danger) 10%, transparent); color: var(--danger); border: 1px solid color-mix(in oklch, var(--danger) 30%, transparent); }
+    .gpa-btn-danger:hover { background: color-mix(in oklch, var(--danger) 18%, transparent); }
     .gpa-btn-sm { padding: 10px 14px; font-size: 13.5px; border-radius: 11px; }
 
     .gpa-field { margin-bottom: 14px; }
     .gpa-label { display: block; font-size: 13px; color: var(--text-dim); margin-bottom: 6px; }
-    .gpa-input { width: 100%; background: var(--bg-elev); border: 1px solid var(--border); color: var(--text); padding: 12px 16px; border-radius: 15px; font-size: 16px; outline: none; }
-    .gpa-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(193,95,60,0.15); }
+    .gpa-input { width: 100%; background: var(--bg-elev); border: 1px solid var(--border); color: var(--text); padding: 12px 16px; border-radius: 15px; font-size: 16px; outline: none; transition: border-color .15s, box-shadow .15s; }
+    .gpa-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 15%, transparent); }
     .gpa-row { display: flex; gap: 10px; flex-wrap: wrap; }
     .gpa-action-bar { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
     .gpa-action-row { display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
@@ -109,17 +147,17 @@ const GlobalStyle = () => (
 
     .gpa-badge { font-size: 12px; padding: 3px 8px; border-radius: 10px; font-weight: 700; display: inline-block; white-space: nowrap; }
     .gpa-badge-icon { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 10px; }
-    .gpa-badge-icon.tank { background: rgba(76,113,150,0.16); color: var(--tank); }
-    .gpa-badge-icon.support { background: rgba(111,196,138,0.16); color: var(--support); }
-    .gpa-badge-icon.dealer { background: rgba(224,112,95,0.16); color: var(--dealer); }
-    .gpa-badge.tank { background: rgba(76,113,150,0.16); color: var(--tank); }
-    .gpa-badge.support { background: rgba(79,122,91,0.16); color: var(--support); }
-    .gpa-badge.dealer { background: rgba(168,90,56,0.16); color: var(--dealer); }
-    .gpa-badge.on { background: rgba(79,122,91,0.15); color: var(--success); }
-    .gpa-badge.off { background: rgba(143,138,126,0.2); color: var(--text-faint); }
-    .gpa-badge.normal { background: rgba(76,113,150,0.15); color: var(--tank); }
-    .gpa-badge.supportApp { background: rgba(181,140,74,0.15); color: var(--warn); }
-    .gpa-badge.combo { background: linear-gradient(90deg, rgba(76,113,150,0.18), rgba(181,140,74,0.18)); color: var(--text); }
+    .gpa-badge-icon.tank { background: color-mix(in oklch, var(--tank) 16%, transparent); color: var(--tank); }
+    .gpa-badge-icon.support { background: color-mix(in oklch, var(--support) 16%, transparent); color: var(--support); }
+    .gpa-badge-icon.dealer { background: color-mix(in oklch, var(--dealer) 16%, transparent); color: var(--dealer); }
+    .gpa-badge.tank { background: color-mix(in oklch, var(--tank) 16%, transparent); color: var(--tank); }
+    .gpa-badge.support { background: color-mix(in oklch, var(--success) 16%, transparent); color: var(--support); }
+    .gpa-badge.dealer { background: color-mix(in oklch, var(--dealer) 16%, transparent); color: var(--dealer); }
+    .gpa-badge.on { background: color-mix(in oklch, var(--success) 15%, transparent); color: var(--success); }
+    .gpa-badge.off { background: color-mix(in oklch, var(--text-faint) 20%, transparent); color: var(--text-faint); }
+    .gpa-badge.normal { background: color-mix(in oklch, var(--tank) 15%, transparent); color: var(--tank); }
+    .gpa-badge.supportApp { background: color-mix(in oklch, var(--warn) 15%, transparent); color: var(--warn); }
+    .gpa-badge.combo { background: linear-gradient(90deg, color-mix(in oklch,  %, transparent), color-mix(in oklch,  %, transparent)); color: var(--text); }
 
     .gpa-empty { text-align: center; padding: 40px 16px; color: var(--text-faint); font-size: 14.5px; }
 
@@ -127,11 +165,11 @@ const GlobalStyle = () => (
     .gpa-party-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 15px; padding: 14px; }
     .gpa-party-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 16px; font-weight: 800; color: var(--text); font-family: var(--font-display); }
     .gpa-party-delete-btn { background: transparent; border: none; color: var(--text-faint); font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 10px; }
-    .gpa-party-delete-btn:hover { color: var(--danger); background: rgba(226,87,76,0.1); }
+    .gpa-party-delete-btn:hover { color: var(--danger); background: color-mix(in oklch, var(--danger) 10%, transparent); }
     .gpa-slot { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 11px; font-size: 14.5px; cursor: pointer; border: 1px dashed transparent; margin-bottom: 6px; transition: filter 0.1s; }
-    .gpa-slot.tank { background: rgba(76,113,150,0.18); border-style: solid; }
-    .gpa-slot.support { background: rgba(111,196,138,0.18); border-style: solid; }
-    .gpa-slot.dealer { background: rgba(224,112,95,0.18); border-style: solid; }
+    .gpa-slot.tank { background: color-mix(in oklch, var(--tank) 18%, transparent); border-style: solid; }
+    .gpa-slot.support { background: color-mix(in oklch, var(--support) 18%, transparent); border-style: solid; }
+    .gpa-slot.dealer { background: color-mix(in oklch, var(--dealer) 18%, transparent); border-style: solid; }
     .gpa-slot.empty { border-color: var(--border-soft); background: transparent; }
     .gpa-slot:hover { filter: brightness(0.95); border-color: var(--accent); }
     .gpa-slot.dragging { opacity: 0.4; }
@@ -152,16 +190,16 @@ const GlobalStyle = () => (
     .gpa-unassigned-row.dragging { opacity: 0.4; }
 
     .gpa-modal-overlay { position: fixed; inset: 0; background: rgba(6,7,12,0.72); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 100; }
-    .gpa-modal { width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--border); border-radius: 19px; padding: 24px; max-height: 88vh; overflow-y: auto; box-shadow: 0 1px 2px rgba(43,40,34,0.04), 0 24px 48px -20px rgba(43,40,34,0.22); }
+    .gpa-modal { width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; max-height: 88vh; overflow-y: auto; }
     .gpa-modal-title { font-size: 16.5px; margin-bottom: 16px; }
     .gpa-modal-actions { display: flex; gap: 10px; margin-top: 18px; }
     .gpa-pick-btn { width: 100%; text-align: left; background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 12px; padding: 10px 12px; font-size: 14px; color: var(--text); margin-bottom: 6px; display: flex; justify-content: space-between; }
     .gpa-pick-btn:hover { border-color: var(--accent); }
 
-    .gpa-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 12px 20px; border-radius: 30px; font-size: 14.5px; z-index: 200; box-shadow: 0 4px 16px -6px rgba(43,40,34,0.22); }
+    .gpa-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 12px 20px; border-radius: 30px; font-size: 14.5px; z-index: 200; box-shadow: 0 4px 16px -6px color-mix(in oklch, var(--text) 22%, transparent); }
     .gpa-content-pick { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
     .gpa-content-chip { padding: 8px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg-elev); color: var(--text-dim); font-size: 14px; }
-    .gpa-content-chip.active { border-color: var(--accent); color: var(--accent-soft); background: rgba(193,95,60,0.1); }
+    .gpa-content-chip.active { border-color: var(--accent); color: var(--accent-soft); background: color-mix(in oklch,  %, transparent); }
   `}</style>
 );
 
@@ -440,8 +478,8 @@ function JobModal({ initial, onClose, onSave }) {
             <input className="gpa-input" type="number" value={order} onChange={(e) => setOrder(e.target.value)} />
           </div>
           <div className="gpa-field" style={{ flex: 1, display: "flex", alignItems: "flex-end" }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }} onClick={() => setActive(!active)}>
-              <input type="checkbox" checked={active} readOnly /> 활성화
+            <label htmlFor="job-active" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+              <input id="job-active" type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> 활성화
             </label>
           </div>
         </div>
@@ -547,8 +585,8 @@ function ContentModal({ initial, onClose, onSave }) {
           <div className="gpa-field" style={{ flex: 1 }}><label className="gpa-label">시작 시각</label><input className="gpa-input" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} /></div>
           <div className="gpa-field" style={{ flex: 1 }}><label className="gpa-label">종료 시각</label><input className="gpa-input" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} /></div>
         </div>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", marginBottom: 8 }} onClick={() => setActive(!active)}>
-          <input type="checkbox" checked={active} readOnly /> 신청 가능(활성화)
+        <label htmlFor="content-active" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", marginBottom: 8 }}>
+          <input id="content-active" type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> 신청 가능(활성화)
         </label>
         <div className="gpa-modal-actions">
           <button className="gpa-btn gpa-btn-ghost" style={{ flex: 1 }} onClick={onClose}>취소</button>
@@ -860,7 +898,7 @@ function SlotPickModal({ role, unassigned, relocatable, supportCandidates, onPic
             {supportOpen && (
               <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 4 }}>
                 {supCands.map((c, i) => (
-                  <button key={i} className="gpa-pick-btn" style={{ borderColor: "rgba(181,140,74,0.3)" }} onClick={() => onPickSupport(c)}>
+                  <button key={i} className="gpa-pick-btn" style={{ borderColor: "color-mix(in oklch,  %, transparent)" }} onClick={() => onPickSupport(c)}>
                     <span>
                       {c.char.nickname}
                       <span style={{ color: "var(--text-faint)" }}> ({c.repName})</span>
@@ -1071,7 +1109,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
     setDownloadingImage(true);
     try {
       const canvas = await html2canvas(publicPreviewRef.current, {
-        backgroundColor: "#F7F5F0",
+        backgroundColor: null, // Transparent to let the container background show
         scale: 2,
       });
       const dataUrl = canvas.toDataURL("image/png");
@@ -1701,9 +1739,9 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
                                 fontSize: 11.5,
                                 padding: "2px 8px",
                                 borderRadius: 8,
-                                background: h.kind === "rep-conflict" ? "rgba(184,130,58,0.14)" : "rgba(76,113,150,0.14)",
+                                background: h.kind === "rep-conflict" ? "color-mix(in oklch,  %, transparent)" : "color-mix(in oklch,  %, transparent)",
                                 color: h.kind === "rep-conflict" ? "var(--warn)" : "var(--tank)",
-                                border: `1px solid ${h.kind === "rep-conflict" ? "rgba(184,130,58,0.3)" : "rgba(76,113,150,0.3)"}`,
+                                border: `1px solid ${h.kind === "rep-conflict" ? "color-mix(in oklch,  %, transparent)" : "color-mix(in oklch,  %, transparent)"}`,
                                 lineHeight: 1.5,
                               }}
                             >
@@ -1759,7 +1797,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
           html2canvas는 캡처할 수 있습니다. */}
       {matchData && content && (
         <div style={{ position: "fixed", top: 0, left: "-99999px", width: 900 }}>
-          <div ref={publicPreviewRef} style={{ background: "#F7F5F0", padding: 24 }}>
+          <div ref={publicPreviewRef} style={{ background: "var(--bg)", padding: 24 }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text-dim)", marginBottom: 16 }}>{content.name}</div>
             {Object.entries(publicResultGroups).map(([time, parties]) => {
               const totalParticipants = parties.reduce((acc, p) => acc + p.slots.filter(s => s.nickname).length, 0);
@@ -1786,7 +1824,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
                                 <span className="gpa-slot-name">
                                   {displayName}
                                   {isSupport && (
-                                    <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", marginLeft: 6, color: "var(--gold)", background: "rgba(193,95,60,0.1)", borderRadius: "50%", width: 18, height: 18 }} title="지원 신청">
+                                    <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", marginLeft: 6, color: "var(--gold)", background: "color-mix(in oklch,  %, transparent)", borderRadius: "50%", width: 18, height: 18 }} title="지원 신청">
                                       <Bird size={12} strokeWidth={2.2} />
                                     </span>
                                   )}
@@ -1797,7 +1835,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
                             </div>
                           );
                         })}
-                        {p.shortage && <div className="gpa-party-short" style={{ marginTop: 10, fontSize: 13, color: "var(--danger)", background: "rgba(192,57,43,0.06)", padding: "8px 10px", borderRadius: 8 }}>부족 인원: {p.shortage}</div>}
+                        {p.shortage && <div className="gpa-party-short" style={{ marginTop: 10, fontSize: 13, color: "var(--danger)", background: "color-mix(in oklch,  %, transparent)", padding: "8px 10px", borderRadius: 8 }}>부족 인원: {p.shortage}</div>}
                       </div>
                     ))}
                   </div>
@@ -2001,8 +2039,8 @@ function AllCharactersSection({ reps, jobs, onUpdateCharacter, onDeleteCharacter
                       <td><input className="gpa-input" style={{ width: 90 }} type="number" min="0" value={draft.resist} onChange={(e) => setDraft({ ...draft, resist: e.target.value })} /></td>
                       <td><input className="gpa-input" style={{ width: 80 }} type="number" min="0" value={draft.penalty} onChange={(e) => setDraft({ ...draft, penalty: e.target.value })} /></td>
                       <td>
-                        <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} onClick={() => setDraft({ ...draft, active: !draft.active })}>
-                          <input type="checkbox" checked={draft.active} readOnly />
+                        <label htmlFor={`char-active-${char.id}`} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                          <input id={`char-active-${char.id}`} type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} />
                         </label>
                       </td>
                       <td style={{ fontSize: 11.5, color: "var(--text-faint)" }}>{char.updatedAt ? formatDateTime(char.updatedAt) : "-"}</td>
