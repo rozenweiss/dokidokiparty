@@ -26,23 +26,23 @@ import { runAutoMatch as runAutoMatchOptimized } from "./lib/matchEngine.experim
 const GlobalStyle = () => (
   <style>{`
     .gpa-root {
-      --bg: oklch(98.5% 0.005 350);
+      --bg: oklch(98% 0.005 45);
       --bg-elev: oklch(100% 0 0);
       --surface: oklch(100% 0 0);
-      --surface-2: oklch(96% 0.01 350);
-      --border: oklch(90% 0.01 350);
-      --border-soft: oklch(94% 0.01 350);
-      --text: oklch(20% 0.02 350);
-      --text-dim: oklch(45% 0.015 350);
-      --text-faint: oklch(70% 0.01 350);
-      --accent: oklch(55% 0.22 350);
-      --accent-soft: oklch(65% 0.18 350);
-      --tank: oklch(55% 0.12 250);
-      --support: oklch(60% 0.14 150);
-      --dealer: oklch(55% 0.15 40);
-      --danger: oklch(55% 0.18 20);
-      --success: oklch(60% 0.14 150);
-      --warn: oklch(65% 0.16 70);
+      --surface-2: oklch(96% 0.01 45);
+      --border: oklch(88% 0.01 45);
+      --border-soft: oklch(94% 0.01 45);
+      --text: oklch(25% 0.01 45);
+      --text-dim: oklch(48% 0.01 45);
+      --text-faint: oklch(68% 0.01 45);
+      --accent: oklch(62% 0.10 40);
+      --accent-soft: oklch(70% 0.08 40);
+      --tank: oklch(60% 0.08 240);
+      --support: oklch(65% 0.10 150);
+      --dealer: oklch(62% 0.11 40);
+      --danger: oklch(60% 0.12 20);
+      --success: oklch(65% 0.10 150);
+      --warn: oklch(70% 0.11 70);
       --font-display: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
       --font-body: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
       --font-mono: 'JetBrains Mono', 'Consolas', monospace;
@@ -61,17 +61,17 @@ const GlobalStyle = () => (
 
     @media (prefers-color-scheme: dark) {
       .gpa-root {
-        --bg: oklch(20% 0.01 350);
-        --bg-elev: oklch(25% 0.01 350);
-        --surface: oklch(25% 0.01 350);
-        --surface-2: oklch(30% 0.01 350);
-        --border: oklch(40% 0.01 350);
-        --border-soft: oklch(35% 0.01 350);
-        --text: oklch(98% 0.01 350);
-        --text-dim: oklch(80% 0.01 350);
-        --text-faint: oklch(65% 0.01 350);
-        --accent: oklch(65% 0.2 350);
-        --accent-soft: oklch(50% 0.15 350);
+        --bg: oklch(20% 0.01 45);
+        --bg-elev: oklch(24% 0.01 45);
+        --surface: oklch(24% 0.01 45);
+        --surface-2: oklch(28% 0.01 45);
+        --border: oklch(35% 0.01 45);
+        --border-soft: oklch(30% 0.01 45);
+        --text: oklch(96% 0.01 45);
+        --text-dim: oklch(75% 0.01 45);
+        --text-faint: oklch(60% 0.01 45);
+        --accent: oklch(62% 0.10 40);
+        --accent-soft: oklch(70% 0.08 40);
       }
     }
 

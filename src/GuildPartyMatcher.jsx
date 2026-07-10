@@ -13,22 +13,22 @@ import { storageGet, storageSet, storageGetSafe } from "./lib/storage";
 const GlobalStyle = () => (
   <style>{`
     .gpm-root {
-      --bg: oklch(98.5% 0.005 350);
+      --bg: oklch(98% 0.005 45);
       --bg-elev: oklch(100% 0 0);
       --surface: oklch(100% 0 0);
-      --surface-2: oklch(96% 0.01 350);
-      --border: oklch(90% 0.01 350);
-      --border-soft: oklch(94% 0.01 350);
-      --text: oklch(20% 0.02 350);
-      --text-dim: oklch(45% 0.015 350);
-      --text-faint: oklch(70% 0.01 350);
-      --brand: oklch(55% 0.22 350);
-      --brand-soft: oklch(65% 0.18 350);
-      --tank: oklch(55% 0.12 250);
-      --support: oklch(60% 0.14 150);
-      --dealer: oklch(55% 0.15 40);
-      --danger: oklch(55% 0.18 20);
-      --success: oklch(60% 0.14 150);
+      --surface-2: oklch(96% 0.01 45);
+      --border: oklch(88% 0.01 45);
+      --border-soft: oklch(94% 0.01 45);
+      --text: oklch(25% 0.01 45);
+      --text-dim: oklch(48% 0.01 45);
+      --text-faint: oklch(68% 0.01 45);
+      --brand: oklch(62% 0.10 40);
+      --brand-soft: oklch(70% 0.08 40);
+      --tank: oklch(60% 0.08 240);
+      --support: oklch(65% 0.10 150);
+      --dealer: oklch(62% 0.11 40);
+      --danger: oklch(60% 0.12 20);
+      --success: oklch(65% 0.10 150);
       --font-display: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
       --font-body: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
       --font-mono: 'JetBrains Mono', 'Consolas', monospace;
@@ -52,17 +52,17 @@ const GlobalStyle = () => (
 
     @media (prefers-color-scheme: dark) {
       .gpm-root {
-        --bg: oklch(20% 0.01 350);
-        --bg-elev: oklch(25% 0.01 350);
-        --surface: oklch(25% 0.01 350);
-        --surface-2: oklch(30% 0.01 350);
-        --border: oklch(40% 0.01 350);
-        --border-soft: oklch(35% 0.01 350);
-        --text: oklch(98% 0.01 350);
-        --text-dim: oklch(80% 0.01 350);
-        --text-faint: oklch(65% 0.01 350);
-        --brand: oklch(65% 0.2 350);
-        --brand-soft: oklch(50% 0.15 350);
+        --bg: oklch(20% 0.01 45);
+        --bg-elev: oklch(24% 0.01 45);
+        --surface: oklch(24% 0.01 45);
+        --surface-2: oklch(28% 0.01 45);
+        --border: oklch(35% 0.01 45);
+        --border-soft: oklch(30% 0.01 45);
+        --text: oklch(96% 0.01 45);
+        --text-dim: oklch(75% 0.01 45);
+        --text-faint: oklch(60% 0.01 45);
+        --brand: oklch(62% 0.10 40);
+        --brand-soft: oklch(70% 0.08 40);
       }
     }
     
@@ -257,12 +257,12 @@ const GlobalStyle = () => (
 
     /* --- 모달 --- */
     .gpm-modal-overlay { position: fixed; inset: 0; background: color-mix(in oklch, var(--text) 72%, transparent); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 100; }
-    .gpm-modal { width: 100%; max-width: 440px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 26px; max-height: 88vh; overflow-y: auto; box-shadow: 0 16px 40px rgba(0,0,0,0.15); }
+    .gpm-modal { width: 100%; max-width: 440px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 26px; max-height: 88vh; overflow-y: auto; box-shadow: 0 16px 40px color-mix(in oklch, var(--text) 15%, transparent); }
     .gpm-modal-title { font-size: 16px; margin-bottom: 18px; font-weight: 700; color: var(--brand); }
     .gpm-modal-actions { display: flex; gap: 10px; margin-top: 20px; }
 
     /* --- 토스트 --- */
-    .gpm-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--text); border: 1px solid var(--border-soft); color: var(--bg); padding: 12px 20px; border-radius: 8px; font-size: 14.5px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); z-index: 200; font-weight: 500; }
+    .gpm-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--text); border: 1px solid var(--border-soft); color: var(--bg); padding: 12px 20px; border-radius: 8px; font-size: 14.5px; box-shadow: 0 8px 24px color-mix(in oklch, var(--text) 15%, transparent); z-index: 200; font-weight: 500; }
 
     @media (max-width: 480px) {
       .gpm-type-grid { grid-template-columns: 1fr; }
@@ -949,7 +949,7 @@ function ApplyDoneView({ app, onGoHistory, onGoContents }) {
     <div className="gpm-card">
       <div className="gpm-done-wrap">
         <div className="gpm-done-icon">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M4 12.5L9.5 18L20 6" stroke="#4F7A5B" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M4 12.5L9.5 18L20 6" stroke="var(--success)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </div>
         <h2 className="gpm-done-title">파티 매칭 신청이 완료되었습니다.</h2>
         <p className="gpm-done-desc">관리자가 자동 매칭을 실행한 후 결과를 확인할 수 있습니다.</p>
@@ -1122,7 +1122,7 @@ function ResultsView({ contents }) {
                               <span className="gpm-party-slot-name">
                                 {displayName}
                                 {isSupport && (
-                                  <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", marginLeft: 6, color: "var(--gold)", background: "rgba(193,95,60,0.1)", borderRadius: "50%", width: 18, height: 18 }} title="지원 신청">
+                                  <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", marginLeft: 6, color: "var(--gold)", background: "color-mix(in oklch, var(--brand) 10%, transparent)", borderRadius: "50%", width: 18, height: 18 }} title="지원 신청">
                                     <Bird size={12} strokeWidth={2.2} />
                                   </span>
                                 )}
