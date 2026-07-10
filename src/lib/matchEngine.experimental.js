@@ -78,9 +78,10 @@ function runAutoMatch(content, reps, opts) {
 
   const byPowerDesc = (a, b) => charFinalPower(b.char, content) - charFinalPower(a.char, content);
 
-  /* [Inference — 11절 "확정 필요", 임의 기본값. 사용자 요청으로 400/800 -> 1000/2000 상향] */
+  /* [Inference — 11절 "확정 필요", 임의 기본값. 재시작다양성_및_횟수증가_요청_프롬프트
+     2.2절 확정: RESTARTS 3->10. aggressive는 변경 없이 유지(재량, 확인 필요 시 조정)] */
   const MAX_ITER = aggressive ? 2000 : 1000;
-  const RESTARTS = aggressive ? 5 : 3;
+  const RESTARTS = aggressive ? 5 : 10;
 
   /* ---------------- 상태 도우미 ---------------- */
   function cloneState(s) {
@@ -217,7 +218,25 @@ function runAutoMatch(content, reps, opts) {
       return roleCountAtTime[t1].dealer - roleCountAtTime[t2].dealer;
     }
 
-    const dealerOrder = [...dealerEntries].sort((a, b) => a.times.length - b.times.length || (shuffleSeed ? Math.random() - 0.5 : 0));
+    /* 재시작 다양성 개선 (재시작다양성_및_횟수증가_요청_프롬프트, 2.1절 확정):
+       shuffleSeed가 거짓(첫 시도)이면 기존처럼 "신청 시간 개수 오름차순" 결정적 정렬을
+       그대로 쓴다 — 딜러 집중 배치 등 검증된 출발점이므로 유지. shuffleSeed가 참인
+       재시작부터는 "동률일 때만 Math.random()"이 아니라, 매 재시작마다 배열 전체에
+       실질적인 무작위성을 주입한다: 각 엔트리에 Math.random()을 주된 키로 부여하고
+       times.length는 아주 낮은 가중치로만 반영해, 신청 시간 개수가 다른 캐릭터끼리도
+       재시작마다 순서가 뒤바뀔 수 있게 한다 (완전히 랜덤이 아니라 낮은 가중치를 남긴
+       이유: 딜러 집중 배치의 "시간 적은 캐릭터 우선"이라는 원래 취지를 아예 버리지는
+       않기 위함 — `[Inference — 재량, 가중치 0.05는 실측 전 임의값]`). */
+    function randomizedOrder(entries) {
+      if (!shuffleSeed) return [...entries].sort((a, b) => a.times.length - b.times.length);
+      const TIME_LENGTH_WEIGHT = 0.05;
+      return entries
+        .map((e) => ({ e, key: Math.random() + e.times.length * TIME_LENGTH_WEIGHT }))
+        .sort((a, b) => a.key - b.key)
+        .map((x) => x.e);
+    }
+
+    const dealerOrder = randomizedOrder(dealerEntries);
     const desiredTime = new Map();
     dealerOrder.forEach((e) => desiredTime.set(ck(e.repName, e.char), pickTime(e, dealerTimeCompare)));
 
@@ -230,7 +249,7 @@ function runAutoMatch(content, reps, opts) {
         return roleCountAtTime[t1][char.role] - roleCountAtTime[t2][char.role];
       };
     }
-    const otherOrder = [...otherEntries].sort((a, b) => a.times.length - b.times.length || (shuffleSeed ? Math.random() - 0.5 : 0));
+    const otherOrder = randomizedOrder(otherEntries);
     otherOrder.forEach((e) => desiredTime.set(ck(e.repName, e.char), pickTime(e, tankSupportCompare(e.char))));
 
     /* 딜러 0 시간대는 파티를 생성하지 않는다 (1절/6절/9-5절 확정판 — 탱커 인원과 무관). */
