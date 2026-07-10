@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import html2canvas from "html2canvas";
 import { Shield, Swords, HeartPulse, Bird } from "lucide-react";
 import { storageGet, storageSet, storageDelete, storageListWithValues, storageGetSafe, pullFromSheets, backupKv, storageSetMany, syncMirror } from "./lib/storage";
-import { runAutoMatch, charFinalPower, timeSlots, buildCandidates, appliesNormal, appliesSupport } from "./lib/matchEngine";
+import { runAutoMatch as runAutoMatchStable, charFinalPower, timeSlots, buildCandidates, appliesNormal, appliesSupport } from "./lib/matchEngine";
+import { runAutoMatch as runAutoMatchOptimized } from "./lib/matchEngine.experimental";
 
 /* ============================================================
    길드 파티 매칭 툴 — 관리자 화면 프로토타입
@@ -910,8 +911,30 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
   const [showCreateParty, setShowCreateParty] = useState(false);
   const [createPartyTime, setCreatePartyTime] = useState("");
   const [confirmDeleteParty, setConfirmDeleteParty] = useState(null); // party index or null
+  const [engineChoice, setEngineChoice] = useState("stable"); // "stable" | "optimized" — 콘텐츠별로 공유 스토리지(engine-choice:{contentId})에 저장, 다른 관리자도 같은 선택을 봅니다.
   const resultsRef = useRef(null);
   const publicPreviewRef = useRef(null);
+
+  useEffect(() => {
+    if (!content) return;
+    let cancelled = false;
+    (async () => {
+      const result = await storageGetSafe(`engine-choice:${content.id}`, true);
+      if (cancelled) return;
+      if (!result.failed && result.value) {
+        try { setEngineChoice(JSON.parse(result.value).engine === "optimized" ? "optimized" : "stable"); }
+        catch (e) { setEngineChoice("stable"); }
+      } else {
+        setEngineChoice("stable");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [content?.id]);
+
+  async function handleEngineChange(v) {
+    setEngineChoice(v);
+    if (content) await storageSet(`engine-choice:${content.id}`, { engine: v }, true);
+  }
 
   useEffect(() => {
     const t = setInterval(() => setClockTick((x) => x + 1), 30000);
@@ -1016,8 +1039,9 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
   }
 
   async function doRunMatch(aggressive = false) {
-    const result = runAutoMatch(content, reps, aggressive ? { aggressive: true } : undefined);
-    await saveResult(result);
+    const engineFn = engineChoice === "optimized" ? runAutoMatchOptimized : runAutoMatchStable;
+    const result = engineFn(content, reps, aggressive ? { aggressive: true } : undefined);
+    await saveResult({ ...result, engineUsed: engineChoice });
     await setApplicationStatusForContent("matched");
     onToast(aggressive ? "적극적 재매칭을 실행했습니다. (미배정자 추가 배정 시도 포함)" : "자동 매칭을 실행했습니다.");
   }
@@ -1488,6 +1512,16 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
         <div className="gpa-action-bar">
           {/* 주 액션 행: 매칭 실행 + 공개/비공개 */}
           <div className="gpa-action-row">
+            <select
+              className="gpa-input"
+              style={{ width: 132, flex: "0 0 auto" }}
+              value={engineChoice}
+              onChange={(e) => handleEngineChange(e.target.value)}
+              title="자동 매칭에 사용할 로직을 선택합니다."
+            >
+              <option value="stable">안정형</option>
+              <option value="optimized">균형최적화형</option>
+            </select>
             <button className="gpa-btn gpa-btn-primary" onClick={runMatch} disabled={preview.candidateCount === 0}>
               {matchData ? "재매칭 실행" : "자동 매칭 실행"}
             </button>
@@ -1552,7 +1586,9 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
             <div className="gpa-section-desc">슬롯을 드래그해서 옮기거나, 클릭해서 임시 캐릭터 입력·비우기를 할 수 있습니다. (역할 제한 없이 자유롭게 이동 가능)</div>
           </div>
           <div className="gpa-hint" style={{ marginBottom: 16 }}>
-            자동 매칭 실행: {formatDateTime(matchData.generatedAt)} · 자동 삭제 예정: {formatDateTime(matchData.generatedAt + RETENTION_MS)} ·{" "}
+            자동 매칭 실행: {formatDateTime(matchData.generatedAt)} ·{" "}
+            {matchData.engineUsed === "optimized" ? "균형최적화형" : matchData.engineUsed === "stable" ? "안정형" : "(로직 기록 없음 — 이 기능 도입 이전 결과)"} ·{" "}
+            자동 삭제 예정: {formatDateTime(matchData.generatedAt + RETENTION_MS)} ·{" "}
             <span style={{ color: matchData.generatedAt + RETENTION_MS - Date.now() <= 0 ? "var(--danger)" : "var(--accent-soft)" }}>
               {formatRemaining(matchData.generatedAt + RETENTION_MS - Date.now())}
             </span>
