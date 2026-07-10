@@ -1999,11 +1999,11 @@ function PasswordView({ config, onChange, onToast, reps, contents, onAfterDelete
       <div className="gpa-section-title"><div><h2>관리자 메뉴</h2><div className="gpa-section-desc">길드 파티 매칭의 시스템 설정과 비밀번호를 관리합니다.</div></div></div>
 
       <div className="gpa-card">
+        <div className="gpa-section-title"><h2 style={{ fontSize: 14 }}>길드 공용 비밀번호</h2></div>
         <div className="gpa-hint" style={{ marginBottom: 12 }}>사용자 화면의 길드 입장 화면에서 길드원이 입력하는 비밀번호입니다.</div>
         <div className="gpa-row" style={{ alignItems: "flex-start" }}>
           <div style={{ flex: 1 }}>
-            <label htmlFor="guild-pw" className="sr-only">길드 공용 비밀번호</label>
-            <input id="guild-pw" className="gpa-input" value={guildPw} onChange={(e) => { setGuildPw(e.target.value); setGuildError(""); }} placeholder="길드 공용 비밀번호" aria-invalid={!!guildError} aria-errormessage={guildError ? "guild-pw-error" : undefined} />
+            <input id="guild-pw" className="gpa-input" value={guildPw} onChange={(e) => { setGuildPw(e.target.value); setGuildError(""); }} placeholder="길드 공용 비밀번호" aria-label="길드 공용 비밀번호" aria-invalid={!!guildError} aria-errormessage={guildError ? "guild-pw-error" : undefined} />
             {guildError && <div id="guild-pw-error" className="gpa-error" role="alert">{guildError}</div>}
           </div>
           <button className="gpa-btn gpa-btn-primary gpa-btn-sm" onClick={saveGuildPw} disabled={guildPw === config.password}>저장</button>
@@ -2011,13 +2011,13 @@ function PasswordView({ config, onChange, onToast, reps, contents, onAfterDelete
       </div>
 
       <div className="gpa-card">
+        <div className="gpa-section-title"><h2 style={{ fontSize: 14 }}>관리자 비밀번호</h2></div>
         <div className="gpa-hint" style={{ marginBottom: 12 }}>
           이 관리자 화면 로그인에 쓰이는 비밀번호입니다. 변경해도 지금 로그인된 세션은 유지되지만, 이후 새로 로그인하는 관리자는 새 비밀번호를 입력해야 합니다.
         </div>
         <div className="gpa-row" style={{ alignItems: "flex-start" }}>
           <div style={{ flex: 1 }}>
-            <label htmlFor="system-admin-pw" className="sr-only">관리자 비밀번호</label>
-            <input id="system-admin-pw" className="gpa-input" value={adminPw} onChange={(e) => { setAdminPw(e.target.value); setAdminError(""); }} placeholder="관리자 비밀번호" aria-invalid={!!adminError} aria-errormessage={adminError ? "admin-pw-error-2" : undefined} />
+            <input id="system-admin-pw" className="gpa-input" value={adminPw} onChange={(e) => { setAdminPw(e.target.value); setAdminError(""); }} placeholder="관리자 비밀번호" aria-label="관리자 비밀번호" aria-invalid={!!adminError} aria-errormessage={adminError ? "admin-pw-error-2" : undefined} />
             {adminError && <div id="admin-pw-error-2" className="gpa-error" role="alert">{adminError}</div>}
           </div>
           <button className="gpa-btn gpa-btn-primary gpa-btn-sm" onClick={saveAdminPw} disabled={adminPw === config.adminPassword}>저장</button>
