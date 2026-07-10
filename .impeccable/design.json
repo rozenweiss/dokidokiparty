@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-10T16:29:00Z",
+  "title": "Design System: Guild Party Matcher",
+  "extensions": {
+    "colorMeta": {
+      "primary": { "role": "primary", "displayName": "Warm Hearth", "canonical": "oklch(62% 0.10 40)", "tonalRamp": ["oklch(20% 0.10 40)", "oklch(30% 0.10 40)", "oklch(40% 0.10 40)", "oklch(50% 0.10 40)", "oklch(60% 0.10 40)", "oklch(70% 0.10 40)", "oklch(80% 0.10 40)", "oklch(90% 0.10 40)"] },
+      "bg": { "role": "neutral", "displayName": "Sanctuary Paper", "canonical": "oklch(98% 0.005 45)", "tonalRamp": ["oklch(20% 0.005 45)", "oklch(40% 0.005 45)", "oklch(60% 0.005 45)", "oklch(80% 0.005 45)", "oklch(90% 0.005 45)", "oklch(94% 0.005 45)", "oklch(98% 0.005 45)", "oklch(99% 0.005 45)"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "페이지 타이틀, 결과 요약 핵심 숫자." }
+    },
+    "shadows": [
+      { "name": "action", "value": "0 2px 4px color-mix(in oklch, oklch(62% 0.10 40) 20%, transparent)", "purpose": "프라이머리 버튼의 클릭 가능한 입체감 향상" }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "메인 액션 버튼. 눌림 효과 포함.",
+      "html": "<button class=\"ds-btn-primary\">START MATCHING</button>",
+      "css": ".ds-btn-primary { background: linear-gradient(180deg, oklch(70% 0.08 40), oklch(62% 0.10 40)); color: #FFFFFF; padding: 14px 20px; font-weight: 600; border: none; border-radius: 8px; box-shadow: 0 2px 4px color-mix(in oklch, oklch(62% 0.10 40) 20%, transparent); transition: transform 0.12s, filter 0.12s; font-size: 16px; cursor: pointer; } .ds-btn-primary:hover { filter: brightness(1.06); } .ds-btn-primary:active { transform: translateY(1px); }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "정보를 그룹화하는 기본 컨테이너.",
+      "html": "<div class=\"ds-card\">Card Content</div>",
+      "css": ".ds-card { background: oklch(100% 0 0); border: 1px solid oklch(94% 0.01 45); border-radius: 12px; padding: 24px; color: oklch(25% 0.01 45); font-size: 14px; font-family: sans-serif; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Guild Sanctuary",
+    "overview": "이 시스템은 세인트 길드원들을 위한 차분하고 정돈된 길드 아지트를 지향합니다. 누구나 쉽게 길드 파티에 참여할 수 있도록 명확하고 효율적인 인터페이스를 제공하면서도, 게임 밖에서 게임의 연장선을 느끼게 하는 따뜻하고 친근한 무드를 유지합니다. 너무 복잡한 엑셀 느낌의 딱딱한 UI나 유치한 조잡함을 명시적으로 배제하며, 신뢰감을 주는 정돈된 레이아웃을 통해 직관적인 효율성을 달성합니다.",
+    "keyCharacteristics": [
+      "직관적이고 효율적인 정보 배치",
+      "게임 몰입감을 이어가는 친숙하고 따뜻한 톤앤매너",
+      "명확한 피드백과 상태 표시를 통한 신뢰감 구축"
+    ],
+    "rules": [],
+    "dos": [
+      "Do 상태 변화 시 명확하고 빠른 시각적 피드백(버튼 눌림, 포커스 링, Hover 상태)을 제공하세요.",
+      "Do 텍스트의 가독성(대비)이 떨어지지 않도록, 너무 연한 회색(text-faint 이하)의 남용을 피하고 기본 본문은 text-dim 이상을 유지하세요.",
+      "Do 직업과 역할 등 반복되는 메타 정보는 색상 코딩된 둥근 뱃지(Pill) 형태를 사용해 정보 스캔을 돕게 하세요."
+    ],
+    "donts": [
+      "Don't 너무 조잡하거나 유치한 모바일 게임 UI 패턴(과도한 텍스처, 두꺼운 그림자, 화려한 그라데이션)을 사용하지 마세요.",
+      "Don't 딱딱하고 복잡한 스프레드시트 느낌을 주는 빽빽한 테이블 레이아웃을 지양하고, 카드 형태로 여백을 두고 정보를 그룹화하세요.",
+      "Don't 의미 없는 장식용 사이드 스트라이프 테두리(border-left 포인트 컬러)를 남용하지 마세요."
+    ]
+  }
+}

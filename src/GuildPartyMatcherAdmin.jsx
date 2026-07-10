@@ -212,7 +212,7 @@ function Dashboard({ config, reps, resultsMeta, onRefresh, refreshing }) {
   });
 
   return (
-    <div>
+    <div className="gpa-view">
       <div className="gpa-section-title">
         <div><h2>대시보드</h2><div className="gpa-section-desc">서비스 운영 현황 요약</div></div>
         <button className="gpa-btn gpa-btn-ghost gpa-btn-sm" onClick={onRefresh} disabled={refreshing}>{refreshing ? "새로고침 중..." : "새로고침"}</button>
@@ -319,7 +319,7 @@ function JobsView({ jobs, onChange }) {
   function toggleActive(job) { onChange(jobs.map((j) => (j.id === job.id ? { ...j, active: !j.active } : j))); }
 
   return (
-    <div>
+    <div className="gpa-view">
       <div className="gpa-section-title">
         <div><h2>직업 및 역할 관리</h2><div className="gpa-section-desc">사용자 캐릭터 등록 화면의 직업 선택지를 관리합니다.</div></div>
         <button className="gpa-btn gpa-btn-primary gpa-btn-sm" onClick={() => setModal("new")}>+ 직업 추가</button>
@@ -445,7 +445,7 @@ function ContentsView({ contents, onChange, onToast, onAfterDelete, resultsMeta 
   }
 
   return (
-    <div>
+    <div className="gpa-view">
       <div className="gpa-section-title">
         <div><h2>콘텐츠 관리</h2><div className="gpa-section-desc">파티 신청과 매칭에 사용되는 콘텐츠 기준을 관리합니다.</div></div>
         <button className="gpa-btn gpa-btn-primary gpa-btn-sm" onClick={() => setModal("new")}>+ 콘텐츠 추가</button>
@@ -580,7 +580,7 @@ function ApplicationsView({ contents, reps, onExcludeCharacter }) {
   }), [allRows]);
 
   return (
-    <div>
+    <div className="gpa-view">
       <div className="gpa-section-title"><div><h2>신청 현황</h2><div className="gpa-section-desc">콘텐츠별 신청 데이터를 캐릭터 단위로 확인합니다. (전체 {counts.total}건 · 일반 {counts.normal} · 지원 {counts.support} · 일반+지원 {counts.both})</div></div></div>
       <div className="gpa-content-pick">
         {contents.map((c) => (
@@ -1347,7 +1347,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
   if (!content) return <div className="gpa-empty">등록된 콘텐츠가 없습니다.</div>;
 
   return (
-    <div>
+    <div className="gpa-view">
       <div className="gpa-section-title"><div><h2>자동 매칭</h2><div className="gpa-section-desc">콘텐츠를 선택하고 자동 매칭을 실행하세요.</div></div></div>
       <div className="gpa-content-pick">
         {contents.map((c) => (
@@ -2221,7 +2221,7 @@ export default function GuildPartyMatcherAdmin() {
   }, [retryTick]);
 
   if (loading || !config) {
-    return <div className="gpa-root"><GlobalStyle /><div className="gpa-gate-wrap"><div style={{ color: "var(--text-dim)", fontSize: 13 }}>불러오는 중...</div></div></div>;
+    return <div className="gpa-root"><div className="gpa-gate-wrap"><div style={{ color: "var(--text-dim)", fontSize: 13 }}>불러오는 중...</div></div></div>;
   }
 
   if (config._loadFailed) {
@@ -2229,7 +2229,7 @@ export default function GuildPartyMatcherAdmin() {
     // 보면서 저장 버튼을 눌러 실제 데이터를 덮어쓸 위험이 있으므로 아예 막습니다.
     return (
       <div className="gpa-root">
-        <GlobalStyle />
+
         <div className="gpa-gate-wrap">
           <div className="gpa-gate-card" style={{ textAlign: "center" }}>
             <h1 className="gpa-gate-title">설정을 불러오지 못했습니다</h1>
@@ -2245,7 +2245,7 @@ export default function GuildPartyMatcherAdmin() {
 
   return (
     <div className="gpa-root">
-      <GlobalStyle />
+
       {!authed ? (
         <AdminGate config={config} onEnter={() => setAuthed(true)} />
       ) : (
