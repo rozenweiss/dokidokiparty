@@ -115,7 +115,7 @@
     .gpm-btn-block { width: 100%; }
     .gpm-btn-danger { background: color-mix(in oklch, var(--danger) 10%, transparent); color: var(--danger); border: 1px solid color-mix(in oklch, var(--danger) 30%, transparent); }
     .gpm-btn-danger:hover { background: color-mix(in oklch, var(--danger) 15%, transparent); }
-    .gpm-btn-sm { padding: 10px 14px; font-size: 13.5px; border-radius: var(--rounded-sm); }
+    .gpm-btn-sm { padding: 10px 14px; font-size: 13.5px; border-radius: var(--rounded-sm); min-height: 44px; }
 
     .gpm-row { display: flex; gap: 10px; }
     .gpm-recents { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }

@@ -1995,11 +1995,10 @@ function PasswordView({ config, onChange, onToast, reps, contents, onAfterDelete
   }
 
   return (
-    <div>
+    <div className="gpa-view">
       <div className="gpa-section-title"><div><h2>관리자 메뉴</h2><div className="gpa-section-desc">길드 파티 매칭의 시스템 설정과 비밀번호를 관리합니다.</div></div></div>
 
       <div className="gpa-card">
-        <div className="gpa-section-title"><h2 style={{ fontSize: 14 }}>길드 공용 비밀번호</h2></div>
         <div className="gpa-hint" style={{ marginBottom: 12 }}>사용자 화면의 길드 입장 화면에서 길드원이 입력하는 비밀번호입니다.</div>
         <div className="gpa-row" style={{ alignItems: "flex-start" }}>
           <div style={{ flex: 1 }}>
@@ -2012,7 +2011,6 @@ function PasswordView({ config, onChange, onToast, reps, contents, onAfterDelete
       </div>
 
       <div className="gpa-card">
-        <div className="gpa-section-title"><h2 style={{ fontSize: 14 }}>관리자 비밀번호</h2></div>
         <div className="gpa-hint" style={{ marginBottom: 12 }}>
           이 관리자 화면 로그인에 쓰이는 비밀번호입니다. 변경해도 지금 로그인된 세션은 유지되지만, 이후 새로 로그인하는 관리자는 새 비밀번호를 입력해야 합니다.
         </div>

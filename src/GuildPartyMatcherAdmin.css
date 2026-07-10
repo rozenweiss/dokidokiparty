@@ -107,7 +107,7 @@
     .gpa-btn-ghost:hover { color: var(--text); border-color: var(--accent); }
     .gpa-btn-danger { background: color-mix(in oklch, var(--danger) 10%, transparent); color: var(--danger); border: 1px solid color-mix(in oklch, var(--danger) 30%, transparent); }
     .gpa-btn-danger:hover { background: color-mix(in oklch, var(--danger) 18%, transparent); }
-    .gpa-btn-sm { padding: 10px 14px; font-size: 13.5px; border-radius: var(--rounded-md); }
+    .gpa-btn-sm { padding: 10px 14px; font-size: 13.5px; border-radius: var(--rounded-md); min-height: 44px; }
 
     .gpa-field { margin-bottom: 14px; }
     .gpa-label { display: block; font-size: 13px; color: var(--text-dim); margin-bottom: 6px; }
