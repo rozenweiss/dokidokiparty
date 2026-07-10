@@ -19,27 +19,9 @@
    ============================================================ */
 
 import { timeSlots, charFinalPower, buildCandidates, appliesNormal, appliesSupport } from "./matchEngine";
+import { groupCandidatesByChar, stdev } from "./utils";
 
-/* matchEngine.js는 groupCandidatesByChar/stdev를 export하지 않고, 재설계안 0절이
-   "기존 matchEngine.js는 건드리지 않는다"고 명시하므로, 이 두 개의 작고 범용적인
-   순수 헬퍼만 이 파일에 그대로 복제합니다 (원본과 동일 로직, 수식이 아닌 집계 함수라
-   두 파일 간 드리프트 위험이 낮다고 판단했습니다 `[Inference — 재량]`). */
-function groupCandidatesByChar(candidates) {
-  const map = new Map();
-  candidates.forEach((c) => {
-    const key = c.repName + ":" + c.char.id;
-    if (!map.has(key)) map.set(key, { repName: c.repName, char: c.char, times: new Set(), types: new Set() });
-    map.get(key).times.add(c.time);
-    map.get(key).types.add(c.type);
-  });
-  return [...map.values()].map((v) => ({ ...v, times: [...v.times], types: [...v.types] }));
-}
-function stdev(nums) {
-  if (nums.length === 0) return 0;
-  const mean = nums.reduce((a, b) => a + b, 0) / nums.length;
-  const variance = nums.reduce((a, b) => a + (b - mean) ** 2, 0) / nums.length;
-  return Math.sqrt(variance);
-}
+/* groupCandidatesByChar/stdev는 utils.js에서 import합니다 (포니테일 2-1-1 상수 분리). */
 
 const ck = (repName, char) => `${repName}:${char.id}`;
 

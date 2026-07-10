@@ -11,45 +11,11 @@
    import 경로 한 줄만 바꾸면 됩니다.
    ============================================================ */
 
-const appliesNormal = (type) => type === "normal" || type === "both";
-const appliesSupport = (type) => type === "support" || type === "both";
-function timeSlots(start, end, interval) {
-  const [sh, sm] = start.split(":").map(Number);
-  const [eh, em] = end.split(":").map(Number);
-  let cur = sh * 60 + sm;
-  const endMin = eh * 60 + em;
-  const out = [];
-  while (cur <= endMin) {
-    out.push(`${String(Math.floor(cur / 60) % 24).padStart(2, "0")}:${String(cur % 60).padStart(2, "0")}`);
-    cur += interval;
-  }
-  return out;
-}
-// [추정치 — 11.1절] 마도저항이 마도압력을 초과하는 1포인트당 약 0.015% 최종 전투력 증가(반대 방향도 동일)로
-// 추정한 값입니다. 확정된 게임 데이터가 아니므로, 실제 수치가 확인되면 이 상수만 바꾸면 됩니다.
-const RESIST_PRESSURE_RATIO = 0.00015;
-const RESIST_PRESSURE_CAP = 0.40; // ±40% 한도 (8.2/11.2절, 증폭·감소 양방향 동일)
+import { timeSlots, charFinalPower, groupCandidatesByChar, stdev, appliesNormal, appliesSupport } from "./utils";
+export { timeSlots, charFinalPower, groupCandidatesByChar, stdev, appliesNormal, appliesSupport };
 
-// 11.2절 공식: diff = 저항 - 압력, 보정률 = clamp(0.00015×diff, -40%, +40%)
-// 압력이 0인 콘텐츠에도 적용합니다 (게임 문서 근거, 11.2절) — 예전의 "압력 0이면 그냥 기본값 반환" 조기 반환은 폐기.
-function finalPower(basePower, pressure, resist) {
-  const diff = (resist || 0) - (pressure || 0);
-  const rate = Math.max(-RESIST_PRESSURE_CAP, Math.min(RESIST_PRESSURE_CAP, RESIST_PRESSURE_RATIO * diff));
-  return Math.round(basePower * (1 + rate));
-}
-/**
- * 캐릭터의 "최종 전투력"을 화면 전체에서 일관되게 계산하는 단일 함수입니다.
- * - content가 주어지면: 저항-압력 보정(11.2절) 후 패널티 차감 (콘텐츠 맥락이 있는 화면: 신청 현황, 자동 매칭)
- * - content가 없으면: 보정 없이 패널티만 차감 (콘텐츠 맥락이 없는 화면: 전체 캐릭터 목록, 8.3/11.2절 근거)
- * 두 경우 모두 결과는 0 미만으로 내려가지 않습니다(0 클램프).
- * [Unverified] RESIST_PRESSURE_RATIO는 사용자가 스스로 "추정한다"고 밝힌 값이며 확정된 게임 데이터가 아닙니다.
- */
-function charFinalPower(char, content) {
-  const base = content ? finalPower(char.power, content.pressure, char.resist) : char.power;
-  const penalty = char.penalty || 0;
-  return Math.max(0, base - penalty);
-}
-/* 신청서로부터 (캐릭터×시간) 매칭 후보 목록 생성 */
+// [Inference — 11.1절] 마도저항-압력 보정 상수: utils.js에 정의되어 있으며 matchEngine.js는 직접 사용하지 않음.
+
 function buildCandidates(content, reps) {
   const out = [];
   Object.entries(reps).forEach(([repName, data]) => {
@@ -65,23 +31,6 @@ function buildCandidates(content, reps) {
     });
   });
   return out;
-}
-/* (repName, 캐릭터) 단위로 후보를 묶어서, 그 캐릭터가 신청한 시간 목록과 신청 유형들을 모읍니다. */
-function groupCandidatesByChar(candidates) {
-  const map = new Map();
-  candidates.forEach((c) => {
-    const key = c.repName + ":" + c.char.id;
-    if (!map.has(key)) map.set(key, { repName: c.repName, char: c.char, times: new Set(), types: new Set() });
-    map.get(key).times.add(c.time);
-    map.get(key).types.add(c.type);
-  });
-  return [...map.values()].map((v) => ({ ...v, times: [...v.times], types: [...v.types] }));
-}
-function stdev(nums) {
-  if (nums.length === 0) return 0;
-  const mean = nums.reduce((a, b) => a + b, 0) / nums.length;
-  const variance = nums.reduce((a, b) => a + (b - mean) ** 2, 0) / nums.length;
-  return Math.sqrt(variance);
 }
 /**
  * 자동 매칭 알고리즘 (일반 신청 파티 배분 로직 수정안 + 정합화 노트, 2026-07-08 반영)
@@ -1126,4 +1075,4 @@ function runAutoMatch(content, reps, opts) {
   return { parties, unassigned, aggressiveResolved, generatedAt: Date.now(), published: false };
 }
 
-export { runAutoMatch, charFinalPower, timeSlots, buildCandidates, appliesNormal, appliesSupport };
+export { runAutoMatch, buildCandidates };
