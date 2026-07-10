@@ -70,7 +70,7 @@
     .gpa-root button { font-family: var(--font-body); cursor: pointer; }
     .gpa-root input, .gpa-root select, .gpa-root textarea { font-family: var(--font-body); }
 
-    @keyframes gpa-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes gpa-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
     .gpa-scroll { min-height: 100vh; padding: var(--space-3xl) var(--space-xl) 80px; display: flex; flex-direction: column; align-items: center; }
     .gpa-frame { width: 100%; max-width: 920px; display: flex; flex-direction: column; gap: var(--space-3xl); animation: gpa-fade-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }

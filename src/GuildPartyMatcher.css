@@ -71,7 +71,8 @@
       *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
     }
 
-    @keyframes fade-in-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fade-in-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    @keyframes toast-fade-in { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translateX(-50%); } }
 
     .gpm-scroll { min-height: 100vh; padding: var(--space-3xl) var(--space-xl) 80px; display: flex; flex-direction: column; align-items: center; }
     .gpm-frame { width: 100%; max-width: 720px; display: flex; flex-direction: column; gap: var(--space-3xl); animation: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
@@ -272,7 +273,7 @@
     .gpm-modal-actions { display: flex; gap: 10px; margin-top: 24px; }
 
     /* --- 토스트 --- */
-    .gpm-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 12px 24px; border-radius: var(--rounded-pill); font-size: 14.5px; z-index: 200; box-shadow: 0 4px 16px -6px color-mix(in oklch, var(--text) 22%, transparent); animation: fade-in-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .gpm-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 12px 24px; border-radius: var(--rounded-pill); font-size: 14.5px; z-index: 200; box-shadow: 0 4px 16px -6px color-mix(in oklch, var(--text) 22%, transparent); animation: toast-fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     
     .gpm-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: var(--rounded-pill); font-size: 12px; font-weight: 700; white-space: nowrap; }
 
