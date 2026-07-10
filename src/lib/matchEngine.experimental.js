@@ -99,12 +99,34 @@ function runAutoMatch(content, reps, opts) {
     return { sum, count };
   }
 
+  /* 이론적 최소 파티 수 (정밀한 버전 채택 — 목적함수_파티수초과분_재정의_요청_프롬프트
+     2.1절 권장안): 현재 상태에서 시간대별로 배정된 딜러 수를 세어
+     ceil(그 시간 딜러 수 / dealerSlots)를 시간별로 합산한다. 기존 확정 규칙("파티 수 =
+     딜러 기준 ceil, 시간대별 산정")과 개념적으로 일치한다. */
+  function theoreticalMinParties(state) {
+    const dealerCountByTime = {};
+    state.parties.forEach((p) => {
+      p.slots.forEach((sl) => {
+        if (!sl.charKey) return;
+        const info = charLookup.get(sl.charKey);
+        if (info && info.char.role === "dealer") {
+          dealerCountByTime[p.time] = (dealerCountByTime[p.time] || 0) + 1;
+        }
+      });
+    });
+    let total = 0;
+    Object.values(dealerCountByTime).forEach((n) => { total += Math.ceil(n / Math.max(dealerSlots, 1)); });
+    return total;
+  }
+
   function objectiveOf(state) {
     let unassignedCount = 0;
     charInfo.forEach((info, key) => { if (!state.placement[key]) unassignedCount++; });
     const used = state.parties.filter((p) => p.slots.some((sl) => sl.charKey));
     const avgs = used.map((p) => { const { sum, count } = partyPower(p); return count ? sum / count : 0; });
-    return [unassignedCount, used.length, stdev(avgs)];
+    const minParties = theoreticalMinParties(state);
+    const excessParties = Math.max(0, used.length - minParties);
+    return [unassignedCount, excessParties, stdev(avgs)];
   }
 
   function better(a, b) {
@@ -437,6 +459,8 @@ function runAutoMatch(content, reps, opts) {
     let state = initialState;
     let obj = objectiveOf(state);
     let noImprove = 0;
+    /* 개선 실패 시 즉시 종료 (탐색 자체가 결정적이라, 같은 상태에서 재시도해도 항상 같은
+       결과이므로 임계값을 높여도 의미가 없음 — 실측으로 확인함, 2026-07-10). */
     for (let iter = 0; iter < MAX_ITER && noImprove < 1; iter++) {
       let bestNext = null, bestObj = obj;
 
