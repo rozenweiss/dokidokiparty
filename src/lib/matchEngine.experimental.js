@@ -468,7 +468,12 @@ function runAutoMatch(content, reps, opts) {
   }
   const state = finalState;
 
-  /* ---------------- 8절: 지원 채우기 (8.1 단순화 채택) ---------------- */
+  /* ---------------- 8절: 지원 채우기 (8.1 단순화 채택 + 전역 균형 회귀 수정, 2026-07-10) ----------------
+     지원 후보를 (캐릭터, 신청 시간 목록) 단위로 묶어, 콘텐츠 전체 파티 평균(target)에 가장
+     가까워지는 자리를 그 캐릭터가 신청한 모든 시간에 걸쳐 찾는다 — 안정형의 findBestSlotFor와
+     동등한 방식(지원채우기_전역균형_및_3회제한_요청_프롬프트, 2026-07-10 확정). 기존에는
+     entry.time 하나에 속한 파티들 중에서만 찾아 시간 단위 지역 최적으로 회귀하는 문제가
+     있었다. */
   function isRepTimeTakenGlobal(time, repName, exceptKey) {
     for (const p of state.parties) {
       if (p.time !== time) continue;
@@ -479,38 +484,73 @@ function runAutoMatch(content, reps, opts) {
     return false;
   }
 
+  function overallTarget() {
+    const used = state.parties.filter((p) => p.slots.some((sl) => sl.charKey));
+    if (used.length === 0) return 0;
+    const avgs = used.map((p) => { const { sum, count } = partyPower(p); return count ? sum / count : 0; });
+    return avgs.reduce((a, b) => a + b, 0) / avgs.length;
+  }
+
+  /* 역할 우선 2단계(본래 역할 0순위, 교차 1순위 — 서포터 슬롯은 지원 서포터만) + 그 안에서
+     전체 평균(target)에 가장 가까워지는 자리. sc.times에 포함된 모든 시간의 빈 슬롯이 대상. */
+  function findBestSlotForGlobal(sc) {
+    const target = overallTarget();
+    const power = charFinalPower(sc.char, content);
+    let best = null, bestScore = Infinity, bestTier = Infinity;
+    sc.times.forEach((t) => {
+      if (isRepTimeTakenGlobal(t, sc.repName, null)) return;
+      state.parties.filter((p) => p.time === t).forEach((p) => {
+        p.slots.forEach((sl, idx) => {
+          if (sl.charKey) return;
+          if (sl.slotRole === "support" && sc.char.role !== "support") return; // 서포터 슬롯은 지원 서포터만
+          const tier = sl.slotRole === sc.char.role ? 0 : 1;
+          const { sum, count } = partyPower(p);
+          const newAvg = (sum + power) / (count + 1);
+          const score = Math.abs(newAvg - target);
+          if (tier < bestTier || (tier === bestTier && score < bestScore)) { bestTier = tier; bestScore = score; best = { party: p, idx }; }
+        });
+      });
+    });
+    return best;
+  }
+
   // both 캐릭터가 일반 배정에 최종 실패했으면 지원 후보에서도 완전히 제외 (재설계안 1절 확정).
   const bothFailedKeys = new Set(
     [...charInfo.entries()].filter(([k, info]) => info.types.includes("both") && !state.placement[k]).map(([k]) => k)
   );
-  const supportPool = supportCandidatesRaw.filter((c) => {
-    const key = ck(c.repName, c.char);
-    return !bothFailedKeys.has(key);
-  });
+  const supportCharsPool = groupCandidatesByChar(
+    supportCandidatesRaw.filter((c) => !bothFailedKeys.has(ck(c.repName, c.char)))
+  );
+  const supportSortedDesc = [...supportCharsPool].sort(byPowerDesc);
 
-  const supportSorted = [...supportPool].sort(byPowerDesc);
-  let round = 0;
+  /* 지원 신청 최대 3회 제한 (양쪽 엔진 동일 적용, 2026-07-10 확정). both의 일반 배정 1회는
+     포함하지 않는다 — 여기는 지원 배정만 센다. */
+  const MAX_SUPPORT_ASSIGN = 3;
+  const supportAssignCount = new Map(); // ck(repName,char) -> count
+
+  function assignSupportGlobal(sc, slot) {
+    const key = ck(sc.repName, sc.char);
+    occupy(state, key, slot.party, slot.idx, sc.char.role, sc.types.includes("both") ? "both" : "support");
+    supportAssignCount.set(key, (supportAssignCount.get(key) || 0) + 1);
+  }
+
+  // 패스 1: 미배정 지원자 전원을 전투력 내림차순으로 1회씩 시도
+  for (const sc of supportSortedDesc) {
+    if ((supportAssignCount.get(ck(sc.repName, sc.char)) || 0) >= MAX_SUPPORT_ASSIGN) continue;
+    const slot = findBestSlotForGlobal(sc);
+    if (slot) assignSupportGlobal(sc, slot);
+  }
+
+  // 패스 2 이상: 빈자리가 남아있는 동안(그리고 아직 3회 미만인 후보가 있는 동안) 반복 배정
+  let guard = 0;
   let progressed = true;
-  while (progressed && round < 3) {
+  while (progressed && guard < 2000) {
+    guard++;
     progressed = false;
-    round++;
-    for (const entry of supportSorted) {
-      const key = ck(entry.repName, entry.char);
-      const t = entry.time;
-      if (isRepTimeTakenGlobal(t, entry.repName, null)) continue;
-      const role = entry.char.role;
-      // 본래 역할 슬롯 우선
-      let slot = findBestEmptySlot(state, t, role);
-      let displayRole = role;
-      if (!slot && role !== "support") {
-        // 없을 때만 교차: 탱커<->딜러 상호 교차 허용 (서포터는 절대 교차 불가)
-        const crossRole = role === "tank" ? "dealer" : "tank";
-        const cs = findBestEmptySlot(state, t, crossRole);
-        if (cs) { slot = cs; displayRole = role; }
-      }
-      if (!slot) continue;
-      occupy(state, key, slot.party, slot.idx, displayRole, entry.type === "both" ? "both" : "support");
-      progressed = true;
+    for (const sc of supportSortedDesc) {
+      if ((supportAssignCount.get(ck(sc.repName, sc.char)) || 0) >= MAX_SUPPORT_ASSIGN) continue;
+      const slot = findBestSlotForGlobal(sc);
+      if (slot) { assignSupportGlobal(sc, slot); progressed = true; }
     }
   }
 

@@ -734,6 +734,12 @@ function runAutoMatch(content, reps, opts) {
 
   const supportSortedDesc = [...supportChars].sort((a, b) => charFinalPower(b.char, content) - charFinalPower(a.char, content));
 
+  /* 지원 신청 최대 3회 제한 (지원채우기_전역균형_및_3회제한_요청_프롬프트, 2026-07-10 확정).
+     both 캐릭터의 일반 배정 1회는 이 카운터에 포함되지 않습니다 — 여기는 지원 배정만 셉니다. */
+  const supportAssignCount = new Map(); // `${repName}:${characterId}` -> count
+  const MAX_SUPPORT_ASSIGN = 3;
+  function supportCountKey(sc) { return charKey(sc.repName, sc.char); }
+
   function findBestSlotFor(sc) {
     const avgs = partyAverages();
     const target = avgs.length ? avgs.reduce((a, b) => a + b, 0) / avgs.length : 0;
@@ -764,11 +770,14 @@ function runAutoMatch(content, reps, opts) {
     es.party._powerSum += power; es.party._filledCount++;
     repTimeOccupied[`${sc.repName}:${es.party.time}`] = true;
     emptySlots.splice(slotArrIdx, 1);
+    const key = supportCountKey(sc);
+    supportAssignCount.set(key, (supportAssignCount.get(key) || 0) + 1);
   }
 
   // 패스 1: 미배정 지원자 전원을 전투력 내림차순으로 1회씩 시도
   for (const sc of supportSortedDesc) {
     if (emptySlots.length === 0) break;
+    if ((supportAssignCount.get(supportCountKey(sc)) || 0) >= MAX_SUPPORT_ASSIGN) continue;
     const idx = findBestSlotFor(sc);
     if (idx !== null) assignSupport(sc, idx);
   }
@@ -780,6 +789,7 @@ function runAutoMatch(content, reps, opts) {
     let anyPlaced = false;
     for (const sc of supportSortedDesc) {
       if (emptySlots.length === 0) break;
+      if ((supportAssignCount.get(supportCountKey(sc)) || 0) >= MAX_SUPPORT_ASSIGN) continue;
       const idx = findBestSlotFor(sc);
       if (idx !== null) { assignSupport(sc, idx); anyPlaced = true; }
     }
