@@ -180,7 +180,7 @@ function AdminGate({ config, onEnter }) {
           {error && <div className="gpa-error">{error}</div>}
           <div className="gpa-hint">프로토타입 기본 비밀번호: {config.adminPassword}</div>
         </div>
-        <button type="button" className="gpa-btn gpa-btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={submit}>로그인</button>
+        <button type="button" className="gpa-btn gpa-btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={submit}>관리자 세션 시작</button>
       </div>
     </div>
   );
@@ -216,7 +216,7 @@ function Dashboard({ config, reps, resultsMeta, onRefresh, refreshing }) {
     <div>
       <div className="gpa-section-title">
         <div><h2>대시보드</h2><div className="gpa-section-desc">서비스 운영 현황 요약</div></div>
-        <button className="gpa-btn gpa-btn-ghost gpa-btn-sm" onClick={onRefresh} disabled={refreshing}>{refreshing ? "새로고침 중..." : "새로고침"}</button>
+        <button className="gpa-btn gpa-btn-ghost gpa-btn-sm" onClick={onRefresh} disabled={refreshing}>{refreshing ? "동기화 중..." : "최신 데이터 동기화"}</button>
       </div>
       <div className="gpa-dash-grid cols-3">
         <div className="gpa-stat-card"><div className="gpa-stat-num">{stats.repCount}</div><div className="gpa-stat-label">등록된 대표 캐릭터</div></div>
@@ -301,7 +301,7 @@ function JobModal({ initial, onClose, onSave }) {
         </div>
         <div className="gpa-modal-actions">
           <button className="gpa-btn gpa-btn-ghost" style={{ flex: 1 }} onClick={onClose}>취소</button>
-          <button className="gpa-btn gpa-btn-primary" style={{ flex: 1 }} onClick={save}>저장</button>
+          <button className="gpa-btn gpa-btn-primary" style={{ flex: 1 }} onClick={save}>변경사항 저장</button>
         </div>
       </div>
     </div>
@@ -406,7 +406,7 @@ function ContentModal({ initial, onClose, onSave }) {
         </label>
         <div className="gpa-modal-actions">
           <button className="gpa-btn gpa-btn-ghost" style={{ flex: 1 }} onClick={onClose}>취소</button>
-          <button className="gpa-btn gpa-btn-primary" style={{ flex: 1 }} onClick={save}>저장</button>
+          <button className="gpa-btn gpa-btn-primary" style={{ flex: 1 }} onClick={save}>변경사항 저장</button>
         </div>
       </div>
     </div>
@@ -2044,7 +2044,7 @@ function PasswordView({ config, onChange, onToast, reps, contents, onAfterDelete
           직업/콘텐츠/캐릭터/신청 데이터는 앱에서 저장할 때마다 구글 시트의 "jobs" · "contents" · "characters" · "applications" 탭에 자동으로 복사됩니다.
           시트에서 직접 값을 고쳤다면, 아래 버튼을 눌러야 이 앱에 반영됩니다 (자동으로는 반영되지 않습니다).
         </div>
-        <button className="gpa-btn gpa-btn-primary gpa-btn-sm" disabled={pulling} onClick={() => setConfirmPull(true)}>{pulling ? "불러오는 중..." : "구글 시트에서 다시 불러오기"}</button>
+        <button className="gpa-btn gpa-btn-primary gpa-btn-sm" disabled={pulling} onClick={() => setConfirmPull(true)}>{pulling ? "동기화 중..." : "구글 시트 강제 동기화"}</button>
       </div>
 
       <div className="gpa-card" style={{ marginTop: 14 }}>
@@ -2167,17 +2167,17 @@ function AdminShell({ config, setConfig }) {
   }
 
   return (
-    <div className="gpa-frame">
-      <div className="gpa-header">
+    <main className="gpa-frame">
+      <header className="gpa-header">
         <div className="gpa-brand">
           <span className="gpa-brand-badge">ADMIN</span>
           <span className="gpa-brand-title">두두파 2.0</span>
         </div>
         <a href="/" className="gpa-btn gpa-btn-ghost gpa-btn-sm" style={{ textDecoration: "none" }}>USER PAGE</a>
-      </div>
-      <div className="gpa-nav">
+      </header>
+      <nav className="gpa-nav">
         {NAV_ITEMS.map((n) => <button key={n.key} className={`gpa-nav-item ${view === n.key ? "active" : ""}`} onClick={() => setView(n.key)}>{n.label}</button>)}
-      </div>
+      </nav>
 
       {view === "dashboard" && <Dashboard config={config} reps={reps} resultsMeta={resultsMeta} onRefresh={refresh} refreshing={refreshing} />}
       {view === "jobs" && <JobsView jobs={config.jobs} onChange={(jobs) => updateConfig({ jobs })} />}
@@ -2188,7 +2188,7 @@ function AdminShell({ config, setConfig }) {
       {view === "password" && <PasswordView config={config} onChange={updateConfig} onToast={showToast} reps={reps} contents={config.contents} onAfterDelete={refresh} />}
 
       <Toast message={toast} />
-    </div>
+    </main>
   );
 }
 

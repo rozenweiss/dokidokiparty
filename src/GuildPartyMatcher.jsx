@@ -204,8 +204,8 @@ function GateFlow({ config, onEnter }) {
               '{repInput}'(으)로 등록된 정보가 없습니다. 신규 대표 캐릭터로 등록할까요?
             </div>
             <div className="gpm-row">
-              <button className="gpm-btn gpm-btn-ghost" style={{ flex: 1 }} onClick={() => setLookupState(null)}>다시 입력</button>
-              <button className="gpm-btn gpm-btn-primary" style={{ flex: 1 }} onClick={createRep}>신규 등록</button>
+              <button className="gpm-btn gpm-btn-ghost" style={{ flex: 1 }} onClick={() => setLookupState(null)}>대표 캐릭터 재입력</button>
+              <button className="gpm-btn gpm-btn-primary" style={{ flex: 1 }} onClick={createRep}>새 대표 캐릭터 등록</button>
             </div>
           </div>
         ) : (
@@ -301,10 +301,10 @@ function CharacterModal({ jobs, initial, onClose, onSave, onDelete }) {
 
         <div className="gpm-modal-actions">
           {isEdit && (
-            <button className="gpm-btn gpm-btn-danger" onClick={() => onDelete(initial.id)}>삭제</button>
+            <button className="gpm-btn gpm-btn-danger" onClick={() => onDelete(initial.id)}>캐릭터 삭제</button>
           )}
           <button className="gpm-btn gpm-btn-ghost" style={{ flex: 1 }} onClick={onClose}>취소</button>
-          <button className="gpm-btn gpm-btn-primary" style={{ flex: 1 }} onClick={save}>저장</button>
+          <button className="gpm-btn gpm-btn-primary" style={{ flex: 1 }} onClick={save}>변경사항 저장</button>
         </div>
       </div>
     </div>
@@ -324,7 +324,7 @@ function CharactersView({ jobs, subs, onAdd, onUpdate, onDelete }) {
           <h2>내 캐릭터</h2>
           <div className="gpm-section-desc">파티 신청에 사용할 캐릭터를 관리합니다.</div>
         </div>
-        <button className="gpm-btn gpm-btn-primary gpm-btn-sm" onClick={() => setModal("new")}>+ 캐릭터 추가</button>
+        <button className="gpm-btn gpm-btn-primary gpm-btn-sm" onClick={() => setModal("new")}>+ 내 캐릭터 추가</button>
       </div>
 
       {subs.length === 0 ? (
@@ -350,7 +350,7 @@ function CharactersView({ jobs, subs, onAdd, onUpdate, onDelete }) {
                 <div className="gpm-stat"><span className="gpm-stat-label">마도 저항</span><span className="gpm-stat-value">{c.resist.toLocaleString()}</span></div>
               </div>
               <div className="gpm-char-actions">
-                <button className="gpm-btn gpm-btn-ghost gpm-btn-sm" style={{ flex: 1 }} onClick={() => setModal(c)}>수정</button>
+                <button className="gpm-btn gpm-btn-ghost gpm-btn-sm" style={{ flex: 1 }} onClick={() => setModal(c)}>정보 수정</button>
               </div>
             </div>
           ))}
@@ -623,7 +623,7 @@ function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onS
 
       <div className="gpm-summary-bar">
         <div className="gpm-summary-info">캐릭터 <b>{selectedChars.size}</b>명 · 시간 <b>{selectedTimes.size}</b>개 선택됨</div>
-        <button className="gpm-btn gpm-btn-primary" disabled={!canSubmit} onClick={() => setPhase("confirm")}>신청 내용 확인</button>
+        <button className="gpm-btn gpm-btn-primary" disabled={!canSubmit} onClick={() => setPhase("confirm")}>신청 내용 검토하기</button>
       </div>
     </div>
   );
@@ -898,8 +898,8 @@ function AppShell({ repName, repData, setRepData, config }) {
   const activeSubs = repData.subs;
 
   return (
-    <div className="gpm-frame">
-      <div className="gpm-shell-header">
+    <main className="gpm-frame">
+      <header className="gpm-shell-header">
         <div className="gpm-brand">
           <Emblem />
           <div className="gpm-brand-text">
@@ -917,14 +917,14 @@ function AppShell({ repName, repData, setRepData, config }) {
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
       {view !== "apply" && view !== "done" && (
-        <div className="gpm-nav">
+        <nav className="gpm-nav">
           {NAV_ITEMS.map((n) => (
             <button key={n.key} className={`gpm-nav-item ${view === n.key ? "active" : ""}`} onClick={() => setView(n.key)}>{n.label}</button>
           ))}
-        </div>
+        </nav>
       )}
 
       {view === "characters" && (
@@ -969,7 +969,7 @@ function AppShell({ repName, repData, setRepData, config }) {
       )}
 
       <Toast message={toast} />
-    </div>
+    </main>
   );
 }
 
