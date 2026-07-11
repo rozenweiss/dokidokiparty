@@ -929,14 +929,25 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
         backgroundColor: "#F7F5F0",
         scale: 2,
       });
-      const dataUrl = canvas.toDataURL("image/png");
       const ts = new Date().toISOString().replace(/[:.]/g, "-");
-      const a = document.createElement("a");
-      a.href = dataUrl;
-      a.download = `매칭결과_${content?.name || "콘텐츠"}_${ts}.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      
+      await new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (!blob) reject(new Error("Canvas toBlob failed"));
+          else {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `매칭결과_${content?.name || "콘텐츠"}_${ts}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            resolve();
+          }
+        }, "image/png");
+      });
+      
       onToast("매칭 결과 이미지를 다운로드했습니다.");
     } catch (e) {
       console.error("downloadResultsImage failed:", e);
