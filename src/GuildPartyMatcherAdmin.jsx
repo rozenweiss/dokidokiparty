@@ -4,9 +4,9 @@ import { Shield, Swords, HeartPulse, Bird } from "lucide-react";
 import { storageGet, storageSet, storageDelete, storageListWithValues, storageGetSafe, pullFromSheets, backupKv, storageSetMany, syncMirror } from "./lib/storage";
 import { runAutoMatch as runAutoMatchStable, buildCandidates, appliesNormal, appliesSupport } from "./lib/matchEngine";
 import { runAutoMatch as runAutoMatchOptimized } from "./lib/matchEngine.experimental";
-import { DEFAULT_JOBS, DEFAULT_CONTENTS, ROLE_LABEL } from "./lib/constants";
 import { timeSlots, charFinalPower } from "./lib/utils";
-import "./GuildPartyMatcherAdmin.css";
+import { DEFAULT_JOBS, ROLE_LABEL } from "./lib/constants";
+import "./index.css";
 
 /* ============================================================
    길드 파티 매칭 툴 — 관리자 화면 프로토타입
@@ -26,17 +26,18 @@ import "./GuildPartyMatcherAdmin.css";
      실제 서비스 적용 전 알고리즘 검증이 필요합니다.
    ============================================================ */
 
-/* ---------------- 디자인 토큰 (GuildPartyMatcherAdmin.css로 분리, 포니테일 2-1-4) ---------------- */
-/* GlobalStyle 컴포넌트는 CSS import로 대체되어 삭제됨. */
-
-
-/* ---------------- 시드/유틸 (constants.js / utils.js에서 import) ---------------- */
-// DEFAULT_JOBS, DEFAULT_CONTENTS, ROLE_LABEL → src/lib/constants.js
-// timeSlots, charFinalPower → src/lib/utils.js
-
+/* ---------------- 시드/유틸 (사용자 화면과 동일 규칙) ---------------- */
+/* DEFAULT_JOBS, ROLE_LABEL은 ./lib/constants에서 import (포니테일 리뷰 1번, 2026-07-10).
+   DEFAULT_CONTENTS, APP_TYPE_LABEL은 사용자 화면과 값이 달라(예시 콘텐츠 개수, 라벨 문구
+   길이) 그대로 유지 — 하나로 합치면 어느 한쪽 화면의 문구/기본값이 바뀔 위험이 있어
+   보류했습니다. 통합 여부는 확인 후 별도로 진행하겠습니다.] */
+const DEFAULT_CONTENTS = [
+  { id: "c1", name: "협곡의 결전", pressure: 0, requiredResist: 0, partySize: 4, interval: 30, startTime: "20:00", endTime: "23:30", active: true }
+];
 const ROLE_ICON = { tank: Shield, support: HeartPulse, dealer: Swords };
 // 신청 유형: "normal" | "support" | "both" (일반+지원, 12.4절). 기존 데이터는 normal/support만 가짐(하위 호환).
 const APP_TYPE_LABEL = { normal: "일반", support: "지원", both: "일반+지원" };
+// 커스텀 uid() 삭제하고 crypto.randomUUID()로 교체 (포니테일 리뷰 3번, 2026-07-10 — Vercel HTTPS 배포이므로 보안 컨텍스트 문제 없음)
 
 
 async function loadGuildConfig() {
@@ -172,13 +173,12 @@ function AdminGate({ config, onEnter }) {
         <h1 className="gpa-gate-title">관리자 로그인</h1>
         <p className="gpa-gate-desc">일반 사용자 인증과 분리된 관리자 전용 화면입니다.</p>
         <div className="gpa-field">
-          <label htmlFor="admin-pw" className="gpa-label">관리자 비밀번호</label>
-          <input id="admin-pw" type="password" className="gpa-input" value={pw}
+          <label className="gpa-label">관리자 비밀번호</label>
+          <input type="password" className="gpa-input" value={pw}
             onChange={(e) => { setPw(e.target.value); setError(""); }}
-            onKeyDown={(e) => e.key === "Enter" && submit()} placeholder="비밀번호 입력" autoFocus 
-            aria-invalid={!!error} aria-describedby={error ? "admin-pw-error" : "admin-pw-hint"} />
-          {error && <div id="admin-pw-error" className="gpa-error" role="alert">{error}</div>}
-          <div id="admin-pw-hint" className="gpa-hint">프로토타입 기본 비밀번호: {config.adminPassword}</div>
+            onKeyDown={(e) => e.key === "Enter" && submit()} placeholder="비밀번호 입력" autoFocus />
+          {error && <div className="gpa-error">{error}</div>}
+          <div className="gpa-hint">프로토타입 기본 비밀번호: {config.adminPassword}</div>
         </div>
         <button type="button" className="gpa-btn gpa-btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={submit}>로그인</button>
       </div>
@@ -213,7 +213,7 @@ function Dashboard({ config, reps, resultsMeta, onRefresh, refreshing }) {
   });
 
   return (
-    <div className="gpa-view">
+    <div>
       <div className="gpa-section-title">
         <div><h2>대시보드</h2><div className="gpa-section-desc">서비스 운영 현황 요약</div></div>
         <button className="gpa-btn gpa-btn-ghost gpa-btn-sm" onClick={onRefresh} disabled={refreshing}>{refreshing ? "새로고침 중..." : "새로고침"}</button>
@@ -274,28 +274,28 @@ function JobModal({ initial, onClose, onSave }) {
       <div className="gpa-modal">
         <h3 className="gpa-modal-title">{initial ? "직업 수정" : "직업 등록"}</h3>
         <div className="gpa-field">
-          <label htmlFor="job-name" className="gpa-label">직업명</label>
-          <input id="job-name" className="gpa-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 창술사" aria-invalid={!!error} aria-errormessage={error ? "job-error" : undefined} />
-          {error && <div id="job-error" className="gpa-error" role="alert">{error}</div>}
+          <label className="gpa-label">직업명</label>
+          <input className="gpa-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 창술사" />
+          {error && <div className="gpa-error">{error}</div>}
         </div>
         <div className="gpa-field">
-          <label htmlFor="job-role" className="gpa-label">역할</label>
-          <select id="job-role" className="gpa-input" value={role} onChange={(e) => setRole(e.target.value)}>
+          <label className="gpa-label">역할</label>
+          <select className="gpa-input" value={role} onChange={(e) => setRole(e.target.value)}>
             <option value="tank">탱커</option><option value="support">서포터</option><option value="dealer">딜러</option>
           </select>
         </div>
         <div className="gpa-field">
-          <label htmlFor="job-keywords" className="gpa-label">검색용 키워드</label>
-          <input id="job-keywords" className="gpa-input" value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="공백으로 구분" />
+          <label className="gpa-label">검색용 키워드</label>
+          <input className="gpa-input" value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="공백으로 구분" />
         </div>
         <div className="gpa-row">
           <div className="gpa-field" style={{ flex: 1 }}>
-            <label htmlFor="job-order" className="gpa-label">표시 순서</label>
-            <input id="job-order" className="gpa-input" type="number" value={order} onChange={(e) => setOrder(e.target.value)} />
+            <label className="gpa-label">표시 순서</label>
+            <input className="gpa-input" type="number" value={order} onChange={(e) => setOrder(e.target.value)} />
           </div>
           <div className="gpa-field" style={{ flex: 1, display: "flex", alignItems: "flex-end" }}>
-            <label htmlFor="job-active" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
-              <input id="job-active" type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> 활성화
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }} onClick={() => setActive(!active)}>
+              <input type="checkbox" checked={active} readOnly /> 활성화
             </label>
           </div>
         </div>
@@ -320,7 +320,7 @@ function JobsView({ jobs, onChange }) {
   function toggleActive(job) { onChange(jobs.map((j) => (j.id === job.id ? { ...j, active: !j.active } : j))); }
 
   return (
-    <div className="gpa-view">
+    <div>
       <div className="gpa-section-title">
         <div><h2>직업 및 역할 관리</h2><div className="gpa-section-desc">사용자 캐릭터 등록 화면의 직업 선택지를 관리합니다.</div></div>
         <button className="gpa-btn gpa-btn-primary gpa-btn-sm" onClick={() => setModal("new")}>+ 직업 추가</button>
@@ -385,24 +385,24 @@ function ContentModal({ initial, onClose, onSave }) {
       <div className="gpa-modal">
         <h3 className="gpa-modal-title">{initial ? "콘텐츠 수정" : "콘텐츠 등록"}</h3>
         <div className="gpa-field">
-          <label htmlFor="content-name" className="gpa-label">콘텐츠명</label>
-          <input id="content-name" className="gpa-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="어비스" aria-invalid={!!error} aria-errormessage={error ? "content-error" : undefined} />
-          {error && <div id="content-error" className="gpa-error" role="alert">{error}</div>}
+          <label className="gpa-label">콘텐츠명</label>
+          <input className="gpa-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="어비스" />
+          {error && <div className="gpa-error">{error}</div>}
         </div>
         <div className="gpa-row">
-          <div className="gpa-field" style={{ flex: 1 }}><label htmlFor="content-pressure" className="gpa-label">마도 압력 (0=미적용)</label><input id="content-pressure" className="gpa-input" type="number" min="0" value={pressure} onChange={(e) => setPressure(e.target.value)} /></div>
-          <div className="gpa-field" style={{ flex: 1 }}><label htmlFor="content-resist" className="gpa-label">필요 마도 저항 (0=제한없음)</label><input id="content-resist" className="gpa-input" type="number" min="0" value={requiredResist} onChange={(e) => setRequiredResist(e.target.value)} /></div>
+          <div className="gpa-field" style={{ flex: 1 }}><label className="gpa-label">마도 압력 (0=미적용)</label><input className="gpa-input" type="number" min="0" value={pressure} onChange={(e) => setPressure(e.target.value)} /></div>
+          <div className="gpa-field" style={{ flex: 1 }}><label className="gpa-label">필요 마도 저항 (0=제한없음)</label><input className="gpa-input" type="number" min="0" value={requiredResist} onChange={(e) => setRequiredResist(e.target.value)} /></div>
         </div>
         <div className="gpa-row">
-          <div className="gpa-field" style={{ flex: 1 }}><label htmlFor="content-party-size" className="gpa-label">파티 인원</label><input id="content-party-size" className="gpa-input" type="number" min="2" value={partySize} onChange={(e) => setPartySize(e.target.value)} /></div>
-          <div className="gpa-field" style={{ flex: 1 }}><label htmlFor="content-interval" className="gpa-label">시간 간격(분)</label><input id="content-interval" className="gpa-input" type="number" min="5" value={interval} onChange={(e) => setIntervalVal(e.target.value)} /></div>
+          <div className="gpa-field" style={{ flex: 1 }}><label className="gpa-label">파티 인원</label><input className="gpa-input" type="number" min="2" value={partySize} onChange={(e) => setPartySize(e.target.value)} /></div>
+          <div className="gpa-field" style={{ flex: 1 }}><label className="gpa-label">시간 간격(분)</label><input className="gpa-input" type="number" min="5" value={interval} onChange={(e) => setIntervalVal(e.target.value)} /></div>
         </div>
         <div className="gpa-row">
-          <div className="gpa-field" style={{ flex: 1 }}><label htmlFor="content-start-time" className="gpa-label">시작 시각</label><input id="content-start-time" className="gpa-input" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} /></div>
-          <div className="gpa-field" style={{ flex: 1 }}><label htmlFor="content-end-time" className="gpa-label">종료 시각</label><input id="content-end-time" className="gpa-input" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} /></div>
+          <div className="gpa-field" style={{ flex: 1 }}><label className="gpa-label">시작 시각</label><input className="gpa-input" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} /></div>
+          <div className="gpa-field" style={{ flex: 1 }}><label className="gpa-label">종료 시각</label><input className="gpa-input" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} /></div>
         </div>
-        <label htmlFor="content-active" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", marginBottom: 8 }}>
-          <input id="content-active" type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> 신청 가능(활성화)
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", marginBottom: 8 }} onClick={() => setActive(!active)}>
+          <input type="checkbox" checked={active} readOnly /> 신청 가능(활성화)
         </label>
         <div className="gpa-modal-actions">
           <button className="gpa-btn gpa-btn-ghost" style={{ flex: 1 }} onClick={onClose}>취소</button>
@@ -446,7 +446,7 @@ function ContentsView({ contents, onChange, onToast, onAfterDelete, resultsMeta 
   }
 
   return (
-    <div className="gpa-view">
+    <div>
       <div className="gpa-section-title">
         <div><h2>콘텐츠 관리</h2><div className="gpa-section-desc">파티 신청과 매칭에 사용되는 콘텐츠 기준을 관리합니다.</div></div>
         <button className="gpa-btn gpa-btn-primary gpa-btn-sm" onClick={() => setModal("new")}>+ 콘텐츠 추가</button>
@@ -581,7 +581,7 @@ function ApplicationsView({ contents, reps, onExcludeCharacter }) {
   }), [allRows]);
 
   return (
-    <div className="gpa-view">
+    <div>
       <div className="gpa-section-title"><div><h2>신청 현황</h2><div className="gpa-section-desc">콘텐츠별 신청 데이터를 캐릭터 단위로 확인합니다. (전체 {counts.total}건 · 일반 {counts.normal} · 지원 {counts.support} · 일반+지원 {counts.both})</div></div></div>
       <div className="gpa-content-pick">
         {contents.map((c) => (
@@ -714,7 +714,7 @@ function SlotPickModal({ role, unassigned, relocatable, supportCandidates, onPic
             {supportOpen && (
               <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 4 }}>
                 {supCands.map((c, i) => (
-                  <button key={i} className="gpa-pick-btn" style={{ borderColor: "color-mix(in oklch,  %, transparent)" }} onClick={() => onPickSupport(c)}>
+                  <button key={i} className="gpa-pick-btn" style={{ borderColor: "rgba(181,140,74,0.3)" }} onClick={() => onPickSupport(c)}>
                     <span>
                       {c.char.nickname}
                       <span style={{ color: "var(--text-faint)" }}> ({c.repName})</span>
@@ -901,7 +901,8 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
   }
 
   async function runMatch() {
-    if (matchData && matchData.parties && matchData.parties.length > 0) {
+    const isRematchOfSameEngine = matchData && matchData.parties && matchData.parties.length > 0 && matchData.engineUsed === engineChoice;
+    if (isRematchOfSameEngine) {
       setShowRematchConfirm(true);
       return;
     }
@@ -925,7 +926,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
     setDownloadingImage(true);
     try {
       const canvas = await html2canvas(publicPreviewRef.current, {
-        backgroundColor: null, // Transparent to let the container background show
+        backgroundColor: "#F7F5F0",
         scale: 2,
       });
       const dataUrl = canvas.toDataURL("image/png");
@@ -1348,7 +1349,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
   if (!content) return <div className="gpa-empty">등록된 콘텐츠가 없습니다.</div>;
 
   return (
-    <div className="gpa-view">
+    <div>
       <div className="gpa-section-title"><div><h2>자동 매칭</h2><div className="gpa-section-desc">콘텐츠를 선택하고 자동 매칭을 실행하세요.</div></div></div>
       <div className="gpa-content-pick">
         {contents.map((c) => (
@@ -1377,7 +1378,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
               <option value="optimized">균형최적화형</option>
             </select>
             <button className="gpa-btn gpa-btn-primary" onClick={runMatch} disabled={preview.candidateCount === 0}>
-              {matchData ? "재매칭 실행" : "자동 매칭 실행"}
+              {matchData && matchData.parties && matchData.parties.length > 0 && matchData.engineUsed === engineChoice ? "재매칭 실행" : "자동 매칭 실행"}
             </button>
             {matchData && (
               <button className="gpa-btn gpa-btn-ghost" onClick={togglePublish}>
@@ -1486,10 +1487,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
                           key={si}
                           className={cls.join(" ")}
                           draggable={!!s.nickname}
-                          role="button"
-                          tabIndex={0}
                           onClick={() => setEditSlot({ partyIdx: p._idx, slotIdx: si, role: s.role })}
-                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditSlot({ partyIdx: p._idx, slotIdx: si, role: s.role }); } }}
                           onDragStart={(e) => { if (!s.nickname) { e.preventDefault(); return; } e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", key); setDragItem({ kind: "slot", partyIdx: p._idx, slotIdx: si, role: s.role }); }}
                           onDragEnd={() => { setDragItem(null); setDragOverKey(null); }}
                           onDragOver={(e) => { if (!dragItem) return; e.preventDefault(); if (dragOverKey !== key) setDragOverKey(key); }}
@@ -1535,8 +1533,6 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
                       className={`gpa-unassigned-row ${dragItem && dragItem.kind === "unassigned" && dragItem.candidate === u ? "dragging" : ""}`}
                       style={{ flexWrap: "wrap", alignItems: "flex-start", gap: 6 }}
                       draggable
-                      role="listitem"
-                      tabIndex={0}
                       onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", `unassigned-${i}`); setDragItem({ kind: "unassigned", candidate: u, role: u.char.role }); }}
                       onDragEnd={() => { setDragItem(null); setDragOverKey(null); }}
                     >
@@ -1560,9 +1556,9 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
                                 fontSize: 11.5,
                                 padding: "2px 8px",
                                 borderRadius: 8,
-                                background: h.kind === "rep-conflict" ? "color-mix(in oklch,  %, transparent)" : "color-mix(in oklch,  %, transparent)",
+                                background: h.kind === "rep-conflict" ? "rgba(184,130,58,0.14)" : "rgba(76,113,150,0.14)",
                                 color: h.kind === "rep-conflict" ? "var(--warn)" : "var(--tank)",
-                                border: `1px solid ${h.kind === "rep-conflict" ? "color-mix(in oklch,  %, transparent)" : "color-mix(in oklch,  %, transparent)"}`,
+                                border: `1px solid ${h.kind === "rep-conflict" ? "rgba(184,130,58,0.3)" : "rgba(76,113,150,0.3)"}`,
                                 lineHeight: 1.5,
                               }}
                             >
@@ -1618,7 +1614,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
           html2canvas는 캡처할 수 있습니다. */}
       {matchData && content && (
         <div style={{ position: "fixed", top: 0, left: "-99999px", width: 900 }}>
-          <div ref={publicPreviewRef} style={{ background: "var(--bg)", padding: 24 }}>
+          <div ref={publicPreviewRef} style={{ background: "#F7F5F0", padding: 24 }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text-dim)", marginBottom: 16 }}>{content.name}</div>
             {Object.entries(publicResultGroups).map(([time, parties]) => {
               const totalParticipants = parties.reduce((acc, p) => acc + p.slots.filter(s => s.nickname).length, 0);
@@ -1645,7 +1641,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
                                 <span className="gpa-slot-name">
                                   {displayName}
                                   {isSupport && (
-                                    <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", marginLeft: 6, color: "var(--gold)", background: "color-mix(in oklch,  %, transparent)", borderRadius: "50%", width: 18, height: 18 }} title="지원 신청">
+                                    <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", marginLeft: 6, color: "var(--gold)", background: "rgba(193,95,60,0.1)", borderRadius: "50%", width: 18, height: 18 }} title="지원 신청">
                                       <Bird size={12} strokeWidth={2.2} />
                                     </span>
                                   )}
@@ -1656,7 +1652,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
                             </div>
                           );
                         })}
-                        {p.shortage && <div className="gpa-party-short" style={{ marginTop: 10, fontSize: 13, color: "var(--danger)", background: "color-mix(in oklch,  %, transparent)", padding: "8px 10px", borderRadius: 8 }}>부족 인원: {p.shortage}</div>}
+                        {p.shortage && <div className="gpa-party-short" style={{ marginTop: 10, fontSize: 13, color: "var(--danger)", background: "rgba(192,57,43,0.06)", padding: "8px 10px", borderRadius: 8 }}>부족 인원: {p.shortage}</div>}
                       </div>
                     ))}
                   </div>
@@ -1849,19 +1845,19 @@ function AllCharactersSection({ reps, jobs, onUpdateCharacter, onDeleteCharacter
                   return (
                     <tr key={key}>
                       <td>{repName}</td>
-                      <td><input className="gpa-input" style={{ minWidth: 100 }} value={draft.nickname} onChange={(e) => setDraft({ ...draft, nickname: e.target.value })} aria-label="캐릭터 닉네임" /></td>
+                      <td><input className="gpa-input" style={{ minWidth: 100 }} value={draft.nickname} onChange={(e) => setDraft({ ...draft, nickname: e.target.value })} /></td>
                       <td>
-                        <select className="gpa-input" style={{ minWidth: 100 }} value={draft.jobId} onChange={(e) => setDraft({ ...draft, jobId: e.target.value })} aria-label="직업 선택">
+                        <select className="gpa-input" style={{ minWidth: 100 }} value={draft.jobId} onChange={(e) => setDraft({ ...draft, jobId: e.target.value })}>
                           <option value="">직업 선택</option>
                           {jobs.filter((j) => j.active !== false || j.id === draft.jobId).map((j) => <option key={j.id} value={j.id}>{j.name} ({ROLE_LABEL[j.role]})</option>)}
                         </select>
                       </td>
-                      <td><input className="gpa-input" style={{ width: 90 }} type="number" min="0" value={draft.power} onChange={(e) => setDraft({ ...draft, power: e.target.value })} aria-label="기본전투력" /></td>
-                      <td><input className="gpa-input" style={{ width: 90 }} type="number" min="0" value={draft.resist} onChange={(e) => setDraft({ ...draft, resist: e.target.value })} aria-label="마도저항" /></td>
-                      <td><input className="gpa-input" style={{ width: 80 }} type="number" min="0" value={draft.penalty} onChange={(e) => setDraft({ ...draft, penalty: e.target.value })} aria-label="패널티" /></td>
+                      <td><input className="gpa-input" style={{ width: 90 }} type="number" min="0" value={draft.power} onChange={(e) => setDraft({ ...draft, power: e.target.value })} /></td>
+                      <td><input className="gpa-input" style={{ width: 90 }} type="number" min="0" value={draft.resist} onChange={(e) => setDraft({ ...draft, resist: e.target.value })} /></td>
+                      <td><input className="gpa-input" style={{ width: 80 }} type="number" min="0" value={draft.penalty} onChange={(e) => setDraft({ ...draft, penalty: e.target.value })} /></td>
                       <td>
-                        <label htmlFor={`char-active-${char.id}`} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-                          <input id={`char-active-${char.id}`} type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} />
+                        <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} onClick={() => setDraft({ ...draft, active: !draft.active })}>
+                          <input type="checkbox" checked={draft.active} readOnly />
                         </label>
                       </td>
                       <td style={{ fontSize: 11.5, color: "var(--text-faint)" }}>{char.updatedAt ? formatDateTime(char.updatedAt) : "-"}</td>
@@ -1995,7 +1991,7 @@ function PasswordView({ config, onChange, onToast, reps, contents, onAfterDelete
   }
 
   return (
-    <div className="gpa-view">
+    <div>
       <div className="gpa-section-title"><div><h2>관리자 메뉴</h2><div className="gpa-section-desc">길드 파티 매칭의 시스템 설정과 비밀번호를 관리합니다.</div></div></div>
 
       <div className="gpa-card">
@@ -2003,8 +1999,8 @@ function PasswordView({ config, onChange, onToast, reps, contents, onAfterDelete
         <div className="gpa-hint" style={{ marginBottom: 12 }}>사용자 화면의 길드 입장 화면에서 길드원이 입력하는 비밀번호입니다.</div>
         <div className="gpa-row" style={{ alignItems: "flex-start" }}>
           <div style={{ flex: 1 }}>
-            <input id="guild-pw" className="gpa-input" value={guildPw} onChange={(e) => { setGuildPw(e.target.value); setGuildError(""); }} placeholder="길드 공용 비밀번호" aria-label="길드 공용 비밀번호" aria-invalid={!!guildError} aria-errormessage={guildError ? "guild-pw-error" : undefined} />
-            {guildError && <div id="guild-pw-error" className="gpa-error" role="alert">{guildError}</div>}
+            <input className="gpa-input" value={guildPw} onChange={(e) => { setGuildPw(e.target.value); setGuildError(""); }} placeholder="길드 공용 비밀번호" />
+            {guildError && <div className="gpa-error">{guildError}</div>}
           </div>
           <button className="gpa-btn gpa-btn-primary gpa-btn-sm" onClick={saveGuildPw} disabled={guildPw === config.password}>저장</button>
         </div>
@@ -2017,8 +2013,8 @@ function PasswordView({ config, onChange, onToast, reps, contents, onAfterDelete
         </div>
         <div className="gpa-row" style={{ alignItems: "flex-start" }}>
           <div style={{ flex: 1 }}>
-            <input id="system-admin-pw" className="gpa-input" value={adminPw} onChange={(e) => { setAdminPw(e.target.value); setAdminError(""); }} placeholder="관리자 비밀번호" aria-label="관리자 비밀번호" aria-invalid={!!adminError} aria-errormessage={adminError ? "admin-pw-error-2" : undefined} />
-            {adminError && <div id="admin-pw-error-2" className="gpa-error" role="alert">{adminError}</div>}
+            <input className="gpa-input" value={adminPw} onChange={(e) => { setAdminPw(e.target.value); setAdminError(""); }} placeholder="관리자 비밀번호" />
+            {adminError && <div className="gpa-error">{adminError}</div>}
           </div>
           <button className="gpa-btn gpa-btn-primary gpa-btn-sm" onClick={saveAdminPw} disabled={adminPw === config.adminPassword}>저장</button>
         </div>
@@ -2235,7 +2231,7 @@ export default function GuildPartyMatcherAdmin() {
     // 보면서 저장 버튼을 눌러 실제 데이터를 덮어쓸 위험이 있으므로 아예 막습니다.
     return (
       <div className="gpa-root">
-
+        
         <div className="gpa-gate-wrap">
           <div className="gpa-gate-card" style={{ textAlign: "center" }}>
             <h1 className="gpa-gate-title">설정을 불러오지 못했습니다</h1>
@@ -2251,7 +2247,7 @@ export default function GuildPartyMatcherAdmin() {
 
   return (
     <div className="gpa-root">
-
+      
       {!authed ? (
         <AdminGate config={config} onEnter={() => setAuthed(true)} />
       ) : (

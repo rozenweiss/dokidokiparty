@@ -6,16 +6,20 @@
    React, lucide-react, storage(storageGet 등) 어느 것도 import하지
    않는 순수 JS 로직입니다 — Node.js 등 단독 환경에서도 import 가능합니다.
 
+   timeSlots/charFinalPower/groupCandidatesByChar/stdev 등 범용 순수 함수는
+   ./utils에서 가져옵니다 (Swap통합수정_및_포니테일안전항목_통합_요청_프롬프트
+   2-1-1절, 2026-07-10 — 두 파일에 중복 정의되어 있던 것을 하나로 통합).
+
    대안 알고리즘을 실험하려면 이 파일을 복사해
    matchEngine.experimental.js 같은 이름으로 수정한 뒤, admin 파일의
    import 경로 한 줄만 바꾸면 됩니다.
    ============================================================ */
 
-import { timeSlots, charFinalPower, groupCandidatesByChar, stdev, appliesNormal, appliesSupport } from "./utils";
-export { timeSlots, charFinalPower, groupCandidatesByChar, stdev, appliesNormal, appliesSupport };
+import { timeSlots, charFinalPower, groupCandidatesByChar, stdev } from "./utils";
 
-// [Inference — 11.1절] 마도저항-압력 보정 상수: utils.js에 정의되어 있으며 matchEngine.js는 직접 사용하지 않음.
-
+const appliesNormal = (type) => type === "normal" || type === "both";
+const appliesSupport = (type) => type === "support" || type === "both";
+/* 신청서로부터 (캐릭터×시간) 매칭 후보 목록 생성 */
 function buildCandidates(content, reps) {
   const out = [];
   Object.entries(reps).forEach(([repName, data]) => {
@@ -1075,4 +1079,4 @@ function runAutoMatch(content, reps, opts) {
   return { parties, unassigned, aggressiveResolved, generatedAt: Date.now(), published: false };
 }
 
-export { runAutoMatch, buildCandidates };
+export { runAutoMatch, charFinalPower, timeSlots, buildCandidates, appliesNormal, appliesSupport };

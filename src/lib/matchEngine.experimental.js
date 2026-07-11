@@ -16,12 +16,14 @@
    [수정된 1절 확정] "딜러 0 시간대는 탱커 인원과 무관하게 파티를 생성하지 않는다"를
    따릅니다 (문서 5절 4항의 구버전 잔여 문구는 1절/6절/9-5절과 상충해 반영하지 않았습니다
    — 임땡님께 이미 이 판단 근거를 안내했습니다).
+
+   groupCandidatesByChar/stdev는 더 이상 이 파일에 복제하지 않고 ./utils에서 가져옵니다
+   (Swap통합수정_및_포니테일안전항목_통합_요청_프롬프트 2-1-1절, 2026-07-10 — matchEngine.js도
+   함께 리팩터링 대상이 되면서 두 파일의 중복 정의를 제거할 수 있게 됐습니다).
    ============================================================ */
 
 import { timeSlots, charFinalPower, buildCandidates, appliesNormal, appliesSupport } from "./matchEngine";
 import { groupCandidatesByChar, stdev } from "./utils";
-
-/* groupCandidatesByChar/stdev는 utils.js에서 import합니다 (포니테일 2-1-1 상수 분리). */
 
 const ck = (repName, char) => `${repName}:${char.id}`;
 
@@ -60,9 +62,10 @@ function runAutoMatch(content, reps, opts) {
 
   const byPowerDesc = (a, b) => charFinalPower(b.char, content) - charFinalPower(a.char, content);
 
-  /* [Inference — 11절 "확정 필요", 임의 기본값. 사용자 요청으로 400/800 -> 1000/2000 상향] */
+  /* [Inference — 11절 "확정 필요", 임의 기본값. 재시작다양성_및_횟수증가_요청_프롬프트
+     2.2절 확정: RESTARTS 3->10. aggressive는 변경 없이 유지(재량, 확인 필요 시 조정)] */
   const MAX_ITER = aggressive ? 2000 : 1000;
-  const RESTARTS = aggressive ? 5 : 3;
+  const RESTARTS = aggressive ? 5 : 10;
 
   /* ---------------- 상태 도우미 ---------------- */
   function cloneState(s) {
@@ -221,7 +224,25 @@ function runAutoMatch(content, reps, opts) {
       return roleCountAtTime[t1].dealer - roleCountAtTime[t2].dealer;
     }
 
-    const dealerOrder = [...dealerEntries].sort((a, b) => a.times.length - b.times.length || (shuffleSeed ? Math.random() - 0.5 : 0));
+    /* 재시작 다양성 개선 (재시작다양성_및_횟수증가_요청_프롬프트, 2.1절 확정):
+       shuffleSeed가 거짓(첫 시도)이면 기존처럼 "신청 시간 개수 오름차순" 결정적 정렬을
+       그대로 쓴다 — 딜러 집중 배치 등 검증된 출발점이므로 유지. shuffleSeed가 참인
+       재시작부터는 "동률일 때만 Math.random()"이 아니라, 매 재시작마다 배열 전체에
+       실질적인 무작위성을 주입한다: 각 엔트리에 Math.random()을 주된 키로 부여하고
+       times.length는 아주 낮은 가중치로만 반영해, 신청 시간 개수가 다른 캐릭터끼리도
+       재시작마다 순서가 뒤바뀔 수 있게 한다 (완전히 랜덤이 아니라 낮은 가중치를 남긴
+       이유: 딜러 집중 배치의 "시간 적은 캐릭터 우선"이라는 원래 취지를 아예 버리지는
+       않기 위함 — `[Inference — 재량, 가중치 0.05는 실측 전 임의값]`). */
+    function randomizedOrder(entries) {
+      if (!shuffleSeed) return [...entries].sort((a, b) => a.times.length - b.times.length);
+      const TIME_LENGTH_WEIGHT = 0.05;
+      return entries
+        .map((e) => ({ e, key: Math.random() + e.times.length * TIME_LENGTH_WEIGHT }))
+        .sort((a, b) => a.key - b.key)
+        .map((x) => x.e);
+    }
+
+    const dealerOrder = randomizedOrder(dealerEntries);
     const desiredTime = new Map();
     dealerOrder.forEach((e) => desiredTime.set(ck(e.repName, e.char), pickTime(e, dealerTimeCompare)));
 
@@ -234,7 +255,7 @@ function runAutoMatch(content, reps, opts) {
         return roleCountAtTime[t1][char.role] - roleCountAtTime[t2][char.role];
       };
     }
-    const otherOrder = [...otherEntries].sort((a, b) => a.times.length - b.times.length || (shuffleSeed ? Math.random() - 0.5 : 0));
+    const otherOrder = randomizedOrder(otherEntries);
     otherOrder.forEach((e) => desiredTime.set(ck(e.repName, e.char), pickTime(e, tankSupportCompare(e.char))));
 
     /* 딜러 0 시간대는 파티를 생성하지 않는다 (1절/6절/9-5절 확정판 — 탱커 인원과 무관). */
@@ -426,17 +447,18 @@ function runAutoMatch(content, reps, opts) {
        결과이므로 임계값을 높여도 의미가 없음 — 실측으로 확인함, 2026-07-10). */
     for (let iter = 0; iter < MAX_ITER && noImprove < 1; iter++) {
       let bestNext = null, bestObj = obj;
-
-      /* 모든 이웃 연산자를 단일 풀로 평가한다 (Swap통합수정_및_포니테일안전항목_통합_요청_프롬프트 1-3절 확정).
-         기존에는 미배정자 이동→Merge→Swap 순으로 앞 단계가 성공하면 뒷 단계를 시도하지 않았다.
-         우선순위는 objectiveOf([미배정수, 초과파티수, 표준편차])의 사전식 비교에 이미 내장되어 있으므로,
-         Swap이 미배정수를 줄이는 후보보다 좋게 평가되는 일은 구조적으로 불가능하다. */
       const consider = (cand) => {
         if (!cand) return;
         const co = objectiveOf(cand);
         if (better(co, bestObj)) { bestObj = co; bestNext = cand; }
       };
 
+      /* Swap 통합 수정 (Swap통합수정_및_포니테일안전항목_통합_요청_프롬프트 1절, 2026-07-10
+         확정): 미배정자 이동·Merge·Swap 후보를 계층적 단계 구분 없이 하나의 후보 풀로 모아
+         objectiveOf 기준(사전식)으로 최선을 고른다. trySwap은 이미 배치된 두 캐릭터만
+         맞바꾸므로 미배정수를 절대 바꾸지 못해, 미배정자를 줄이는 후보가 있는 한 결코
+         선택되지 않는다 — 우선순위는 목적함수 자체가 그대로 보장하므로, 통합은 인위적인
+         단계 구분 때문에 막혀 있던 Swap 기회만 추가로 열어준다. */
       const unassignedKeys = [...charInfo.keys()].filter((k) => !state.placement[k]);
       for (const key of unassignedKeys) {
         const info = charInfo.get(key);

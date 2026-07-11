@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Shield, Swords, HeartPulse, Bird } from "lucide-react";
 import { storageGet, storageSet, storageGetSafe } from "./lib/storage";
-import { DEFAULT_JOBS, DEFAULT_CONTENTS, ROLE_LABEL } from "./lib/constants";
-import { timeSlots, charFinalPower, appliesNormal, appliesSupport } from "./lib/utils";
-import "./GuildPartyMatcher.css";
+import { timeSlots, charFinalPower } from "./lib/utils";
+import { DEFAULT_JOBS, ROLE_LABEL } from "./lib/constants";
+import "./index.css";
 
 /* ============================================================
    길드 파티 매칭 툴 — 사용자 화면 프로토타입
@@ -12,16 +12,27 @@ import "./GuildPartyMatcher.css";
    - 데이터는 window.storage(shared)에 저장되어 같은 길드원끼리 공유됩니다.
    ============================================================ */
 
-/* ---------------- 디자인 토큰 (GuildPartyMatcher.css로 분리, 포니테일 2-1-4) ---------------- */
-/* GlobalStyle 컴포넌트는 CSS import로 대체되어 삭제됨. 렌더링 호출부의 <GlobalStyle />도 제거. */
-
-/* ---------------- 시드 데이터 (constants.js에서 import) ---------------- */
-// DEFAULT_JOBS, DEFAULT_CONTENTS, ROLE_LABEL → src/lib/constants.js
+/* ---------------- 디자인 토큰 ---------------- */
+/* ---------------- 시드 데이터 ---------------- */
+/* DEFAULT_JOBS, ROLE_LABEL, timeSlots, charFinalPower(및 관련 상수)는 이제 상단에서
+   ./lib/constants, ./lib/utils로부터 import합니다 (포니테일 리뷰 1번, 2026-07-10) —
+   matchEngine.js/matchEngine.experimental.js와 동일한 정의를 공유해 드리프트 위험을
+   없앴습니다. DEFAULT_CONTENTS는 관리자 화면과 값이 달라 그대로 유지합니다. */
+const DEFAULT_CONTENTS = [
+  { id: "c1", name: "협곡의 결전", pressure: 0, requiredResist: 0, partySize: 4, interval: 30, startTime: "20:00", endTime: "23:30", active: true },
+  { id: "c2", name: "심연의 제단", pressure: 120, requiredResist: 1600, partySize: 4, interval: 30, startTime: "20:00", endTime: "23:00", active: true },
+  { id: "c3", name: "폐허의 감시탑", pressure: 0, requiredResist: 0, partySize: 6, interval: 60, startTime: "21:00", endTime: "23:00", active: false },
+];
 
 const ROLE_ICON = { tank: Shield, support: HeartPulse, dealer: Swords };
 // 신청 유형: "normal" | "support" | "both" (일반+지원, 12.4절). 기존 데이터는 normal/support만 가짐(하위 호환).
 const APP_TYPE_LABEL = { normal: "일반 신청", support: "지원 신청", both: "일반 신청 + 지원 신청" };
-// appliesNormal, appliesSupport, timeSlots, charFinalPower → src/lib/utils.js
+const appliesNormal = (type) => type === "normal" || type === "both";
+const appliesSupport = (type) => type === "support" || type === "both";
+
+/* ---------------- 유틸 ---------------- */
+// 커스텀 uid() 삭제하고 crypto.randomUUID()로 교체 (포니테일 리뷰 3번, 2026-07-10 — Vercel HTTPS 배포이므로 보안 컨텍스트 문제 없음)
+
 
 /* ---------------- 작은 컴포넌트 ---------------- */
 const Emblem = ({ size = 34 }) => (
@@ -44,38 +55,51 @@ function Toast({ message }) {
   return <div className="gpm-toast">{message}</div>;
 }
 
-function Checkbox({ checked, onChange, disabled, id }) {
-  return (
-    <input
-      type="checkbox"
-      id={id}
-      checked={checked}
-      onChange={onChange || (() => {})}
-      disabled={disabled}
-      className="gpm-checkbox"
-    />
-  );
+function Checkbox({ checked }) {
+  // 커스텀 div 체크박스 삭제, 네이티브 <input type="checkbox">로 교체 (포니테일 리뷰 4번, 2026-07-10).
+  // 실제 토글 동작은 부모 요소의 onClick이 담당하므로(선택 행/카드 전체가 클릭 영역),
+  // 이 input은 상태를 보여주는 용도로 readOnly + tabIndex={-1}로 두어 이중 토글을 막습니다.
+  return <input type="checkbox" className="gpm-checkbox-native" checked={checked} readOnly tabIndex={-1} />;
 }
 
 /* ---------------- 직업 검색 콤보박스 ---------------- */
-function JobCombo({ jobs, value, onChange, id, "aria-invalid": ariaInvalid, "aria-describedby": ariaDescribedBy }) {
+function JobCombo({ jobs, value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const ref = useRef(null);
+  const selected = jobs.find((j) => j.id === value);
+
+  useEffect(() => {
+    function onDocClick(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, []);
+
+  const filtered = jobs.filter((j) => j.active !== false && (j.name.includes(query) || (j.keywords || "").toLowerCase().includes(query.toLowerCase())));
+
   return (
-    <select
-      id={id}
-      className="gpm-input"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      aria-label="직업 선택"
-      aria-invalid={ariaInvalid}
-      aria-describedby={ariaDescribedBy}
-    >
-      <option value="" disabled>직업을 선택하세요</option>
-      {jobs.filter((j) => j.active !== false).map((j) => (
-        <option key={j.id} value={j.id}>
-          {j.name} ({ROLE_LABEL[j.role]})
-        </option>
-      ))}
-    </select>
+    <div className="gpm-combo" ref={ref}>
+      <input
+        className="gpm-input"
+        placeholder="직업을 검색하세요"
+        value={open ? query : selected ? selected.name : ""}
+        onFocus={() => { setOpen(true); setQuery(""); }}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+      {open && (
+        <div className="gpm-combo-list">
+          {filtered.length === 0 && <div className="gpm-combo-empty">일치하는 직업이 없습니다</div>}
+          {filtered.map((j) => (
+            <div key={j.id} className="gpm-combo-opt" onMouseDown={() => { onChange(j.id); setOpen(false); }}>
+              <span>{j.name}</span>
+              <RoleBadge role={j.role} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -138,12 +162,11 @@ function GateFlow({ config, onEnter }) {
     <div className="gpm-gate-wrap">
       <div className="gpm-gate-card">
         <h1 className="gpm-gate-title">두근두근 파티 메이커 2.0</h1>
-        <p className="gpm-gate-desc">길드 공용 비밀번호와 대표 캐릭터명을 입력해주세요.</p>
+        <p className="gpm-gate-desc">길드원만 입장할 수 있습니다.<br />길드 공용 비밀번호와 대표 캐릭터명을 입력해주세요.</p>
 
         <div className="gpm-field">
-          <label className="gpm-label" htmlFor="gate-pw">길드 공용 비밀번호</label>
+          <label className="gpm-label">길드 공용 비밀번호</label>
           <input
-            id="gate-pw"
             type="password"
             className={`gpm-input ${pwError ? "error" : ""}`}
             value={pw}
@@ -151,16 +174,14 @@ function GateFlow({ config, onEnter }) {
             onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
             placeholder="비밀번호 입력"
             autoFocus
-            aria-invalid={!!pwError}
-            aria-describedby={pwError ? "gate-pw-error" : undefined}
           />
-          {pwError && <div id="gate-pw-error" className="gpm-error-text" role="alert">{pwError}</div>}
+          {pwError && <div className="gpm-error-text">{pwError}</div>}
+          <div className="gpm-hint-text">프로토타입 기본 비밀번호: {config.password}</div>
         </div>
 
         <div className="gpm-field">
-          <label className="gpm-label" htmlFor="gate-rep">대표 캐릭터명</label>
+          <label className="gpm-label">대표 캐릭터명</label>
           <input
-            id="gate-rep"
             className="gpm-input"
             value={repInput}
             onChange={(e) => { setRepInput(e.target.value); setLookupState(null); }}
@@ -178,7 +199,7 @@ function GateFlow({ config, onEnter }) {
 
         {lookupState === "not_found" ? (
           <div>
-            <div className="gpm-notice" style={{ marginBottom: 14 }} role="alert">
+            <div className="gpm-notice" style={{ marginBottom: 14 }}>
               '{repInput}'(으)로 등록된 정보가 없습니다. 신규 대표 캐릭터로 등록할까요?
             </div>
             <div className="gpm-row">
@@ -239,40 +260,40 @@ function CharacterModal({ jobs, initial, onClose, onSave, onDelete }) {
 
   return (
     <div className="gpm-modal-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="gpm-modal" role="dialog" aria-modal="true" aria-labelledby="char-modal-title">
-        <h3 id="char-modal-title" className="gpm-modal-title">{isEdit ? "캐릭터 정보 수정" : "캐릭터 등록"}</h3>
+      <div className="gpm-modal">
+        <h3 className="gpm-modal-title">{isEdit ? "캐릭터 정보 수정" : "캐릭터 등록"}</h3>
 
         <div className="gpm-field">
-          <label className="gpm-label" htmlFor="char-nickname">캐릭터 닉네임</label>
-          <input id="char-nickname" className={`gpm-input ${errors.nickname ? "error" : ""}`} value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="임땡" aria-invalid={!!errors.nickname} aria-describedby={errors.nickname ? "err-nickname" : undefined} />
-          {errors.nickname && <div id="err-nickname" className="gpm-error-text" role="alert">{errors.nickname}</div>}
+          <label className="gpm-label">캐릭터 닉네임</label>
+          <input className={`gpm-input ${errors.nickname ? "error" : ""}`} value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="예: 달빛여행자" />
+          {errors.nickname && <div className="gpm-error-text">{errors.nickname}</div>}
         </div>
 
         <div className="gpm-field">
-          <label className="gpm-label" htmlFor="char-job">직업 {jobId && <span style={{ marginLeft: 6 }}><RoleBadge role={jobs.find((j) => j.id === jobId)?.role} /></span>}</label>
-          <JobCombo id="char-job" jobs={jobs} value={jobId} onChange={setJobId} aria-invalid={!!errors.jobId} aria-describedby={errors.jobId ? "err-job" : "hint-job"} />
-          {errors.jobId && <div id="err-job" className="gpm-error-text" role="alert">{errors.jobId}</div>}
-          <div id="hint-job" className="gpm-hint-text">직업은 목록에서만 선택할 수 있습니다. 역할은 자동으로 지정됩니다.</div>
+          <label className="gpm-label">직업 {jobId && <span style={{ marginLeft: 6 }}><RoleBadge role={jobs.find((j) => j.id === jobId)?.role} /></span>}</label>
+          <JobCombo jobs={jobs} value={jobId} onChange={setJobId} />
+          {errors.jobId && <div className="gpm-error-text">{errors.jobId}</div>}
+          <div className="gpm-hint-text">직업은 목록에서만 선택할 수 있습니다. 역할은 자동으로 지정됩니다.</div>
         </div>
 
         <div className="gpm-row">
           <div className="gpm-field" style={{ flex: 1 }}>
-            <label className="gpm-label" htmlFor="char-power">기본 전투력</label>
-            <input id="char-power" className={`gpm-input ${errors.power ? "error" : ""}`} type="number" min="0" value={power} onChange={(e) => setPower(e.target.value)} placeholder="0" aria-invalid={!!errors.power} aria-describedby={errors.power ? "err-power" : undefined} />
-            {errors.power && <div id="err-power" className="gpm-error-text" role="alert">{errors.power}</div>}
+            <label className="gpm-label">기본 전투력</label>
+            <input className={`gpm-input ${errors.power ? "error" : ""}`} type="number" min="0" value={power} onChange={(e) => setPower(e.target.value)} placeholder="0" />
+            {errors.power && <div className="gpm-error-text">{errors.power}</div>}
           </div>
           <div className="gpm-field" style={{ flex: 1 }}>
-            <label className="gpm-label" htmlFor="char-resist">마도 저항</label>
-            <input id="char-resist" className={`gpm-input ${errors.resist ? "error" : ""}`} type="number" min="0" value={resist} onChange={(e) => setResist(e.target.value)} placeholder="0" aria-invalid={!!errors.resist} aria-describedby={errors.resist ? "err-resist" : undefined} />
-            {errors.resist && <div id="err-resist" className="gpm-error-text" role="alert">{errors.resist}</div>}
+            <label className="gpm-label">마도 저항</label>
+            <input className={`gpm-input ${errors.resist ? "error" : ""}`} type="number" min="0" value={resist} onChange={(e) => setResist(e.target.value)} placeholder="0" />
+            {errors.resist && <div className="gpm-error-text">{errors.resist}</div>}
           </div>
         </div>
 
         {isEdit && (
-          <label className="gpm-field" style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-            <Checkbox checked={active} onChange={(e) => setActive(e.target.checked)} />
+          <div className="gpm-field" style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => setActive(!active)}>
+            <Checkbox checked={active} />
             <span style={{ fontSize: 13 }}>활성화 상태 (비활성화 시 파티 신청에서 제외됩니다)</span>
-          </label>
+          </div>
         )}
 
         <div className="gpm-modal-actions">
@@ -294,7 +315,7 @@ function CharactersView({ jobs, subs, onAdd, onUpdate, onDelete }) {
   const [modal, setModal] = useState(null); // null | 'new' | char object
 
   return (
-    <div className="gpm-view">
+    <div>
       <div className="gpm-section-title">
         <div>
           <h2>내 캐릭터</h2>
@@ -304,11 +325,13 @@ function CharactersView({ jobs, subs, onAdd, onUpdate, onDelete }) {
       </div>
 
       {subs.length === 0 ? (
-        <div className="gpm-empty">
-          <div className="gpm-empty-icon">⌗</div>
-          <div className="gpm-empty-title">등록된 캐릭터가 없습니다.</div>
-          <div className="gpm-empty-desc">파티 신청에 사용할 캐릭터를 먼저 등록해주세요.</div>
-          <button className="gpm-btn gpm-btn-primary gpm-btn-sm" style={{ marginTop: 16 }} onClick={() => setModal("new")}>캐릭터 등록하기</button>
+        <div className="gpm-card">
+          <div className="gpm-empty">
+            <div className="gpm-empty-icon">⌗</div>
+            <div className="gpm-empty-title">등록된 캐릭터가 없습니다.</div>
+            <div className="gpm-empty-desc">파티 신청에 사용할 캐릭터를 먼저 등록해주세요.</div>
+            <button className="gpm-btn gpm-btn-primary gpm-btn-sm" style={{ marginTop: 16 }} onClick={() => setModal("new")}>캐릭터 등록하기</button>
+          </div>
         </div>
       ) : (
         <div className="gpm-char-grid">
@@ -350,7 +373,7 @@ function CharactersView({ jobs, subs, onAdd, onUpdate, onDelete }) {
    ============================================================ */
 function ContentsView({ contents, applications, onApply }) {
   return (
-    <div className="gpm-view">
+    <div>
       <div className="gpm-section-title">
         <div>
           <h2>콘텐츠</h2>
@@ -391,9 +414,8 @@ function ContentsView({ contents, applications, onApply }) {
 /* ============================================================
    1.9 / 1.10 / 1.11 — 파티 신청 · 신청 확인 · 신청 완료
    ============================================================ */
-function ApplyView({ contents, subs, jobs, initialContentId, editingApp, onCancel, onSubmit, onUpdateSub, onDeleteSub }) {
+function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onSubmit }) {
   const [phase, setPhase] = useState("form"); // form | confirm | done
-  const [editSubCand, setEditSubCand] = useState(null);
   const [contentId, setContentId] = useState(initialContentId || editingApp?.contentId || contents[0]?.id || "");
   const [selectedChars, setSelectedChars] = useState(new Set(editingApp?.characterIds || []));
   const [selectedTimes, setSelectedTimes] = useState(new Set(editingApp?.times || []));
@@ -406,11 +428,6 @@ function ApplyView({ contents, subs, jobs, initialContentId, editingApp, onCance
   const activeChars = subs.filter((c) => c.active !== false);
   // "일반+지원" 동시 선택 조건 (12.2절): 신청 시간 수가 신청 캐릭터 수보다 많아야 함
   const comboAllowed = selectedTimes.size > selectedChars.size;
-  // 버그 수정: comboAllowed는 원래 토글을 켜는 순간(toggleNormal/toggleSupport)에만 확인되고
-  // 있었습니다. 이미 둘 다 켜진 상태에서 캐릭터를 추가하거나 시간을 줄이면 조건이 깨져도
-  // 재검증이 없어 "시간 수 <= 캐릭터 수"인 both 신청이 그대로 제출될 수 있었습니다.
-  // comboBroken을 selectedChars/selectedTimes 변화마다 다시 계산해 canSubmit과 화면 경고에 반영합니다.
-  const comboBroken = wantNormal && wantSupport && !comboAllowed;
 
   function toggleChar(id, disabled) {
     if (disabled) return;
@@ -438,7 +455,7 @@ function ApplyView({ contents, subs, jobs, initialContentId, editingApp, onCance
     setWantSupport(!wantSupport);
   }
 
-  const canSubmit = content && selectedChars.size > 0 && selectedTimes.size > 0 && (wantNormal || wantSupport) && !comboBroken;
+  const canSubmit = content && selectedChars.size > 0 && selectedTimes.size > 0 && (wantNormal || wantSupport);
 
   if (!content) {
     return <div className="gpm-card"><div className="gpm-empty"><div className="gpm-empty-title">신청 가능한 콘텐츠가 없습니다.</div></div></div>;
@@ -447,7 +464,7 @@ function ApplyView({ contents, subs, jobs, initialContentId, editingApp, onCance
   if (phase === "confirm") {
     const chosenChars = subs.filter((c) => selectedChars.has(c.id));
     return (
-      <div className="gpm-view">
+      <div>
         <div className="gpm-section-title"><h2>신청 확인</h2></div>
         <div className="gpm-card">
           <div className="gpm-review-block">
@@ -506,7 +523,7 @@ function ApplyView({ contents, subs, jobs, initialContentId, editingApp, onCance
   }
 
   return (
-    <div className="gpm-view">
+    <div>
       <div className="gpm-section-title">
         <div>
           <h2>{editingApp ? "신청 수정" : "파티 신청"}</h2>
@@ -517,8 +534,8 @@ function ApplyView({ contents, subs, jobs, initialContentId, editingApp, onCance
 
       <div className="gpm-card">
         <div className="gpm-field">
-          <label className="gpm-label" htmlFor="apply-content">콘텐츠</label>
-          <select id="apply-content" className="gpm-input" value={contentId} onChange={(e) => { setContentId(e.target.value); setSelectedTimes(new Set()); }} disabled={!!editingApp}>
+          <label className="gpm-label">콘텐츠</label>
+          <select className="gpm-input" value={contentId} onChange={(e) => { setContentId(e.target.value); setSelectedTimes(new Set()); }} disabled={!!editingApp}>
             {contents.filter((c) => c.active || c.id === contentId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
@@ -544,8 +561,8 @@ function ApplyView({ contents, subs, jobs, initialContentId, editingApp, onCance
               const short = content.requiredResist > 0 && c.resist < content.requiredResist;
               const checked = selectedChars.has(c.id);
               return (
-                <label key={c.id} htmlFor={`char-${c.id}`} className={`gpm-select-row ${checked ? "checked" : ""} ${short ? "disabled" : ""}`}>
-                  <Checkbox id={`char-${c.id}`} checked={checked} onChange={() => toggleChar(c.id, short)} disabled={short} />
+                <div key={c.id} className={`gpm-select-row ${checked ? "checked" : ""} ${short ? "disabled" : ""}`} onClick={() => toggleChar(c.id, short)}>
+                  <Checkbox checked={checked} />
                   <div className="gpm-select-info">
                     <div className="gpm-select-name-row">
                       <span className="gpm-select-name">{c.nickname}</span>
@@ -558,21 +575,11 @@ function ApplyView({ contents, subs, jobs, initialContentId, editingApp, onCance
                       </div>
                     )}
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ textAlign: "right" }}>
-                      <span className="gpm-select-power">{charFinalPower(c, content).toLocaleString()}</span>
-                      <span className="gpm-select-power-label" style={{ display: "block" }}>최종 전투력</span>
-                    </div>
-                    <button
-                      type="button"
-                      className="gpm-btn gpm-btn-ghost gpm-btn-sm"
-                      onClick={(e) => { e.preventDefault(); setEditSubCand(c); }}
-                      style={{ padding: "4px 10px", fontSize: 12, height: "auto", minHeight: 28 }}
-                    >
-                      수정
-                    </button>
+                  <div>
+                    <span className="gpm-select-power">{charFinalPower(c, content).toLocaleString()}</span>
+                    <span className="gpm-select-power-label">최종 전투력</span>
                   </div>
-                </label>
+                </div>
               );
             })}
           </div>
@@ -581,9 +588,9 @@ function ApplyView({ contents, subs, jobs, initialContentId, editingApp, onCance
 
       <div className="gpm-card">
         <div className="gpm-label" style={{ marginBottom: 12 }}>참여 가능 시작 시각 (복수 선택)</div>
-        <div className="gpm-time-grid" role="group" aria-label="참여 가능 시작 시각">
+        <div className="gpm-time-grid">
           {slots.map((t) => (
-            <button key={t} type="button" role="checkbox" aria-checked={selectedTimes.has(t)} className={`gpm-time-chip ${selectedTimes.has(t) ? "checked" : ""}`} onClick={() => toggleTime(t)}>{t}</button>
+            <button key={t} className={`gpm-time-chip ${selectedTimes.has(t) ? "checked" : ""}`} onClick={() => toggleTime(t)}>{t}</button>
           ))}
         </div>
         <div className="gpm-hint-text" style={{ marginTop: 10 }}>선택한 시간은 선택한 모든 캐릭터에 동일하게 적용됩니다.</div>
@@ -592,26 +599,21 @@ function ApplyView({ contents, subs, jobs, initialContentId, editingApp, onCance
       <div className="gpm-card">
         <div className="gpm-label" style={{ marginBottom: 12 }}>신청 유형 (동시 선택 가능)</div>
         <div className="gpm-type-grid">
-          <label htmlFor="type-normal" className={`gpm-type-card ${wantNormal ? "checked" : ""}`} style={wantSupport && !wantNormal && !comboAllowed ? { opacity: 0.45, cursor: "not-allowed" } : {}}>
-            <div className="gpm-type-title"><Checkbox id="type-normal" checked={wantNormal} onChange={toggleNormal} disabled={wantSupport && !wantNormal && !comboAllowed} /> 일반 신청</div>
+          <button type="button" className={`gpm-type-card ${wantNormal ? "checked" : ""}`} onClick={toggleNormal} disabled={wantSupport && !wantNormal && !comboAllowed}>
+            <div className="gpm-type-title"><Checkbox checked={wantNormal} /> 일반 신청</div>
             <div className="gpm-type-desc">선택한 각 캐릭터는 최대 한 번만 배정됩니다.<br />동일 대표 캐릭터는 같은 시간에 한 캐릭터만 배정됩니다.</div>
-          </label>
-          <label htmlFor="type-support" className={`gpm-type-card ${wantSupport ? "checked" : ""}`} style={wantNormal && !wantSupport && !comboAllowed ? { opacity: 0.45, cursor: "not-allowed" } : {}}>
-            <div className="gpm-type-title"><Checkbox id="type-support" checked={wantSupport} onChange={toggleSupport} disabled={wantNormal && !wantSupport && !comboAllowed} /> 지원 신청</div>
+          </button>
+          <button type="button" className={`gpm-type-card ${wantSupport ? "checked" : ""}`} onClick={toggleSupport} disabled={wantNormal && !wantSupport && !comboAllowed}>
+            <div className="gpm-type-title"><Checkbox checked={wantSupport} /> 지원 신청</div>
             <div className="gpm-type-desc">부족한 역할과 빈자리 보완에 사용됩니다.<br />서로 다른 시간에는 같은 캐릭터가 반복 배정될 수 있습니다 (0회~여러 번).</div>
-          </label>
+          </button>
         </div>
         {wantNormal && wantSupport && (
           <div className="gpm-hint" style={{ marginTop: 10 }}>일반+지원 조합: 신청 시간 중 1개는 일반으로 필수 배정되고, 나머지 시간에는 지원으로 0회~여러 번 배정될 수 있습니다.</div>
         )}
-        {comboBlockedMsg && <div className="gpm-error-text" style={{ marginTop: 10 }} role="alert">{comboBlockedMsg}</div>}
+        {comboBlockedMsg && <div className="gpm-error-text" style={{ marginTop: 10 }}>{comboBlockedMsg}</div>}
         {!comboAllowed && !(wantNormal && wantSupport) && (
           <div className="gpm-hint" style={{ marginTop: 10 }}>일반+지원을 함께 선택하려면 신청 시간 수가 신청 캐릭터 수보다 많아야 합니다. (현재 캐릭터 {selectedChars.size}명 · 시간 {selectedTimes.size}개)</div>
-        )}
-        {comboBroken && (
-          <div className="gpm-error-text" style={{ marginTop: 10 }} role="alert">
-            일반+지원 동시 신청 조건이 깨졌습니다 — 선택 시간 수({selectedTimes.size}개)가 선택 캐릭터 수({selectedChars.size}명)보다 많아야 합니다. 캐릭터를 줄이거나 시간을 추가해주세요. 신청은 조건을 다시 만족할 때까지 제출할 수 없습니다.
-          </div>
         )}
       </div>
 
@@ -619,16 +621,6 @@ function ApplyView({ contents, subs, jobs, initialContentId, editingApp, onCance
         <div className="gpm-summary-info">캐릭터 <b>{selectedChars.size}</b>명 · 시간 <b>{selectedTimes.size}</b>개 선택됨</div>
         <button className="gpm-btn gpm-btn-primary" disabled={!canSubmit} onClick={() => setPhase("confirm")}>신청 내용 확인</button>
       </div>
-
-      {editSubCand && (
-        <CharacterModal
-          jobs={jobs}
-          initial={editSubCand}
-          onClose={() => setEditSubCand(null)}
-          onSave={(c) => { onUpdateSub(c); setEditSubCand(null); }}
-          onDelete={(id) => { onDeleteSub(id); setEditSubCand(null); }}
-        />
-      )}
     </div>
   );
 }
@@ -638,7 +630,7 @@ function ApplyDoneView({ app, onGoHistory, onGoContents }) {
     <div className="gpm-card">
       <div className="gpm-done-wrap">
         <div className="gpm-done-icon">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M4 12.5L9.5 18L20 6" stroke="var(--success)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M4 12.5L9.5 18L20 6" stroke="#4F7A5B" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </div>
         <h2 className="gpm-done-title">파티 매칭 신청이 완료되었습니다.</h2>
         <p className="gpm-done-desc">관리자가 자동 매칭을 실행한 후 결과를 확인할 수 있습니다.</p>
@@ -665,19 +657,21 @@ const STATUS_LABEL = { applied: "신청 완료", waiting: "매칭 대기", match
 function HistoryView({ applications, contents, subs, onEdit, onCancel }) {
   if (applications.length === 0) {
     return (
-      <div className="gpm-view">
+      <div>
         <div className="gpm-section-title"><h2>신청 내역</h2></div>
-        <div className="gpm-empty">
-          <div className="gpm-empty-icon">☰</div>
-          <div className="gpm-empty-title">현재 신청한 내역이 없습니다.</div>
-          <div className="gpm-empty-desc">콘텐츠 목록에서 파티 신청을 진행해주세요.</div>
+        <div className="gpm-card">
+          <div className="gpm-empty">
+            <div className="gpm-empty-icon">☰</div>
+            <div className="gpm-empty-title">현재 신청한 내역이 없습니다.</div>
+            <div className="gpm-empty-desc">콘텐츠 목록에서 파티 신청을 진행해주세요.</div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="gpm-view">
+    <div>
       <div className="gpm-section-title"><h2>신청 내역</h2><div className="gpm-section-desc">현재 유효한 신청 내용을 확인하고 수정하거나 취소할 수 있습니다.</div></div>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {applications.map((a) => {
@@ -756,28 +750,30 @@ function ResultsView({ contents }) {
 
   if (!loaded) {
     return (
-      <div className="gpm-view">
+      <div>
         <div className="gpm-section-title"><h2>매칭 결과</h2></div>
-        <div style={{ color: "var(--text-faint)", fontSize: 13, textAlign: "center", padding: "20px 0" }}>불러오는 중...</div>
+        <div className="gpm-card"><div style={{ color: "var(--text-faint)", fontSize: 13, textAlign: "center", padding: "20px 0" }}>불러오는 중...</div></div>
       </div>
     );
   }
 
   if (results.length === 0) {
     return (
-      <div className="gpm-view">
+      <div>
         <div className="gpm-section-title"><h2>매칭 결과</h2></div>
-        <div className="gpm-empty">
-          <div className="gpm-empty-icon">◈</div>
-          <div className="gpm-empty-title">아직 공개된 매칭 결과가 없습니다.</div>
-          <div className="gpm-empty-desc">관리자가 자동 매칭을 실행하고 결과를 공개하면 여기에 표시됩니다.</div>
+        <div className="gpm-card">
+          <div className="gpm-empty">
+            <div className="gpm-empty-icon">◈</div>
+            <div className="gpm-empty-title">아직 공개된 매칭 결과가 없습니다.</div>
+            <div className="gpm-empty-desc">관리자가 자동 매칭을 실행하고 결과를 공개하면 여기에 표시됩니다.</div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="gpm-view">
+    <div>
       <div className="gpm-section-title"><h2>매칭 결과</h2></div>
       {Object.entries(groupsByContent).map(([contentName, timeGroups]) => (
         <div key={contentName} style={{ marginBottom: 32 }}>
@@ -807,7 +803,7 @@ function ResultsView({ contents }) {
                               <span className="gpm-party-slot-name">
                                 {displayName}
                                 {isSupport && (
-                                  <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", marginLeft: 6, color: "var(--gold)", background: "color-mix(in oklch, var(--brand) 10%, transparent)", borderRadius: "50%", width: 18, height: 18 }} title="지원 신청">
+                                  <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", marginLeft: 6, color: "var(--gold)", background: "rgba(193,95,60,0.1)", borderRadius: "50%", width: 18, height: 18 }} title="지원 신청">
                                     <Bird size={12} strokeWidth={2.2} />
                                   </span>
                                 )}
@@ -948,13 +944,10 @@ function AppShell({ repName, repData, setRepData, config }) {
           <ApplyView
             contents={config.contents}
             subs={activeSubs}
-            jobs={config.jobs}
             initialContentId={applyCtx.contentId}
             editingApp={applyCtx.editingApp}
             onCancel={() => { setApplyCtx(null); setView("contents"); }}
             onSubmit={submitApplication}
-            onUpdateSub={updateChar}
-            onDeleteSub={deleteChar}
           />
         )
       )}
@@ -1021,7 +1014,7 @@ export default function GuildPartyMatcher() {
   if (loading || !config) {
     return (
       <div className="gpm-root">
-
+        
         <div className="gpm-gate-wrap"><div style={{ color: "var(--text-dim)", fontSize: 13 }}>불러오는 중...</div></div>
       </div>
     );
@@ -1032,7 +1025,7 @@ export default function GuildPartyMatcher() {
     // 보게 되므로, 혼란을 막기 위해 여기서 화면을 막습니다.
     return (
       <div className="gpm-root">
-
+        
         <div className="gpm-gate-wrap">
           <div className="gpm-gate-card" style={{ textAlign: "center" }}>
             <h1 className="gpm-gate-title">불러오지 못했습니다</h1>
@@ -1046,7 +1039,7 @@ export default function GuildPartyMatcher() {
 
   return (
     <div className="gpm-root">
-
+      
       {!rep ? (
         <GateFlow config={config} onEnter={(name, data) => setRep({ name, data })} />
       ) : (
