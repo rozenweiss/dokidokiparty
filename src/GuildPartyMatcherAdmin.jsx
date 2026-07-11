@@ -275,7 +275,7 @@ function JobModal({ initial, onClose, onSave }) {
         <h3 className="gpa-modal-title">{initial ? "직업 수정" : "직업 등록"}</h3>
         <div className="gpa-field">
           <label className="gpa-label">직업명</label>
-          <input className="gpa-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 창술사" />
+          <input className="gpa-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 창술사" maxLength={20} />
           {error && <div className="gpa-error">{error}</div>}
         </div>
         <div className="gpa-field">
@@ -286,7 +286,7 @@ function JobModal({ initial, onClose, onSave }) {
         </div>
         <div className="gpa-field">
           <label className="gpa-label">검색용 키워드</label>
-          <input className="gpa-input" value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="공백으로 구분" />
+          <input className="gpa-input" value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="공백으로 구분" maxLength={50} />
         </div>
         <div className="gpa-row">
           <div className="gpa-field" style={{ flex: 1 }}>
@@ -386,16 +386,16 @@ function ContentModal({ initial, onClose, onSave }) {
         <h3 className="gpa-modal-title">{initial ? "콘텐츠 수정" : "콘텐츠 등록"}</h3>
         <div className="gpa-field">
           <label className="gpa-label">콘텐츠명</label>
-          <input className="gpa-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="어비스" />
+          <input className="gpa-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="어비스" maxLength={30} />
           {error && <div className="gpa-error">{error}</div>}
         </div>
         <div className="gpa-row">
-          <div className="gpa-field" style={{ flex: 1 }}><label className="gpa-label">마도 압력 (0=미적용)</label><input className="gpa-input" type="number" min="0" value={pressure} onChange={(e) => setPressure(e.target.value)} /></div>
-          <div className="gpa-field" style={{ flex: 1 }}><label className="gpa-label">필요 마도 저항 (0=제한없음)</label><input className="gpa-input" type="number" min="0" value={requiredResist} onChange={(e) => setRequiredResist(e.target.value)} /></div>
+          <div className="gpa-field" style={{ flex: 1 }}><label className="gpa-label">마도 압력 (0=미적용)</label><input className="gpa-input" type="number" min="0" max="999999" value={pressure} onChange={(e) => setPressure(e.target.value)} /></div>
+          <div className="gpa-field" style={{ flex: 1 }}><label className="gpa-label">필요 마도 저항 (0=제한없음)</label><input className="gpa-input" type="number" min="0" max="999999" value={requiredResist} onChange={(e) => setRequiredResist(e.target.value)} /></div>
         </div>
         <div className="gpa-row">
-          <div className="gpa-field" style={{ flex: 1 }}><label className="gpa-label">파티 인원</label><input className="gpa-input" type="number" min="2" value={partySize} onChange={(e) => setPartySize(e.target.value)} /></div>
-          <div className="gpa-field" style={{ flex: 1 }}><label className="gpa-label">시간 간격(분)</label><input className="gpa-input" type="number" min="5" value={interval} onChange={(e) => setIntervalVal(e.target.value)} /></div>
+          <div className="gpa-field" style={{ flex: 1 }}><label className="gpa-label">파티 인원</label><input className="gpa-input" type="number" min="2" max="30" value={partySize} onChange={(e) => setPartySize(e.target.value)} /></div>
+          <div className="gpa-field" style={{ flex: 1 }}><label className="gpa-label">시간 간격(분)</label><input className="gpa-input" type="number" min="5" max="1440" value={interval} onChange={(e) => setIntervalVal(e.target.value)} /></div>
         </div>
         <div className="gpa-row">
           <div className="gpa-field" style={{ flex: 1 }}><label className="gpa-label">시작 시각</label><input className="gpa-input" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} /></div>
@@ -737,7 +737,7 @@ function SlotPickModal({ role, unassigned, relocatable, supportCandidates, onPic
         <div className="gpa-field">
           <label className="gpa-label">등록되지 않은 임시 캐릭터로 채우기</label>
           <div className="gpa-row">
-            <input className="gpa-input" value={tempName} onChange={(e) => setTempName(e.target.value)} placeholder="닉네임 입력" />
+            <input className="gpa-input" value={tempName} onChange={(e) => setTempName(e.target.value)} placeholder="닉네임 입력" maxLength={20} />
             <button className="gpa-btn gpa-btn-ghost" onClick={() => tempName.trim() && onTemp(tempName.trim())}>추가</button>
           </div>
           <div className="gpa-hint">임시 캐릭터는 평균 전투력 계산에서 제외되고, 닉네임과 역할만 표시됩니다.</div>

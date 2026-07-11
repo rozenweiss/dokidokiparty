@@ -65,6 +65,13 @@
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
     }
+    
+    .truncate {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     .gpa-root h1, .gpa-root h2, .gpa-root h3, .gpa-root h4 { font-family: var(--font-display); margin: 0; color: var(--text); }
     .gpa-root p { margin: 0; }
     .gpa-root button { font-family: var(--font-body); cursor: pointer; }
@@ -172,7 +179,7 @@
     .gpa-slot.drag-reject { border-color: var(--danger); }
     .gpa-slot-role { width: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
     .gpa-slot-role.tank { color: var(--tank); } .gpa-slot-role.support { color: var(--support); } .gpa-slot-role.dealer { color: var(--dealer); }
-    .gpa-slot-name { flex: 1; color: var(--text); font-weight: 700; font-size: 12.5px; }
+    .gpa-slot-name { flex: 1; color: var(--text); font-weight: 700; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .gpa-slot-empty { flex: 1; color: var(--text-faint); font-style: italic; font-size: 12.5px; }
     .gpa-slot-tag { font-size: 10.5px; color: var(--text-faint); }
     .gpa-slot-tag-support { color: var(--warn); font-weight: 700; }
@@ -181,7 +188,7 @@
     .gpa-time-title { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 15px; color: var(--accent-soft); font-weight: 700; }
 
     .gpa-unassigned-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
-    .gpa-unassigned-row { display: flex; align-items: center; gap: 8px; background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: var(--rounded-lg); padding: 8px 10px; font-size: 13.5px; cursor: grab; }
+    .gpa-unassigned-row { display: flex; align-items: center; gap: 8px; background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: var(--rounded-lg); padding: 8px 10px; font-size: 13.5px; cursor: grab; overflow: hidden; }
     .gpa-unassigned-row.dragging { opacity: 0.4; }
 
     .gpa-modal-overlay { position: fixed; inset: 0; background: color-mix(in oklch, var(--text) 70%, transparent); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 100; }

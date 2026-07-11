@@ -186,6 +186,7 @@ function GateFlow({ config, onEnter }) {
             value={repInput}
             onChange={(e) => { setRepInput(e.target.value); setLookupState(null); }}
             placeholder="대표 캐릭터명 입력"
+            maxLength={20}
             onKeyDown={(e) => e.key === "Enter" && submit()}
           />
           {recents.length > 0 && (
@@ -236,7 +237,9 @@ function CharacterModal({ jobs, initial, onClose, onSave, onDelete }) {
     if (!nickname.trim()) e.nickname = "캐릭터 닉네임을 입력해주세요.";
     if (!jobId) e.jobId = "직업을 선택해주세요.";
     if (power === "" || Number(power) < 0 || isNaN(Number(power))) e.power = "0 이상의 숫자를 입력해주세요.";
+    else if (Number(power) > 999999) e.power = "999,999 이하로 입력해주세요.";
     if (resist === "" || Number(resist) < 0 || isNaN(Number(resist))) e.resist = "0 이상의 숫자를 입력해주세요.";
+    else if (Number(resist) > 999999) e.resist = "999,999 이하로 입력해주세요.";
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -265,7 +268,7 @@ function CharacterModal({ jobs, initial, onClose, onSave, onDelete }) {
 
         <div className="gpm-field">
           <label className="gpm-label">캐릭터 닉네임</label>
-          <input className={`gpm-input ${errors.nickname ? "error" : ""}`} value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="예: 달빛여행자" />
+          <input className={`gpm-input ${errors.nickname ? "error" : ""}`} value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="예: 달빛여행자" maxLength={20} />
           {errors.nickname && <div className="gpm-error-text">{errors.nickname}</div>}
         </div>
 
@@ -279,12 +282,12 @@ function CharacterModal({ jobs, initial, onClose, onSave, onDelete }) {
         <div className="gpm-row">
           <div className="gpm-field" style={{ flex: 1 }}>
             <label className="gpm-label">기본 전투력</label>
-            <input className={`gpm-input ${errors.power ? "error" : ""}`} type="number" min="0" value={power} onChange={(e) => setPower(e.target.value)} placeholder="0" />
+            <input className={`gpm-input ${errors.power ? "error" : ""}`} type="number" min="0" max="999999" value={power} onChange={(e) => setPower(e.target.value)} placeholder="0" />
             {errors.power && <div className="gpm-error-text">{errors.power}</div>}
           </div>
           <div className="gpm-field" style={{ flex: 1 }}>
             <label className="gpm-label">마도 저항</label>
-            <input className={`gpm-input ${errors.resist ? "error" : ""}`} type="number" min="0" value={resist} onChange={(e) => setResist(e.target.value)} placeholder="0" />
+            <input className={`gpm-input ${errors.resist ? "error" : ""}`} type="number" min="0" max="999999" value={resist} onChange={(e) => setResist(e.target.value)} placeholder="0" />
             {errors.resist && <div className="gpm-error-text">{errors.resist}</div>}
           </div>
         </div>
@@ -505,8 +508,9 @@ function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onS
         </div>
         <div className="gpm-row" style={{ marginTop: 16 }}>
           <button className="gpm-btn gpm-btn-ghost" style={{ flex: 1 }} onClick={() => setPhase("form")}>이전으로 돌아가기</button>
-          <button className="gpm-btn gpm-btn-primary" style={{ flex: 1 }} onClick={() => {
-            onSubmit({
+          <button className="gpm-btn gpm-btn-primary" style={{ flex: 1 }} onClick={async (e) => {
+            e.currentTarget.disabled = true;
+            await onSubmit({
               id: editingApp?.id || crypto.randomUUID(),
               contentId,
               contentName: content.name,
@@ -877,11 +881,11 @@ function AppShell({ repName, repData, setRepData, config }) {
     setApplyCtx({ contentId: app.contentId, editingApp: app });
     setView("apply");
   }
-  function submitApplication(app) {
+  async function submitApplication(app) {
     const exists = repData.applications.some((a) => a.id === app.id);
     const nextApps = exists ? repData.applications.map((a) => (a.id === app.id ? app : a)) : [...repData.applications, app];
     const next = { ...repData, applications: nextApps };
-    persist(next);
+    await persist(next);
     setDoneApp(app);
     setView("done");
   }

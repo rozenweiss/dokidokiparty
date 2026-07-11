@@ -71,6 +71,12 @@
       *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
     }
 
+    .truncate {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     @keyframes fade-in-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
     @keyframes toast-fade-in { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translateX(-50%); } }
 
@@ -154,13 +160,13 @@
     .gpm-char-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: var(--rounded-md); padding: 16px; position: relative; transition: border-color .2s ease-out, transform .2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow .2s ease-out; }
     .gpm-char-card:hover { border-color: var(--border); transform: translateY(-2px); box-shadow: 0 4px 12px color-mix(in oklch, var(--text) 4%, transparent); }
     .gpm-char-card.inactive { opacity: 0.45; filter: grayscale(50%); }
-    .gpm-char-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-    .gpm-char-name { font-size: 16px; font-weight: 700; color: var(--text); }
+    .gpm-char-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+    .gpm-char-name { font-size: 16px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
     .gpm-role-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: var(--rounded-pill); letter-spacing: 0.02em; }
     .gpm-role-badge.tank { background: color-mix(in oklch, var(--tank) 12%, transparent); color: var(--tank); }
     .gpm-role-badge.support { background: color-mix(in oklch, var(--support) 12%, transparent); color: var(--support); }
     .gpm-role-badge.dealer { background: color-mix(in oklch, var(--dealer) 12%, transparent); color: var(--dealer); }
-    .gpm-char-job { font-size: 13.5px; color: var(--text-dim); margin-bottom: 10px; }
+    .gpm-char-job { font-size: 13px; color: var(--text-dim); margin-bottom: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .gpm-char-stats { display: flex; gap: 14px; margin-bottom: 12px; }
     .gpm-stat { display: flex; flex-direction: column; gap: 2px; }
     .gpm-stat-label { font-size: 11.5px; color: var(--text-faint); }
@@ -193,10 +199,10 @@
     .gpm-checkbox:checked { background: var(--brand); border-color: var(--brand); }
     .gpm-checkbox:checked::after { content: "✓"; position: absolute; color: white; font-size: 12px; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; font-weight: bold; }
     .gpm-checkbox:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
-    .gpm-select-info { flex: 1; min-width: 0; }
-    .gpm-select-name-row { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; flex-wrap: wrap; }
-    .gpm-select-name { font-size: 15px; font-weight: 700; }
-    .gpm-select-sub { font-size: 13px; color: var(--text-dim); }
+    .gpm-select-info { flex: 1; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+    .gpm-select-name-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .gpm-select-name { font-size: 14.5px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
+    .gpm-select-sub { font-size: 13px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100px; }
     .gpm-select-warn { font-size: 12.5px; color: var(--danger); margin-top: 3px; }
     .gpm-select-power { text-align: right; font-family: var(--font-mono); font-size: 14.5px; color: var(--brand); white-space: nowrap; font-weight: 600; }
     .gpm-select-power-label { font-size: 11px; color: var(--text-faint); display: block; text-align: right; }
@@ -255,15 +261,15 @@
     .gpm-party-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: var(--rounded-md); padding: 14px; }
     .gpm-party-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .gpm-party-num { font-family: var(--font-display); font-size: 16px; font-weight: 800; color: var(--text); }
-    .gpm-party-slot { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 15px; border-radius: var(--rounded-sm); margin-bottom: 6px; }
-    .gpm-party-slot.tank { background: color-mix(in oklch, var(--tank) 12%, transparent); }
-    .gpm-party-slot.support { background: color-mix(in oklch, var(--support) 12%, transparent); }
-    .gpm-party-slot.dealer { background: color-mix(in oklch, var(--dealer) 12%, transparent); }
-    .gpm-party-slot.empty { border: 1px dashed var(--border-soft); background: transparent; }
+    .gpm-party-slot { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: var(--rounded-lg); font-size: 14.5px; border: 1px dashed transparent; margin-bottom: 8px; }
+    .gpm-party-slot.tank { background: color-mix(in oklch, var(--tank) 15%, transparent); border-style: solid; }
+    .gpm-party-slot.support { background: color-mix(in oklch, var(--support) 15%, transparent); border-style: solid; }
+    .gpm-party-slot.dealer { background: color-mix(in oklch, var(--dealer) 15%, transparent); border-style: solid; }
+    .gpm-party-slot.empty { border-color: var(--border-soft); background: transparent; }
     .gpm-party-slot-role { width: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
     .gpm-party-slot-role.tank { color: var(--tank); } .gpm-party-slot-role.support { color: var(--support); } .gpm-party-slot-role.dealer { color: var(--dealer); }
-    .gpm-party-slot-name { color: var(--text); font-weight: 700; flex: 1; }
-    .gpm-party-slot-empty { color: var(--text-faint); font-style: italic; flex: 1; }
+    .gpm-party-slot-name { flex: 1; color: var(--text); font-weight: 700; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .gpm-party-slot-empty { flex: 1; color: var(--text-faint); font-style: italic; font-size: 13.5px; }
     .gpm-party-short { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-soft); font-size: 12.5px; color: var(--danger); }
 
     /* --- 모달 --- */
