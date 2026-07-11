@@ -3,7 +3,7 @@ import { Shield, Swords, HeartPulse, Bird } from "lucide-react";
 import { storageGet, storageSet, storageGetSafe } from "./lib/storage";
 import { timeSlots, charFinalPower } from "./lib/utils";
 import { DEFAULT_JOBS, ROLE_LABEL } from "./lib/constants";
-import "./GuildPartyMatcher.css";
+import "./index.css";
 
 /* ============================================================
    길드 파티 매칭 툴 — 사용자 화면 프로토타입
