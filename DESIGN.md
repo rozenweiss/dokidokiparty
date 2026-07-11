@@ -2,27 +2,27 @@
 name: Guild Party Matcher
 description: 세인트 길드를 위한 효율적인 파티 매칭 도구
 colors:
-  primary: "oklch(62% 0.10 40)"
-  primary-soft: "oklch(70% 0.08 40)"
-  tank: "oklch(60% 0.08 240)"
-  support: "oklch(65% 0.10 150)"
-  dealer: "oklch(62% 0.11 40)"
-  danger: "oklch(60% 0.12 20)"
-  success: "oklch(65% 0.10 150)"
-  bg: "oklch(98% 0.005 45)"
-  bg-elev: "oklch(100% 0 0)"
-  surface: "oklch(100% 0 0)"
-  surface-2: "oklch(96% 0.01 45)"
-  border: "oklch(88% 0.01 45)"
-  border-soft: "oklch(94% 0.01 45)"
-  text: "oklch(25% 0.01 45)"
-  text-dim: "oklch(48% 0.01 45)"
-  text-faint: "oklch(68% 0.01 45)"
+  primary: "#4a6fa5"
+  primary-soft: "#d4e4f7"
+  tank: "#4a6fa5"
+  support: "#48bb78"
+  dealer: "#ed8936"
+  danger: "#e53e3e"
+  success: "#48bb78"
+  bg: "#fafafa"
+  bg-elev: "#ffffff"
+  surface: "#ffffff"
+  surface-2: "#d4e4f7"
+  border: "#c0c0c0"
+  border-soft: "#d4e4f7"
+  text: "#2c3e50"
+  text-dim: "#4a6fa5"
+  text-faint: "#7a8fa6"
 typography:
   display:
-    fontFamily: "'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif"
+    fontFamily: "'DejaVu Sans Bold', -apple-system, sans-serif"
   body:
-    fontFamily: "'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif"
+    fontFamily: "'DejaVu Sans', -apple-system, sans-serif"
   label:
     fontFamily: "'JetBrains Mono', 'Consolas', monospace"
 rounded:
@@ -58,40 +58,42 @@ components:
 
 ## 1. Overview
 
-**Creative North Star: "The Guild Sanctuary"**
+**Creative North Star: "Arctic Frost"**
 
-이 시스템은 세인트 길드원들을 위한 차분하고 정돈된 길드 아지트를 지향합니다. 누구나 쉽게 길드 파티에 참여할 수 있도록 명확하고 효율적인 인터페이스를 제공하면서도, 게임 밖에서 게임의 연장선을 느끼게 하는 따뜻하고 친근한 무드를 유지합니다. 너무 복잡한 엑셀 느낌의 딱딱한 UI나 유치한 조잡함을 명시적으로 배제하며, 신뢰감을 주는 정돈된 레이아웃을 통해 직관적인 효율성을 달성합니다.
+이 시스템은 세인트 길드원들을 위한 차갑고 선명한 겨울 느낌의 길드 매칭 도구를 지향합니다. 누구나 쉽게 길드 파티에 참여할 수 있도록 명확하고 효율적인 인터페이스를 제공하며, 정밀함과 전문성을 전달하는 깔끔한 미적 철학을 유지합니다. 너무 복잡한 엑셀 느낌의 딱딱한 UI나 유치한 조잡함을 명시적으로 배제하며, 신뢰감을 주는 정돈된 레이아웃을 통해 직관적인 효율성을 달성합니다.
 
 **Key Characteristics:**
 - 직관적이고 효율적인 정보 배치
-- 게임 몰입감을 이어가는 친숙하고 따뜻한 톤앤매너
+- 선명하고 차가운 느낌으로 전문성과 명료함을 전달
 - 명확한 피드백과 상태 표시를 통한 신뢰감 구축
 
 ## 2. Colors
 
-차분한 오프화이트 배경 위에 생기 있는 '화롯불' 같은 따뜻한 악센트가 더해진 팔레트입니다.
+차갑고 선명한 겨울의 느낌을 담은 'Arctic Frost' 팔레트입니다. 명료함, 정밀함, 그리고 전문성을 전달합니다.
 
 ### Primary
-- **Warm Hearth** (oklch(62% 0.10 40)): 길드의 활력과 온기를 상징하는 메인 오렌지/테라코타 색상. 주요 액션 버튼(CTA), 활성화된 요소, 브랜드 타이틀 등 화면의 중심을 잡아주는 곳에 사용합니다.
-- **Warm Hearth Soft** (oklch(70% 0.08 40)): 메인 컬러를 보조하는 부드러운 톤. 그라데이션이나 강조 효과의 서브 컬러로 사용합니다.
+- **Steel Blue** (#4a6fa5): 길드의 핵심 기능과 전문성을 상징하는 메인 엑센트 색상. 주요 액션 버튼(CTA), 활성화된 요소, 브랜드 타이틀 등 화면의 중심을 잡아주는 곳에 사용합니다.
+- **Ice Blue** (#d4e4f7): 메인 컬러를 보조하는 밝은 배경 및 하이라이트 색상. 부드러운 톤이나 강조 효과의 서브 컬러로 사용합니다.
 
 ### Secondary
-- **Tanker Cobalt** (oklch(60% 0.08 240)): 탱커 역할을 나타내는 차분한 푸른색.
-- **Support Jade** (oklch(65% 0.10 150)): 서포터 역할과 성공(Success) 상태를 나타내는 안정적인 녹색.
+- **Tanker Steel** (#4a6fa5): 탱커 역할을 나타내는 색상 (메인 컬러와 동일한 신뢰감).
+- **Support Jade** (#48bb78): 서포터 역할과 성공(Success) 상태를 나타내는 안정적인 녹색.
+- **Dealer Orange** (#ed8936): 딜러 역할을 나타내는 에너제틱한 주황색.
 
 ### Neutral
-- **Sanctuary Paper** (oklch(98% 0.005 45)): 전체 화면의 기본 배경(bg)으로, 차가운 순백색이 아닌 아주 미세한 따뜻함이 도는 오프화이트입니다.
-- **Surface White** (oklch(100% 0 0)): 카드나 입력 폼 등 콘텐츠가 올라가는 표면 색상. 배경과 확실히 분리됩니다.
-- **Ink Dark** (oklch(25% 0.01 45)): 본문 텍스트용 진한 회갈색. 완전한 검은색보다 부드러워 웜톤 배경과 잘 어울립니다.
-- **Ink Dim** (oklch(48% 0.01 45)): 보조 텍스트, 라벨, 힌트 등에 사용되는 중간 계조의 텍스트 색상.
+- **Crisp White** (#fafafa): 전체 화면의 기본 배경(bg)으로, 깨끗하고 투명한 겨울 눈밭 같은 선명한 배경입니다.
+- **Surface White** (#ffffff): 카드나 입력 폼 등 콘텐츠가 올라가는 표면 색상. 배경과 확실히 분리됩니다.
+- **Silver** (#c0c0c0): 메탈릭 액센트 요소, 부드러운 테두리, 시각적 분리선 등에 사용됩니다.
+- **Dark Steel** (#2c3e50): 본문 텍스트용 진한 색상. 완전한 검은색보다 부드러우면서도 차가운 분위기와 잘 어울립니다.
+- **Dim Steel** (#4a6fa5): 보조 텍스트, 라벨, 힌트 등에 사용되는 색상. 메인 톤앤매너를 유지합니다.
 
 ## 3. Typography
 
-**Display Font:** 'Pretendard' (with -apple-system, sans-serif)
-**Body Font:** 'Pretendard' (with -apple-system, sans-serif)
+**Display Font:** 'DejaVu Sans Bold' (with -apple-system, sans-serif)
+**Body Font:** 'DejaVu Sans' (with -apple-system, sans-serif)
 **Label/Mono Font:** 'JetBrains Mono' (with Consolas, monospace)
 
-**Character:** 극도로 가독성이 높고 정돈된 Pretendard를 기본으로 사용해 복잡한 데이터를 깔끔하게 전달하며, 숫자나 데이터가 부각되어야 하는 곳(전투력 등)에는 고정폭 폰트(Mono)를 혼용해 전문적인 도구의 느낌을 더합니다.
+**Character:** 극도로 가독성이 높고 깔끔한 DejaVu Sans 계열을 사용하여 선명하고 이성적인 데이터를 전달하며, 숫자나 데이터가 부각되어야 하는 곳(전투력 등)에는 고정폭 폰트(Mono)를 혼용해 전문적인 도구의 느낌을 더합니다.
 
 ### Hierarchy
 - **Display** (Bold, 22px): 페이지 타이틀, 결과 요약의 핵심 숫자.

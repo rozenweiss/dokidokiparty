@@ -1,23 +1,23 @@
 
     .gpm-root {
-      --bg: oklch(98% 0.005 45);
-      --bg-elev: oklch(100% 0 0);
-      --surface: oklch(100% 0 0);
-      --surface-2: oklch(96% 0.01 45);
-      --border: oklch(88% 0.015 45);
-      --border-soft: oklch(94% 0.01 45);
-      --text: oklch(25% 0.01 45);
-      --text-dim: oklch(48% 0.01 45);
-      --text-faint: oklch(68% 0.01 45);
-      --brand: oklch(62% 0.10 40);
-      --brand-soft: oklch(70% 0.08 40);
-      --tank: oklch(60% 0.08 240);
-      --support: oklch(65% 0.10 150);
-      --dealer: oklch(62% 0.11 40);
-      --danger: oklch(60% 0.12 20);
-      --success: oklch(65% 0.10 150);
-      --font-display: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
-      --font-body: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+      --bg: #fafafa;
+      --bg-elev: #ffffff;
+      --surface: #ffffff;
+      --surface-2: #d4e4f7;
+      --border: #c0c0c0;
+      --border-soft: #d4e4f7;
+      --text: #2c3e50;
+      --text-dim: #4a6fa5;
+      --text-faint: #7a8fa6;
+      --brand: #4a6fa5;
+      --brand-soft: #d4e4f7;
+      --tank: #4a6fa5;
+      --support: #48bb78;
+      --dealer: #ed8936;
+      --danger: #e53e3e;
+      --success: #48bb78;
+      --font-display: 'DejaVu Sans Bold', -apple-system, sans-serif;
+      --font-body: 'DejaVu Sans', -apple-system, sans-serif;
       --font-mono: 'JetBrains Mono', 'Consolas', monospace;
 
       --space-xs: 4px;
@@ -53,17 +53,17 @@
 
     @media (prefers-color-scheme: dark) {
       .gpm-root {
-        --bg: oklch(18% 0.01 45);
-        --bg-elev: oklch(22% 0.01 45);
-        --surface: oklch(22% 0.01 45);
-        --surface-2: oklch(28% 0.015 45);
-        --border: oklch(35% 0.015 45);
-        --border-soft: oklch(28% 0.015 45);
-        --text: oklch(95% 0.01 45);
-        --text-dim: oklch(80% 0.01 45);
-        --text-faint: oklch(65% 0.01 45);
-        --brand: oklch(65% 0.10 40);
-        --brand-soft: oklch(75% 0.08 40);
+        --bg: #162131;
+        --bg-elev: #23354f;
+        --surface: #23354f;
+        --surface-2: #2f476a;
+        --border: #4a6fa5;
+        --border-soft: #3b5984;
+        --text: #fafafa;
+        --text-dim: #d4e4f7;
+        --text-faint: #96abcd;
+        --brand: #708dba;
+        --brand-soft: #bdc9e1;
       }
     }
     

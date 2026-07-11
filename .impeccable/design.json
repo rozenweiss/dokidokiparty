@@ -4,14 +4,14 @@
   "title": "Design System: Guild Party Matcher",
   "extensions": {
     "colorMeta": {
-      "primary": { "role": "primary", "displayName": "Warm Hearth", "canonical": "oklch(62% 0.10 40)", "tonalRamp": ["oklch(20% 0.10 40)", "oklch(30% 0.10 40)", "oklch(40% 0.10 40)", "oklch(50% 0.10 40)", "oklch(60% 0.10 40)", "oklch(70% 0.10 40)", "oklch(80% 0.10 40)", "oklch(90% 0.10 40)"] },
-      "bg": { "role": "neutral", "displayName": "Sanctuary Paper", "canonical": "oklch(98% 0.005 45)", "tonalRamp": ["oklch(20% 0.005 45)", "oklch(40% 0.005 45)", "oklch(60% 0.005 45)", "oklch(80% 0.005 45)", "oklch(90% 0.005 45)", "oklch(94% 0.005 45)", "oklch(98% 0.005 45)", "oklch(99% 0.005 45)"] }
+      "primary": { "role": "primary", "displayName": "Steel Blue", "canonical": "#4a6fa5", "tonalRamp": ["#162131", "#23354f", "#2f476a", "#3b5984", "#4a6fa5", "#708dba", "#96abcd", "#bdc9e1"] },
+      "bg": { "role": "neutral", "displayName": "Crisp White", "canonical": "#fafafa", "tonalRamp": ["#c7c7c7", "#d9d9d9", "#e8e8e8", "#f2f2f2", "#fafafa", "#fcfcfc", "#fdfdfd", "#ffffff"] }
     },
     "typographyMeta": {
       "display": { "displayName": "Display", "purpose": "페이지 타이틀, 결과 요약 핵심 숫자." }
     },
     "shadows": [
-      { "name": "action", "value": "0 2px 4px color-mix(in oklch, oklch(62% 0.10 40) 20%, transparent)", "purpose": "프라이머리 버튼의 클릭 가능한 입체감 향상" }
+      { "name": "action", "value": "0 2px 4px rgba(74, 111, 165, 0.2)", "purpose": "프라이머리 버튼의 클릭 가능한 입체감 향상" }
     ],
     "breakpoints": []
   },
@@ -22,7 +22,7 @@
       "refersTo": "button-primary",
       "description": "메인 액션 버튼. 눌림 효과 포함.",
       "html": "<button class=\"ds-btn-primary\">START MATCHING</button>",
-      "css": ".ds-btn-primary { background: linear-gradient(180deg, oklch(70% 0.08 40), oklch(62% 0.10 40)); color: #FFFFFF; padding: 14px 20px; font-weight: 600; border: none; border-radius: 8px; box-shadow: 0 2px 4px color-mix(in oklch, oklch(62% 0.10 40) 20%, transparent); transition: transform 0.12s, filter 0.12s; font-size: 16px; cursor: pointer; } .ds-btn-primary:hover { filter: brightness(1.06); } .ds-btn-primary:active { transform: translateY(1px); }"
+      "css": ".ds-btn-primary { background: linear-gradient(180deg, #d4e4f7, #4a6fa5); color: #FFFFFF; padding: 14px 20px; font-weight: 600; border: none; border-radius: 8px; box-shadow: 0 2px 4px rgba(74, 111, 165, 0.2); transition: transform 0.12s, filter 0.12s; font-size: 16px; cursor: pointer; } .ds-btn-primary:hover { filter: brightness(1.06); } .ds-btn-primary:active { transform: translateY(1px); }"
     },
     {
       "name": "Card",
@@ -30,15 +30,15 @@
       "refersTo": "card",
       "description": "정보를 그룹화하는 기본 컨테이너.",
       "html": "<div class=\"ds-card\">Card Content</div>",
-      "css": ".ds-card { background: oklch(100% 0 0); border: 1px solid oklch(94% 0.01 45); border-radius: 12px; padding: 24px; color: oklch(25% 0.01 45); font-size: 14px; font-family: sans-serif; }"
+      "css": ".ds-card { background: #ffffff; border: 1px solid #d4e4f7; border-radius: 12px; padding: 24px; color: #2c3e50; font-size: 14px; font-family: sans-serif; }"
     }
   ],
   "narrative": {
-    "northStar": "The Guild Sanctuary",
-    "overview": "이 시스템은 세인트 길드원들을 위한 차분하고 정돈된 길드 아지트를 지향합니다. 누구나 쉽게 길드 파티에 참여할 수 있도록 명확하고 효율적인 인터페이스를 제공하면서도, 게임 밖에서 게임의 연장선을 느끼게 하는 따뜻하고 친근한 무드를 유지합니다. 너무 복잡한 엑셀 느낌의 딱딱한 UI나 유치한 조잡함을 명시적으로 배제하며, 신뢰감을 주는 정돈된 레이아웃을 통해 직관적인 효율성을 달성합니다.",
+    "northStar": "Arctic Frost",
+    "overview": "이 시스템은 세인트 길드원들을 위한 차갑고 선명한 겨울 느낌의 길드 매칭 도구를 지향합니다. 누구나 쉽게 길드 파티에 참여할 수 있도록 명확하고 효율적인 인터페이스를 제공하며, 정밀함과 전문성을 전달하는 깔끔한 미적 철학을 유지합니다. 너무 복잡한 엑셀 느낌의 딱딱한 UI나 유치한 조잡함을 명시적으로 배제하며, 신뢰감을 주는 정돈된 레이아웃을 통해 직관적인 효율성을 달성합니다.",
     "keyCharacteristics": [
       "직관적이고 효율적인 정보 배치",
-      "게임 몰입감을 이어가는 친숙하고 따뜻한 톤앤매너",
+      "선명하고 차가운 느낌으로 전문성과 명료함을 전달",
       "명확한 피드백과 상태 표시를 통한 신뢰감 구축"
     ],
     "rules": [],
