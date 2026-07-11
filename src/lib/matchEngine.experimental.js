@@ -439,6 +439,32 @@ function runAutoMatch(content, reps, opts) {
   }
 
   /* ---------------- 7절: 반복 개선 루프 ---------------- */
+  /* Replace: 미배정 U를, U가 신청한 시간의 파티에서 역할 호환 슬롯을 차지한 배치된
+     캐릭터 P와 맞바꾼다 — P는 빼서 미배정으로 되돌리고 그 자리에 U를 넣는다
+     (두두파1.0_Replace이동_이식_요청_프롬프트, 2026-07-10 확정. 두두파1.0 후처리
+     BALANCING 단계의 아이디어를 이식). vacate()가 아니라 슬롯을 직접 비우고 즉시
+     채우는 방식을 쓴다 — vacate()는 파티가 완전히 비면 파티 자체를 삭제하는데, 이
+     연산은 같은 슬롯을 바로 다시 채우므로 그 삭제를 거칠 필요가 없다. */
+  function tryReplace(state, unassignedKey, placedKey) {
+    const uInfo = charInfo.get(unassignedKey);
+    const pLoc = state.placement[placedKey];
+    if (!pLoc) return null;
+    const t = pLoc.time;
+    if (!uInfo.times.includes(t)) return null;
+    const party = state.parties.find((p) => p.id === pLoc.partyId);
+    if (!party) return null;
+    const slot = party.slots[pLoc.slotIndex];
+    if (slot.slotRole === "support" && uInfo.char.role !== "support") return null; // 서포터 슬롯은 서포터만
+    if (repTimeConflict(state, uInfo.repName, t, placedKey)) return null; // P를 제외하고도 U의 대표가 t를 이미 점유 중이면 불가
+    const next = cloneState(state);
+    delete next.placement[placedKey];
+    const nParty = next.parties.find((p) => p.id === pLoc.partyId);
+    const nSlot = nParty.slots[pLoc.slotIndex];
+    nSlot.charKey = null; nSlot.role = nSlot.slotRole; nSlot.type = null;
+    occupy(next, unassignedKey, nParty, pLoc.slotIndex, uInfo.char.role, "normal");
+    return next;
+  }
+
   function localSearch(initialState) {
     let state = initialState;
     let obj = objectiveOf(state);
@@ -466,6 +492,16 @@ function runAutoMatch(content, reps, opts) {
         consider(tryRoleCross(state, key));
         consider(tryRepReshuffle(state, key));
         if (info.char.role === "dealer") consider(tryCreateDealerParty(state, key));
+
+        // Replace (두두파1.0_Replace이동_이식_요청_프롬프트 2.3절): U가 신청한 시간의
+        // 파티들에서, 역할 호환되는 슬롯을 차지한 배치된 캐릭터 P를 찾아 각각 시도.
+        info.times.forEach((t) => {
+          state.parties.filter((p) => p.time === t).forEach((p) => {
+            p.slots.forEach((sl) => {
+              if (sl.charKey) consider(tryReplace(state, key, sl.charKey));
+            });
+          });
+        });
       }
 
       consider(tryMerge(state));
