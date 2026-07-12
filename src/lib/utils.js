@@ -22,33 +22,40 @@ function timeSlots(start, end, interval) {
   return out;
 }
 
-// [추정치 — 11.1절] 마도저항이 마도압력을 초과하는 1포인트당 최종 전투력 증가(반대 방향도 동일)로
-// 추정한 값입니다. 확정된 게임 데이터가 아니므로, 실제 수치가 확인되면 이 상수만 바꾸면 됩니다.
-//
-// [2026-07-04 갱신 — "[실험글] 마도저항과 데미지간의 상관관계" 반영]
-// 기존 0.00015는 캡(±40%) 도달까지 diff(저항-압력)가 약 2667이 필요하다는 뜻인데,
-// 위 실험글 데이터(어려움 난이도, 마도압력 1600 기준)에서는 저항 1740(diff=140)에서
-// 이미 저항 2160(diff=560)과 거의 같은 데미지(27381 vs 27432)를 보여, 캡 도달에 필요한
-// diff가 그보다 훨씬 작을 가능성이 있음. 실험글도 정확한 임계점(R_over-R_warn 폭)을
-// 확정하지 못했으므로(선형/비선형 여부도 미확인), diff≈500에서 캡에 도달한다고 보수적으로
-// 가정한 잠정치로 상향 조정함. 추가 실험으로 더 정밀한 값이 나오면 재조정 필요.
-const RESIST_PRESSURE_RATIO = 0.0008; // = 0.40 / 500 (잠정 추정치, 재검증 필요)
-const RESIST_PRESSURE_CAP = 0.40; // ±40% 한도 (8.2/11.2절, 증폭·감소 양방향 동일)
+// [추정치 — 2026-07-10 갱신] 마도 저항-압력 차이에 따른 최종 전투력 보정 공식.
+// 확정된 게임 데이터가 아니므로, 실제 수치가 확인되면 이 함수만 바꾸면 됩니다.
+// 저항 부족 시 지수적으로 감소(최대 -40%), 저항 초과 시 지수적으로 증가하며 +40%에
+// 점근적으로 수렴(넘지 않음) — 두 방향의 민감도가 다른 비대칭 공식입니다.
+// (저항압력공식_지수형교체_요청_프롬프트.md 1절, 기존 11.2절 선형·±40% 대칭 공식을 폐기하고 교체)
+const RESIST_DEFICIT_DIVISOR = 1000;
+const RESIST_SURPLUS_DIVISOR = 10000;
+const RESIST_PRESSURE_FLOOR = 0.6;  // diff<0일 때의 하한 (-40%)
+const RESIST_PRESSURE_SURPLUS_MAX = 0.4; // diff>0일 때 점근 상한의 폭 (+40%)
 
-// 11.2절 공식: diff = 저항 - 압력, 보정률 = clamp(RESIST_PRESSURE_RATIO×diff, -40%, +40%)
-// 압력이 0인 콘텐츠에도 적용합니다 (게임 문서 근거, 11.2절).
+// diff = 저항 - 압력.
+// diff<0: 보정률 = max(0.5^(-diff/1000), 0.6)
+// diff=0: 보정률 = 1.0
+// diff>0: 보정률 = 1.4 - 0.4×0.5^(diff/10000) (= 1 + 0.4×(1 - 0.5^(diff/10000))로 대수적 동치)
+// 압력이 0인 콘텐츠에도 적용합니다 (기존 확정 유지 — diff=저항이 대부분 양수이므로 초과 쪽 공식 적용).
 function finalPower(basePower, pressure, resist) {
   const diff = (resist || 0) - (pressure || 0);
-  const rate = Math.max(-RESIST_PRESSURE_CAP, Math.min(RESIST_PRESSURE_CAP, RESIST_PRESSURE_RATIO * diff));
-  return Math.round(basePower * (1 + rate));
+  let rate;
+  if (diff < 0) {
+    rate = Math.max(Math.pow(0.5, -diff / RESIST_DEFICIT_DIVISOR), RESIST_PRESSURE_FLOOR);
+  } else if (diff === 0) {
+    rate = 1.0;
+  } else {
+    rate = 1 + RESIST_PRESSURE_SURPLUS_MAX * (1 - Math.pow(0.5, diff / RESIST_SURPLUS_DIVISOR));
+  }
+  return Math.round(basePower * rate);
 }
 
 /**
  * 캐릭터의 "최종 전투력"을 화면 전체에서 일관되게 계산하는 단일 함수입니다.
- * - content가 주어지면: 저항-압력 보정(11.2절) 후 패널티 차감 (콘텐츠 맥락이 있는 화면)
+ * - content가 주어지면: 저항-압력 보정(지수형 공식) 후 패널티 차감 (콘텐츠 맥락이 있는 화면)
  * - content가 없으면: 보정 없이 패널티만 차감 (콘텐츠 맥락이 없는 화면)
  * 두 경우 모두 결과는 0 미만으로 내려가지 않습니다(0 클램프).
- * [Unverified] RESIST_PRESSURE_RATIO는 확정된 게임 데이터가 아닌 추정치입니다.
+ * [Unverified] 저항-압력 보정 공식은 확정된 게임 데이터가 아닌 추정치입니다.
  */
 function charFinalPower(char, content) {
   const base = content ? finalPower(char.power, content.pressure, char.resist) : char.power;
@@ -75,4 +82,4 @@ function stdev(nums) {
   return Math.sqrt(variance);
 }
 
-export { timeSlots, RESIST_PRESSURE_RATIO, RESIST_PRESSURE_CAP, finalPower, charFinalPower, groupCandidatesByChar, stdev };
+export { timeSlots, finalPower, charFinalPower, groupCandidatesByChar, stdev };
