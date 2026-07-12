@@ -2182,7 +2182,7 @@ function AdminShell({ config, setConfig }) {
       <header className="gpa-header">
         <div className="gpa-brand">
           <span className="gpa-brand-badge">ADMIN</span>
-          <span className="gpa-brand-title">두두파 2.0</span>
+          <span className="gpa-brand-title">두두파 Beta</span>
         </div>
         <a href="/" className="gpa-btn gpa-btn-ghost gpa-btn-sm" style={{ textDecoration: "none" }}>USER PAGE</a>
       </header>

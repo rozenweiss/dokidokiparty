@@ -1,4 +1,4 @@
-# 두두파 2.0 운영 규칙
+# 두두파 Beta 운영 규칙
 
 ## 프로젝트
 마비노기 모바일 길드 파티 매칭 웹앱. React+Vite / Apps Script / Google Sheets(kv 탭=진실 원천) / Vercel 배포.
