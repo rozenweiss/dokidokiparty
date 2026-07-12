@@ -338,7 +338,7 @@ function JobsView({ jobs, onChange }) {
                   <td style={{ color: "var(--text-faint)" }}>{j.keywords}</td>
                   <td><span className={`gpa-badge ${j.active ? "on" : "off"}`}>{j.active ? "활성" : "비활성"}</span></td>
                   <td>
-                    <div className="gpa-row">
+                    <div className="gpa-row" style={{ flexWrap: "nowrap" }}>
                       <button className="gpa-btn gpa-btn-ghost gpa-btn-sm" onClick={() => setModal(j)}>수정</button>
                       <button className="gpa-btn gpa-btn-ghost gpa-btn-sm" onClick={() => toggleActive(j)}>{j.active ? "비활성화" : "활성화"}</button>
                     </div>
@@ -466,7 +466,7 @@ function ContentsView({ contents, onChange, onToast, onAfterDelete, resultsMeta 
                   <td>{c.interval}분</td>
                   <td><span className={`gpa-badge ${c.active ? "on" : "off"}`}>{c.active ? "신청가능" : "마감"}</span></td>
                   <td>
-                    <div className="gpa-row" style={{ flexWrap: "wrap" }}>
+                    <div className="gpa-row" style={{ flexWrap: "nowrap" }}>
                       <button className="gpa-btn gpa-btn-ghost gpa-btn-sm" onClick={() => setModal(c)}>수정</button>
                       <button className="gpa-btn gpa-btn-ghost gpa-btn-sm" onClick={() => toggleActive(c)}>{c.active ? "마감" : "재개"}</button>
                       <button className="gpa-btn gpa-btn-danger gpa-btn-sm" disabled={deleting} onClick={() => setConfirmDelete(c)}>삭제</button>
@@ -1873,7 +1873,7 @@ function AllCharactersSection({ reps, jobs, onUpdateCharacter, onDeleteCharacter
                       </td>
                       <td style={{ fontSize: 11.5, color: "var(--text-faint)" }}>{char.updatedAt ? formatDateTime(char.updatedAt) : "-"}</td>
                       <td>
-                        <div className="gpa-row" style={{ flexWrap: "wrap" }}>
+                        <div className="gpa-row" style={{ flexWrap: "nowrap" }}>
                           <button className="gpa-btn gpa-btn-primary gpa-btn-sm" onClick={() => saveEdit(repName, char)}>수정 완료</button>
                           <button className="gpa-btn gpa-btn-ghost gpa-btn-sm" onClick={cancelEdit}>취소</button>
                         </div>
@@ -1894,7 +1894,7 @@ function AllCharactersSection({ reps, jobs, onUpdateCharacter, onDeleteCharacter
                     <td><span className={`gpa-badge ${char.active !== false ? "on" : "off"}`}>{char.active !== false ? "활성" : "비활성"}</span></td>
                     <td style={{ fontSize: 11.5, color: "var(--text-faint)" }}>{char.updatedAt ? formatDateTime(char.updatedAt) : "-"}</td>
                     <td>
-                      <div className="gpa-row">
+                      <div className="gpa-row" style={{ flexWrap: "nowrap" }}>
                         <button className="gpa-btn gpa-btn-ghost gpa-btn-sm" onClick={() => startEdit(repName, char)}>수정</button>
                         <button className="gpa-btn gpa-btn-danger gpa-btn-sm" onClick={() => setConfirmDelete({ repName, char })}>삭제</button>
                       </div>
