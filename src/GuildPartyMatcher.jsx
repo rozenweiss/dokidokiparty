@@ -398,10 +398,10 @@ function ContentsView({ contents, applications, onApply }) {
                 <span className={`gpm-status-pill ${c.active ? "open" : "closed"}`}>{c.active ? "신청 가능" : "신청 마감"}</span>
               </div>
               <div className="gpm-content-meta">
-                <div className="gpm-meta-item"><span className="gpm-meta-label">필요 마도 저항</span><span className="gpm-meta-value">{c.requiredResist > 0 ? c.requiredResist.toLocaleString() : "제한 없음"}</span></div>
+                <div className="gpm-meta-item"><span className="gpm-meta-label">필요 마도 저항</span><span className="gpm-meta-value" style={c.requiredResist > 0 ? undefined : { fontFamily: "var(--font-body)" }}>{c.requiredResist > 0 ? c.requiredResist.toLocaleString() : "제한 없음"}</span></div>
                 <div className="gpm-meta-item"><span className="gpm-meta-label">마도 압력</span><span className="gpm-meta-value">{c.pressure > 0 ? c.pressure.toLocaleString() : "-"}</span></div>
                 <div className="gpm-meta-item"><span className="gpm-meta-label">신청 가능 시간</span><span className="gpm-meta-value" style={{ fontSize: 12 }}>{c.startTime} ~ {c.endTime}</span></div>
-                <div className="gpm-meta-item"><span className="gpm-meta-label">시간 간격</span><span className="gpm-meta-value">{c.interval}분</span></div>
+                <div className="gpm-meta-item"><span className="gpm-meta-label">시간 간격</span><span className="gpm-meta-value" style={{ fontFamily: "var(--font-body)" }}>{c.interval}분</span></div>
               </div>
               <button className="gpm-btn gpm-btn-primary gpm-btn-sm" disabled={!c.active} onClick={() => onApply(c.id)}>
                 {applied ? "추가 신청하기" : "신청하기"}
@@ -545,7 +545,7 @@ function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onS
         </div>
         <div className="gpm-content-meta" style={{ marginTop: 4 }}>
           <div className="gpm-meta-item"><span className="gpm-meta-label">파티 인원</span><span className="gpm-meta-value" style={{ fontFamily: "var(--font-body)" }}>{content.partySize}인 (탱1·서폿1·딜{content.partySize - 2})</span></div>
-          <div className="gpm-meta-item"><span className="gpm-meta-label">필요 마도 저항</span><span className="gpm-meta-value">{content.requiredResist > 0 ? content.requiredResist.toLocaleString() : "제한 없음"}</span></div>
+          <div className="gpm-meta-item"><span className="gpm-meta-label">필요 마도 저항</span><span className="gpm-meta-value" style={content.requiredResist > 0 ? undefined : { fontFamily: "var(--font-body)" }}>{content.requiredResist > 0 ? content.requiredResist.toLocaleString() : "제한 없음"}</span></div>
           <div className="gpm-meta-item"><span className="gpm-meta-label">마도 압력</span><span className="gpm-meta-value">{content.pressure > 0 ? content.pressure.toLocaleString() : "-"}</span></div>
         </div>
       </div>
@@ -691,7 +691,14 @@ function HistoryView({ applications, contents, subs, onEdit, onCancel }) {
                 <span className={`gpm-status-tag ${a.status}`}>{STATUS_LABEL[a.status] || a.status}</span>
               </div>
               <div className="gpm-review-chips" style={{ marginBottom: 8 }}>
-                {chars.map((c) => <span key={c.id} className="gpm-chip">{c.nickname} · {ROLE_LABEL[c.role]}</span>)}
+                {chars.map((c) => (
+                  <span key={c.id} className="gpm-chip" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                    <span className={`gpm-party-slot-role ${c.role}`} title={ROLE_LABEL[c.role]} aria-label={ROLE_LABEL[c.role]} style={{ width: 16 }}>
+                      {ROLE_ICON[c.role] && React.createElement(ROLE_ICON[c.role], { size: 13, strokeWidth: 2.3 })}
+                    </span>
+                    {c.nickname}
+                  </span>
+                ))}
               </div>
               <div className="gpm-review-chips">
                 {a.times.sort().map((t) => <span key={t} className="gpm-chip" style={{ fontFamily: "var(--font-mono)" }}>{t}</span>)}
