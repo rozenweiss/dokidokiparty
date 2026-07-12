@@ -926,7 +926,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
     setDownloadingImage(true);
     try {
       const canvas = await html2canvas(publicPreviewRef.current, {
-        backgroundColor: "#F7F5F0",
+        backgroundColor: "#fafafa",
         scale: 2,
       });
       const ts = new Date().toISOString().replace(/[:.]/g, "-");
@@ -1625,7 +1625,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
           html2canvas는 캡처할 수 있습니다. */}
       {matchData && content && (
         <div style={{ position: "fixed", top: 0, left: "-99999px", width: 900 }}>
-          <div ref={publicPreviewRef} style={{ background: "#F7F5F0", padding: 24 }}>
+          <div ref={publicPreviewRef} style={{ background: "#fafafa", padding: 24 }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text-dim)", marginBottom: 16 }}>{content.name}</div>
             {Object.entries(publicResultGroups).map(([time, parties]) => {
               const totalParticipants = parties.reduce((acc, p) => acc + p.slots.filter(s => s.nickname).length, 0);
@@ -1652,7 +1652,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
                                 <span className="gpa-slot-name">
                                   {displayName}
                                   {isSupport && (
-                                    <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", marginLeft: 6, color: "var(--gold)", background: "rgba(193,95,60,0.1)", borderRadius: "50%", width: 18, height: 18 }} title="지원 신청">
+                                    <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", marginLeft: 6, color: "var(--warn)", background: "rgba(var(--warn-rgb), 0.1)", borderRadius: "50%", width: 18, height: 18 }} title="지원 신청">
                                       <Bird size={12} strokeWidth={2.2} />
                                     </span>
                                   )}
@@ -1663,7 +1663,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
                             </div>
                           );
                         })}
-                        {p.shortage && <div className="gpa-party-short" style={{ marginTop: 10, fontSize: 13, color: "var(--danger)", background: "rgba(192,57,43,0.06)", padding: "8px 10px", borderRadius: 8 }}>부족 인원: {p.shortage}</div>}
+                        {p.shortage && <div className="gpa-party-short" style={{ marginTop: 10, fontSize: 13, color: "var(--danger)", background: "rgba(var(--danger-rgb), 0.06)", padding: "8px 10px", borderRadius: 8 }}>부족 인원: {p.shortage}</div>}
                       </div>
                     ))}
                   </div>

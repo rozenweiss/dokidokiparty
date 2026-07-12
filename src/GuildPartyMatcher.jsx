@@ -488,7 +488,7 @@ function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onS
                     <RoleBadge role={c.role} />
                     <span style={{ fontSize: 11.5, color: "var(--text-dim)" }}>{c.jobName}</span>
                   </div>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 12.5, color: "var(--gold-soft)" }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 12.5, color: "var(--brand)" }}>
                     최종 {charFinalPower(c, content).toLocaleString()}
                   </span>
                 </div>
@@ -807,7 +807,7 @@ function ResultsView({ contents }) {
                               <span className="gpm-party-slot-name">
                                 {displayName}
                                 {isSupport && (
-                                  <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", marginLeft: 6, color: "var(--gold)", background: "rgba(193,95,60,0.1)", borderRadius: "50%", width: 18, height: 18 }} title="지원 신청">
+                                  <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", marginLeft: 6, color: "var(--dealer)", background: "rgba(var(--dealer-rgb), 0.1)", borderRadius: "50%", width: 18, height: 18 }} title="지원 신청">
                                     <Bird size={12} strokeWidth={2.2} />
                                   </span>
                                 )}
