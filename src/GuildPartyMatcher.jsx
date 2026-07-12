@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Shield, Swords, HeartPulse, Bird } from "lucide-react";
 import { storageGet, storageSet, storageGetSafe } from "./lib/storage";
-import { timeSlots, charFinalPower } from "./lib/utils";
+import { timeSlots } from "./lib/utils";
 import { DEFAULT_JOBS, ROLE_LABEL } from "./lib/constants";
 import "./index.css";
 
@@ -489,7 +489,7 @@ function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onS
                     <span style={{ fontSize: 11.5, color: "var(--text-dim)" }}>{c.jobName}</span>
                   </div>
                   <span style={{ fontFamily: "var(--font-mono)", fontSize: 12.5, color: "var(--brand)" }}>
-                    최종 {charFinalPower(c, content).toLocaleString()}
+                    {c.power.toLocaleString()}
                   </span>
                 </div>
               ))}
@@ -544,7 +544,7 @@ function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onS
           </select>
         </div>
         <div className="gpm-content-meta" style={{ marginTop: 4 }}>
-          <div className="gpm-meta-item"><span className="gpm-meta-label">파티 인원</span><span className="gpm-meta-value">{content.partySize}인 (탱1·서폿1·딜{content.partySize - 2})</span></div>
+          <div className="gpm-meta-item"><span className="gpm-meta-label">파티 인원</span><span className="gpm-meta-value" style={{ fontFamily: "var(--font-body)" }}>{content.partySize}인 (탱1·서폿1·딜{content.partySize - 2})</span></div>
           <div className="gpm-meta-item"><span className="gpm-meta-label">필요 마도 저항</span><span className="gpm-meta-value">{content.requiredResist > 0 ? content.requiredResist.toLocaleString() : "제한 없음"}</span></div>
           <div className="gpm-meta-item"><span className="gpm-meta-label">마도 압력</span><span className="gpm-meta-value">{content.pressure > 0 ? content.pressure.toLocaleString() : "-"}</span></div>
         </div>
@@ -580,8 +580,8 @@ function ApplyView({ contents, subs, initialContentId, editingApp, onCancel, onS
                     )}
                   </div>
                   <div>
-                    <span className="gpm-select-power">{charFinalPower(c, content).toLocaleString()}</span>
-                    <span className="gpm-select-power-label">최종 전투력</span>
+                    <span className="gpm-select-power">{c.power.toLocaleString()}</span>
+                    <span className="gpm-select-power-label">전투력</span>
                   </div>
                 </div>
               );
