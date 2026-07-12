@@ -5,6 +5,7 @@ import { storageGet, storageSet, storageDelete, storageListWithValues, storageGe
 import { runAutoMatch as runAutoMatchStable, buildCandidates, appliesNormal, appliesSupport } from "./lib/matchEngine";
 import { runAutoMatch as runAutoMatchOptimized } from "./lib/matchEngine.experimental";
 import { runAutoMatch as runLegacy1 } from "./lib/matchEngine.legacy1";
+import { runAutoMatch as runHybrid } from "./lib/matchEngine.hybrid";
 import { timeSlots, charFinalPower } from "./lib/utils";
 import { DEFAULT_JOBS, ROLE_LABEL } from "./lib/constants";
 import "./index.css";
@@ -766,7 +767,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
   const [showCreateParty, setShowCreateParty] = useState(false);
   const [createPartyTime, setCreatePartyTime] = useState("");
   const [confirmDeleteParty, setConfirmDeleteParty] = useState(null); // party index or null
-  const [engineChoice, setEngineChoice] = useState("stable"); // "stable" | "optimized" | "legacy1" — 콘텐츠별로 공유 스토리지(engine-choice:{contentId})에 저장, 다른 관리자도 같은 선택을 봅니다.
+  const [engineChoice, setEngineChoice] = useState("stable"); // "stable" | "optimized" | "legacy1" | "hybrid" — 콘텐츠별로 공유 스토리지(engine-choice:{contentId})에 저장, 다른 관리자도 같은 선택을 봅니다.
   const resultsRef = useRef(null);
   const publicPreviewRef = useRef(null);
 
@@ -779,7 +780,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
       if (!result.failed && result.value) {
         try {
           const eng = JSON.parse(result.value).engine;
-          setEngineChoice(eng === "optimized" ? "optimized" : eng === "legacy1" ? "legacy1" : "stable");
+          setEngineChoice(eng === "optimized" ? "optimized" : eng === "legacy1" ? "legacy1" : eng === "hybrid" ? "hybrid" : "stable");
         }
         catch (e) { setEngineChoice("stable"); }
       } else {
@@ -897,7 +898,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
   }
 
   async function doRunMatch(aggressive = false) {
-    const engineFn = engineChoice === "optimized" ? runAutoMatchOptimized : engineChoice === "legacy1" ? runLegacy1 : runAutoMatchStable;
+    const engineFn = engineChoice === "optimized" ? runAutoMatchOptimized : engineChoice === "legacy1" ? runLegacy1 : engineChoice === "hybrid" ? runHybrid : runAutoMatchStable;
     const result = engineFn(content, reps, aggressive ? { aggressive: true } : undefined);
     await saveResult({ ...result, engineUsed: engineChoice });
     await setApplicationStatusForContent("matched");
@@ -1392,6 +1393,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
               <option value="stable">안정형</option>
               <option value="optimized">균형최적화형</option>
               <option value="legacy1">1.0 재현형</option>
+              <option value="hybrid">유연구조형</option>
             </select>
             <button className="gpa-btn gpa-btn-primary gpa-btn-sm" onClick={runMatch} disabled={preview.candidateCount === 0}>
               {matchData && matchData.parties && matchData.parties.length > 0 && matchData.engineUsed === engineChoice ? "재매칭 실행" : "자동 매칭 실행"}
@@ -1458,7 +1460,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
           </div>
           <div className="gpa-hint" style={{ marginBottom: 16 }}>
             자동 매칭 실행: {formatDateTime(matchData.generatedAt)} ·{" "}
-            {matchData.engineUsed === "optimized" ? "균형최적화형" : matchData.engineUsed === "stable" ? "안정형" : matchData.engineUsed === "legacy1" ? "1.0 재현형" : "(로직 기록 없음 — 이 기능 도입 이전 결과)"} ·{" "}
+            {matchData.engineUsed === "optimized" ? "균형최적화형" : matchData.engineUsed === "stable" ? "안정형" : matchData.engineUsed === "legacy1" ? "1.0 재현형" : matchData.engineUsed === "hybrid" ? "유연구조형" : "(로직 기록 없음 — 이 기능 도입 이전 결과)"} ·{" "}
             자동 삭제 예정: {formatDateTime(matchData.generatedAt + RETENTION_MS)} ·{" "}
             <span style={{ color: matchData.generatedAt + RETENTION_MS - Date.now() <= 0 ? "var(--danger)" : "var(--accent)" }}>
               {formatRemaining(matchData.generatedAt + RETENTION_MS - Date.now())}
