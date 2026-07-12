@@ -724,7 +724,7 @@ function SlotPickModal({ role, unassigned, relocatable, supportCandidates, onPic
                     </span>
                     <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1 }}>
                       {c.power !== null && (
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--accent-soft)" }}>{c.power.toLocaleString()}</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--accent)" }}>{c.power.toLocaleString()}</span>
                       )}
                       <span style={{ color: "var(--text-faint)", fontSize: 11 }}>지원 신청</span>
                     </span>
@@ -1376,11 +1376,11 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
           <div className="gpa-stat-card"><div className="gpa-stat-num">{preview.support}</div><div className="gpa-stat-label">지원 신청 후보</div></div>
         </div>
         <div className="gpa-action-bar">
-          {/* 주 액션 행: 매칭 실행 + 공개/비공개 */}
+          {/* 주 액션 행: 드롭박스 → 재매칭 실행 → 새로고침 */}
           <div className="gpa-action-row">
             <select
               className="gpa-input"
-              style={{ width: 132, flex: "0 0 auto" }}
+              style={{ width: 120, flex: "0 0 auto", padding: "10px 12px", fontSize: 13.5, borderRadius: "var(--rounded-sm)" }}
               value={engineChoice}
               onChange={(e) => handleEngineChange(e.target.value)}
               title="자동 매칭에 사용할 로직을 선택합니다."
@@ -1388,31 +1388,31 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
               <option value="stable">안정형</option>
               <option value="optimized">균형최적화형</option>
             </select>
-            <button className="gpa-btn gpa-btn-primary" onClick={runMatch} disabled={preview.candidateCount === 0}>
+            <button className="gpa-btn gpa-btn-primary gpa-btn-sm" onClick={runMatch} disabled={preview.candidateCount === 0}>
               {matchData && matchData.parties && matchData.parties.length > 0 && matchData.engineUsed === engineChoice ? "재매칭 실행" : "자동 매칭 실행"}
             </button>
-            {matchData && (
-              <button className="gpa-btn gpa-btn-ghost" onClick={togglePublish}>
-                {matchData.published ? "결과 비공개로" : "결과 공개하기"}
-              </button>
-            )}
-          </div>
-          {/* 보조 액션 행: 이미지·새로고침·파티생성 */}
-          <div className="gpa-action-row">
-            {matchData && matchData.parties.length > 0 && (
-              <button className="gpa-btn gpa-btn-ghost" onClick={downloadResultsImage} disabled={downloadingImage}>
-                {downloadingImage ? "생성 중..." : "🖼 이미지 저장"}
-              </button>
-            )}
             <button
-              className="gpa-btn gpa-btn-ghost"
+              className="gpa-btn gpa-btn-ghost gpa-btn-sm"
               disabled={loadingResult}
               onClick={async () => { await loadResult(); if (onDataChanged) await onDataChanged(); onToast("새로고침했습니다."); }}
             >
               {loadingResult ? "새로고침 중..." : "↻ 새로고침"}
             </button>
+          </div>
+          {/* 보조 액션 행: 결과 공개하기 → 이미지 저장 → 파티 생성 */}
+          <div className="gpa-action-row">
+            {matchData && (
+              <button className="gpa-btn gpa-btn-ghost gpa-btn-sm" onClick={togglePublish}>
+                {matchData.published ? "결과 비공개로" : "결과 공개하기"}
+              </button>
+            )}
+            {matchData && matchData.parties.length > 0 && (
+              <button className="gpa-btn gpa-btn-ghost gpa-btn-sm" onClick={downloadResultsImage} disabled={downloadingImage}>
+                {downloadingImage ? "생성 중..." : "🖼 이미지 저장"}
+              </button>
+            )}
             <button
-              className="gpa-btn gpa-btn-ghost"
+              className="gpa-btn gpa-btn-ghost gpa-btn-sm"
               onClick={() => { setCreatePartyTime(availableTimes[0] || ""); setShowCreateParty(true); }}
               disabled={availableTimes.length === 0}
             >
@@ -1455,7 +1455,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
             자동 매칭 실행: {formatDateTime(matchData.generatedAt)} ·{" "}
             {matchData.engineUsed === "optimized" ? "균형최적화형" : matchData.engineUsed === "stable" ? "안정형" : "(로직 기록 없음 — 이 기능 도입 이전 결과)"} ·{" "}
             자동 삭제 예정: {formatDateTime(matchData.generatedAt + RETENTION_MS)} ·{" "}
-            <span style={{ color: matchData.generatedAt + RETENTION_MS - Date.now() <= 0 ? "var(--danger)" : "var(--accent-soft)" }}>
+            <span style={{ color: matchData.generatedAt + RETENTION_MS - Date.now() <= 0 ? "var(--danger)" : "var(--accent)" }}>
               {formatRemaining(matchData.generatedAt + RETENTION_MS - Date.now())}
             </span>
           </div>
@@ -1516,7 +1516,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
                             </span>
                           ) : <span className="gpa-slot-empty">빈자리</span>}
                           {slotPower !== null && (
-                            <span className="gpa-slot-tag" style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--accent-soft)", marginLeft: "auto" }}>
+                            <span className="gpa-slot-tag" style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--accent)", marginLeft: "auto" }}>
                               {slotPower.toLocaleString()}
                             </span>
                           )}
@@ -1551,7 +1551,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
                         <RoleIconBadge role={u.char.role} />
                         <span>{u.char.nickname} ({u.repName})</span>
                         {uPower !== null && (
-                          <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--accent-soft)" }}>{uPower.toLocaleString()}</span>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--accent)" }}>{uPower.toLocaleString()}</span>
                         )}
                         <span style={{ color: "var(--text-faint)" }}>
                           신청: {u.allowedTimes && u.allowedTimes.length ? u.allowedTimes.join(", ") : u.time}
@@ -1605,7 +1605,7 @@ function MatchingView({ contents, reps, onToast, onDataChanged }) {
                         {APP_TYPE_LABEL[sc.appType] || sc.appType}
                       </span>
                       {scPower !== null && (
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--accent-soft)" }}>{scPower.toLocaleString()}</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--accent)" }}>{scPower.toLocaleString()}</span>
                       )}
                       <span style={{ color: "var(--text-faint)" }}>신청: {sc.times.join(", ")}</span>
                       {isAssigned && (

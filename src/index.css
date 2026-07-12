@@ -21,6 +21,16 @@
       --dealer: #ed8936;
       --danger: #e53e3e;
       --success: #48bb78;
+
+      /* RGB 트리플렛(color-mix 대체용 -- html2canvas 1.4.1이 color-mix()/oklch를 지원하지 않아 정적 rgba로 전환, 2026-07-12) */
+      --brand-rgb: 74, 111, 165;
+      --danger-rgb: 229, 62, 62;
+      --text-rgb: 44, 62, 80;
+      --text-faint-rgb: 122, 143, 166;
+      --tank-rgb: 74, 111, 165;
+      --support-rgb: 72, 187, 120;
+      --dealer-rgb: 237, 137, 54;
+      --success-rgb: 72, 187, 120;
       --font-display: 'DejaVu Sans Bold', -apple-system, sans-serif;
       --font-body: 'DejaVu Sans', -apple-system, sans-serif;
       --font-mono: 'JetBrains Mono', 'Consolas', monospace;
@@ -54,7 +64,7 @@
     .gpm-root :where(p), .gpa-root :where(p) { margin: 0; }
     .gpm-root button, .gpa-root button { font-family: var(--font-body); cursor: pointer; }
     .gpm-root input, .gpm-root select, .gpa-root input, .gpa-root select, .gpa-root textarea { font-family: var(--font-body); }
-    .gpm-root ::selection, .gpa-root ::selection { background: color-mix(in oklch, var(--brand) 35%, transparent); }
+    .gpm-root ::selection, .gpa-root ::selection { background: rgba(var(--brand-rgb), 0.35); }
 
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
@@ -94,7 +104,7 @@
     .gpm-field, .gpa-field { margin-bottom: 16px; }
     .gpm-label, .gpa-label { display: block; font-size: 13.5px; color: var(--text-dim); margin-bottom: 7px; letter-spacing: 0.02em; }
     .gpm-input, .gpa-input { width: 100%; background: var(--bg-elev); border: 1px solid var(--border); color: var(--text); padding: 12px 16px; border-radius: var(--rounded-md); font-size: 16px; outline: none; transition: border-color .15s, box-shadow .15s; }
-    .gpm-input:focus, .gpa-input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px color-mix(in oklch, var(--brand) 15%, transparent); }
+    .gpm-input:focus, .gpa-input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(var(--brand-rgb), 0.15); }
     .gpm-input::placeholder, .gpa-input::placeholder { color: var(--text-faint); }
     .gpm-input.error, .gpa-input.error { border-color: var(--danger); }
     .gpm-error-text { color: var(--danger); font-size: 13px; margin-top: 6px; }
@@ -108,10 +118,10 @@
     .gpm-btn-primary { width: 100%; }
     .gpm-btn-primary:not(:disabled):hover, .gpa-btn-primary:not(:disabled):hover { filter: brightness(1.06); }
     .gpm-btn-ghost, .gpa-btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
-    .gpm-btn-ghost:not(:disabled):hover, .gpa-btn-ghost:not(:disabled):hover { border-color: var(--brand); color: var(--brand); background: color-mix(in oklch, var(--brand) 4%, transparent); }
+    .gpm-btn-ghost:not(:disabled):hover, .gpa-btn-ghost:not(:disabled):hover { border-color: var(--brand); color: var(--brand); background: rgba(var(--brand-rgb), 0.04); }
     .gpm-btn-block { width: 100%; }
-    .gpm-btn-danger, .gpa-btn-danger { background: color-mix(in oklch, var(--danger) 10%, transparent); color: var(--danger); border: 1px solid color-mix(in oklch, var(--danger) 30%, transparent); }
-    .gpm-btn-danger:hover, .gpa-btn-danger:hover { background: color-mix(in oklch, var(--danger) 15%, transparent); }
+    .gpm-btn-danger, .gpa-btn-danger { background: rgba(var(--danger-rgb), 0.1); color: var(--danger); border: 1px solid rgba(var(--danger-rgb), 0.3); }
+    .gpm-btn-danger:hover, .gpa-btn-danger:hover { background: rgba(var(--danger-rgb), 0.15); }
     .gpm-btn-sm, .gpa-btn-sm { padding: 10px 14px; font-size: 13.5px; border-radius: var(--rounded-sm); min-height: 44px; }
 
     .gpm-row { display: flex; gap: 10px; }
@@ -130,7 +140,7 @@
     /* --- 네비게이션(유저/관리자 공통 전역 설정) --- */
     .gpm-nav, .gpa-nav { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--rounded-md); padding: 4px; margin-bottom: 20px; overflow-x: auto; }
     .gpm-nav-item, .gpa-nav-item { flex: 1; white-space: nowrap; text-align: center; padding: 9px 10px; border-radius: var(--rounded-sm); font-size: 14px; color: var(--text-dim); background: transparent; border: none; font-weight: 600; transition: color .2s ease-out, background .2s ease-out; cursor: pointer; }
-    .gpm-nav-item.active, .gpa-nav-item.active { background: color-mix(in oklch, var(--brand) 8%, transparent); color: var(--brand); }
+    .gpm-nav-item.active, .gpa-nav-item.active { background: rgba(var(--brand-rgb), 0.08); color: var(--brand); }
     .gpm-nav-item:hover:not(.active), .gpa-nav-item:hover:not(.active) { color: var(--text); background: var(--surface-2); }
     .gpm-nav-item:focus-visible, .gpa-nav-item:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
 
@@ -149,14 +159,14 @@
     /* --- 캐릭터카드 --- */
     .gpm-char-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px,1fr)); gap: 12px; }
     .gpm-char-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: var(--rounded-md); padding: 16px; position: relative; transition: border-color .2s ease-out, transform .2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow .2s ease-out; }
-    .gpm-char-card:hover { border-color: var(--border); transform: translateY(-2px); box-shadow: 0 4px 12px color-mix(in oklch, var(--text) 4%, transparent); }
+    .gpm-char-card:hover { border-color: var(--border); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(var(--text-rgb), 0.04); }
     .gpm-char-card.inactive { opacity: 0.45; filter: grayscale(50%); }
     .gpm-char-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
     .gpm-char-name { font-size: 16px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
     .gpm-role-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: var(--rounded-pill); letter-spacing: 0.02em; }
-    .gpm-role-badge.tank { background: color-mix(in oklch, var(--tank) 12%, transparent); color: var(--tank); }
-    .gpm-role-badge.support { background: color-mix(in oklch, var(--support) 12%, transparent); color: var(--support); }
-    .gpm-role-badge.dealer { background: color-mix(in oklch, var(--dealer) 12%, transparent); color: var(--dealer); }
+    .gpm-role-badge.tank { background: rgba(var(--tank-rgb), 0.12); color: var(--tank); }
+    .gpm-role-badge.support { background: rgba(var(--support-rgb), 0.12); color: var(--support); }
+    .gpm-role-badge.dealer { background: rgba(var(--dealer-rgb), 0.12); color: var(--dealer); }
     .gpm-char-job { font-size: 13px; color: var(--text-dim); margin-bottom: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .gpm-char-stats { display: flex; gap: 14px; margin-bottom: 12px; }
     .gpm-stat { display: flex; flex-direction: column; gap: 2px; }
@@ -165,16 +175,16 @@
     .gpm-char-actions { display: flex; gap: 6px; }
 
     .gpm-fab-add { border: 1px dashed var(--border); background: transparent; border-radius: var(--rounded-md); min-height: 120px; display: flex; align-items: center; justify-content: center; color: var(--text-faint); font-size: 14.5px; gap: 6px; transition: color .15s, border-color .15s, background .15s; }
-    .gpm-fab-add:hover { border-color: var(--brand); color: var(--brand); background: color-mix(in oklch, var(--brand) 3%, transparent); }
+    .gpm-fab-add:hover { border-color: var(--brand); color: var(--brand); background: rgba(var(--brand-rgb), 0.03); }
 
     /* --- 콘텐츠카드 --- */
     .gpm-content-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: var(--rounded-md); padding: 18px; display: flex; flex-direction: column; gap: 12px; transition: border-color .2s ease-out, transform .2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow .2s ease-out; }
-    .gpm-content-card:hover { border-color: var(--border); transform: translateY(-2px); box-shadow: 0 4px 12px color-mix(in oklch, var(--text) 4%, transparent); }
+    .gpm-content-card:hover { border-color: var(--border); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(var(--text-rgb), 0.04); }
     .gpm-content-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
     .gpm-content-name { font-family: var(--font-display); font-size: 16px; }
     .gpm-status-pill { font-size: 12px; padding: 4px 10px; border-radius: var(--rounded-pill); font-weight: 700; white-space: nowrap; }
-    .gpm-status-pill.open { background: color-mix(in oklch, var(--success) 15%, transparent); color: var(--success); }
-    .gpm-status-pill.closed { background: color-mix(in oklch, var(--text-faint) 20%, transparent); color: var(--text-faint); }
+    .gpm-status-pill.open { background: rgba(var(--success-rgb), 0.15); color: var(--success); }
+    .gpm-status-pill.closed { background: rgba(var(--text-faint-rgb), 0.2); color: var(--text-faint); }
     .gpm-content-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px,1fr)); gap: 10px; }
     .gpm-meta-item { display: flex; flex-direction: column; gap: 2px; }
     .gpm-meta-label { font-size: 12px; color: var(--text-faint); }
@@ -184,7 +194,7 @@
     .gpm-select-list { display: flex; flex-direction: column; gap: 8px; }
     .gpm-select-row { display: flex; align-items: center; gap: 12px; background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: var(--rounded-md); padding: 12px 14px; transition: border-color .2s ease-out, background .2s ease-out, transform .2s cubic-bezier(0.16, 1, 0.3, 1); cursor: pointer; }
     .gpm-select-row:hover:not(.disabled) { border-color: var(--border); transform: translateY(-1px); }
-    .gpm-select-row.checked { border-color: var(--brand); background: color-mix(in oklch, var(--brand) 6%, transparent); }
+    .gpm-select-row.checked { border-color: var(--brand); background: rgba(var(--brand-rgb), 0.06); }
     .gpm-select-row.disabled { opacity: 0.5; filter: grayscale(100%); }
     .gpm-checkbox { appearance: none; -webkit-appearance: none; width: 18px; height: 18px; flex-shrink: 0; border-radius: var(--rounded-sm); border: 1.5px solid var(--border); background: var(--surface); cursor: pointer; position: relative; margin: 0; display: inline-block; vertical-align: middle; transition: background .15s, border-color .15s; }
     .gpm-checkbox:checked { background: var(--brand); border-color: var(--brand); }
@@ -201,20 +211,20 @@
     .gpm-time-grid { display: flex; flex-wrap: wrap; gap: 8px; }
     .gpm-time-chip { padding: 9px 16px; border-radius: var(--rounded-sm); border: 1px solid var(--border); background: var(--bg-elev); color: var(--text-dim); font-size: 14.5px; font-family: var(--font-mono); font-weight: 600; transition: border-color .2s ease-out, color .2s ease-out, background .2s ease-out, transform .2s cubic-bezier(0.16, 1, 0.3, 1); cursor: pointer; }
     .gpm-time-chip:hover { border-color: var(--brand-soft); color: var(--brand); transform: translateY(-1px); }
-    .gpm-time-chip.checked { border-color: var(--brand); background: color-mix(in oklch, var(--brand) 12%, transparent); color: var(--brand); }
+    .gpm-time-chip.checked { border-color: var(--brand); background: rgba(var(--brand-rgb), 0.12); color: var(--brand); }
     .gpm-time-chip:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
     .gpm-type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .gpm-type-card { border: 1px solid var(--border); background: var(--bg-elev); border-radius: var(--rounded-md); padding: 16px; text-align: left; transition: border-color .2s ease-out, background .2s ease-out, transform .2s cubic-bezier(0.16, 1, 0.3, 1); cursor: pointer; }
     .gpm-type-card:hover:not(:disabled) { border-color: var(--brand-soft); transform: translateY(-1.5px); }
-    .gpm-type-card.checked { border-color: var(--brand); background: color-mix(in oklch, var(--brand) 8%, transparent); }
+    .gpm-type-card.checked { border-color: var(--brand); background: rgba(var(--brand-rgb), 0.08); }
     .gpm-type-card:disabled { opacity: 0.45; cursor: not-allowed; }
     .gpm-type-title { font-size: 15.5px; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 7px; }
     .gpm-type-desc { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
 
-    .gpm-notice { display: flex; gap: 10px; background: color-mix(in oklch, var(--brand) 7%, transparent); border: 1px solid color-mix(in oklch, var(--brand) 22%, transparent); border-radius: var(--rounded-lg); padding: 12px 14px; font-size: 13.5px; color: var(--brand); line-height: 1.6; }
+    .gpm-notice { display: flex; gap: 10px; background: rgba(var(--brand-rgb), 0.07); border: 1px solid rgba(var(--brand-rgb), 0.22); border-radius: var(--rounded-lg); padding: 12px 14px; font-size: 13.5px; color: var(--brand); line-height: 1.6; }
 
-    .gpm-summary-bar { position: sticky; bottom: 16px; margin-top: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--rounded-lg); padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; box-shadow: 0 4px 16px color-mix(in oklch, var(--text) 8%, transparent); flex-wrap: wrap; }
+    .gpm-summary-bar { position: sticky; bottom: 16px; margin-top: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--rounded-lg); padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; box-shadow: 0 4px 16px rgba(var(--text-rgb), 0.08); flex-wrap: wrap; }
     .gpm-summary-info { font-size: 13.5px; color: var(--text-dim); }
     .gpm-summary-info b { color: var(--brand); font-weight: 700; }
 
@@ -226,7 +236,7 @@
     .gpm-chip { font-size: 13.5px; background: var(--bg-elev); border: 1px solid var(--border-soft); padding: 5px 10px; border-radius: var(--rounded-pill); color: var(--text); }
 
     .gpm-done-wrap { text-align: center; padding: 30px 10px 6px; }
-    .gpm-done-icon { width: 60px; height: 60px; margin: 0 auto 18px; border-radius: 50%; background: color-mix(in oklch, var(--success) 15%, transparent); color: var(--success); display: flex; align-items: center; justify-content: center; }
+    .gpm-done-icon { width: 60px; height: 60px; margin: 0 auto 18px; border-radius: 50%; background: rgba(var(--success-rgb), 0.15); color: var(--success); display: flex; align-items: center; justify-content: center; }
     .gpm-done-title { font-size: 19px; margin-bottom: 8px; color: var(--text); font-weight: 700; }
     .gpm-done-desc { font-size: 14.5px; color: var(--text-dim); margin-bottom: 24px; line-height: 1.6; }
     .gpm-done-stats { display: flex; justify-content: center; gap: 22px; margin-bottom: 26px; flex-wrap: wrap; }
@@ -239,10 +249,10 @@
     .gpm-app-content { font-size: 16px; font-weight: 700; font-family: var(--font-display); }
     .gpm-app-meta { font-size: 13px; color: var(--text-faint); margin-top: 3px; }
     .gpm-status-tag { font-size: 12px; padding: 4px 10px; border-radius: var(--rounded-pill); font-weight: 700; white-space: nowrap; }
-    .gpm-status-tag.applied { background: color-mix(in oklch, var(--tank) 15%, transparent); color: var(--tank); }
-    .gpm-status-tag.waiting { background: color-mix(in oklch, var(--brand) 15%, transparent); color: var(--brand); }
-    .gpm-status-tag.matched { background: color-mix(in oklch, var(--success) 15%, transparent); color: var(--success); }
-    .gpm-status-tag.revealed { background: color-mix(in oklch, var(--success) 22%, transparent); color: var(--success); }
+    .gpm-status-tag.applied { background: rgba(var(--tank-rgb), 0.15); color: var(--tank); }
+    .gpm-status-tag.waiting { background: rgba(var(--brand-rgb), 0.15); color: var(--brand); }
+    .gpm-status-tag.matched { background: rgba(var(--success-rgb), 0.15); color: var(--success); }
+    .gpm-status-tag.revealed { background: rgba(var(--success-rgb), 0.22); color: var(--success); }
 
     /* --- 매칭 결과 --- */
     .gpm-result-group-title { display: flex; align-items: center; gap: 10px; margin: 22px 0 12px; }
@@ -253,9 +263,9 @@
     .gpm-party-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .gpm-party-num { font-family: var(--font-display); font-size: 16px; font-weight: 800; color: var(--text); }
     .gpm-party-slot { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: var(--rounded-lg); font-size: 14.5px; border: 1px dashed transparent; margin-bottom: 8px; }
-    .gpm-party-slot.tank { background: color-mix(in oklch, var(--tank) 15%, transparent); border-style: solid; }
-    .gpm-party-slot.support { background: color-mix(in oklch, var(--support) 15%, transparent); border-style: solid; }
-    .gpm-party-slot.dealer { background: color-mix(in oklch, var(--dealer) 15%, transparent); border-style: solid; }
+    .gpm-party-slot.tank { background: rgba(var(--tank-rgb), 0.15); border-style: solid; }
+    .gpm-party-slot.support { background: rgba(var(--support-rgb), 0.15); border-style: solid; }
+    .gpm-party-slot.dealer { background: rgba(var(--dealer-rgb), 0.15); border-style: solid; }
     .gpm-party-slot.empty { border-color: var(--border-soft); background: transparent; }
     .gpm-party-slot-role { width: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
     .gpm-party-slot-role.tank { color: var(--tank); } .gpm-party-slot-role.support { color: var(--support); } .gpm-party-slot-role.dealer { color: var(--dealer); }
@@ -264,13 +274,13 @@
     .gpm-party-short { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-soft); font-size: 12.5px; color: var(--danger); }
 
     /* --- 모달 --- */
-    .gpm-modal-overlay, .gpa-modal-overlay { position: fixed; inset: 0; background: color-mix(in oklch, var(--text) 70%, transparent); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 100; opacity: 0; animation: fade-in-up 0.2s forwards; }
-    .gpm-modal, .gpa-modal { width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--rounded-xl); padding: 28px 24px; position: relative; max-height: 88vh; overflow-y: auto; box-shadow: 0 16px 40px color-mix(in oklch, var(--text) 15%, transparent); }
+    .gpm-modal-overlay, .gpa-modal-overlay { position: fixed; inset: 0; background: rgba(var(--text-rgb), 0.7); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 100; opacity: 0; animation: fade-in-up 0.2s forwards; }
+    .gpm-modal, .gpa-modal { width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--rounded-xl); padding: 28px 24px; position: relative; max-height: 88vh; overflow-y: auto; box-shadow: 0 16px 40px rgba(var(--text-rgb), 0.15); }
     .gpm-modal-title, .gpa-modal-title { font-size: 16px; margin-bottom: 18px; font-weight: 700; color: var(--brand); }
     .gpm-modal-actions, .gpa-modal-actions { display: flex; gap: 10px; margin-top: 24px; }
 
     /* --- 토스트 --- */
-    .gpm-toast, .gpa-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 12px 24px; border-radius: var(--rounded-pill); font-size: 14.5px; z-index: 200; box-shadow: 0 4px 16px -6px color-mix(in oklch, var(--text) 22%, transparent); animation: toast-fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .gpm-toast, .gpa-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 12px 24px; border-radius: var(--rounded-pill); font-size: 14.5px; z-index: 200; box-shadow: 0 4px 16px -6px rgba(var(--text-rgb), 0.22); animation: toast-fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     
     .gpm-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: var(--rounded-pill); font-size: 12px; font-weight: 700; white-space: nowrap; }
 
@@ -300,6 +310,18 @@
       --danger: #e53e3e;
       --success: #48bb78;
       --warn: #ed8936;
+
+      /* RGB 트리플렛(color-mix 대체용 -- html2canvas 1.4.1이 color-mix()/oklch를 지원하지 않아 정적 rgba로 전환, 2026-07-12) */
+      --accent-rgb: 74, 111, 165;
+      --brand-rgb: var(--accent-rgb);
+      --danger-rgb: 229, 62, 62;
+      --text-rgb: 44, 62, 80;
+      --text-faint-rgb: 122, 143, 166;
+      --tank-rgb: 74, 111, 165;
+      --support-rgb: 72, 187, 120;
+      --dealer-rgb: 237, 137, 54;
+      --success-rgb: 72, 187, 120;
+      --warn-rgb: 237, 137, 54;
       --font-display: 'DejaVu Sans Bold', -apple-system, sans-serif;
       --font-body: 'DejaVu Sans', -apple-system, sans-serif;
       --font-mono: 'JetBrains Mono', 'Consolas', monospace;
@@ -359,7 +381,7 @@
       .gpa-dash-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
     }
     .gpa-stat-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: var(--rounded-lg); padding: 14px 16px; transition: transform .2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow .2s ease-out; }
-    .gpa-stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px color-mix(in oklch, var(--text) 4%, transparent); border-color: var(--border); }
+    .gpa-stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(var(--text-rgb), 0.04); border-color: var(--border); }
     .gpa-stat-num { font-family: var(--font-mono); font-size: 22px; color: var(--accent); }
     .gpa-stat-label { font-size: 12.5px; color: var(--text-faint); margin-top: 3px; }
 
@@ -371,17 +393,17 @@
 
     .gpa-badge { font-size: 12px; padding: 3px 8px; border-radius: var(--rounded-pill); font-weight: 700; display: inline-block; white-space: nowrap; }
     .gpa-badge-icon { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: var(--rounded-sm); }
-    .gpa-badge-icon.tank { background: color-mix(in oklch, var(--tank) 16%, transparent); color: var(--tank); }
-    .gpa-badge-icon.support { background: color-mix(in oklch, var(--support) 16%, transparent); color: var(--support); }
-    .gpa-badge-icon.dealer { background: color-mix(in oklch, var(--dealer) 16%, transparent); color: var(--dealer); }
-    .gpa-badge.tank { background: color-mix(in oklch, var(--tank) 16%, transparent); color: var(--tank); }
-    .gpa-badge.support { background: color-mix(in oklch, var(--success) 16%, transparent); color: var(--support); }
-    .gpa-badge.dealer { background: color-mix(in oklch, var(--dealer) 16%, transparent); color: var(--dealer); }
-    .gpa-badge.on { background: color-mix(in oklch, var(--success) 15%, transparent); color: var(--success); }
-    .gpa-badge.off { background: color-mix(in oklch, var(--text-faint) 20%, transparent); color: var(--text-faint); }
-    .gpa-badge.normal { background: color-mix(in oklch, var(--tank) 15%, transparent); color: var(--tank); }
-    .gpa-badge.supportApp { background: color-mix(in oklch, var(--warn) 15%, transparent); color: var(--warn); }
-    .gpa-badge.combo { background: linear-gradient(90deg, color-mix(in oklch, var(--tank) 18%, transparent), color-mix(in oklch, var(--warn) 18%, transparent)); color: var(--text); }
+    .gpa-badge-icon.tank { background: rgba(var(--tank-rgb), 0.16); color: var(--tank); }
+    .gpa-badge-icon.support { background: rgba(var(--support-rgb), 0.16); color: var(--support); }
+    .gpa-badge-icon.dealer { background: rgba(var(--dealer-rgb), 0.16); color: var(--dealer); }
+    .gpa-badge.tank { background: rgba(var(--tank-rgb), 0.16); color: var(--tank); }
+    .gpa-badge.support { background: rgba(var(--success-rgb), 0.16); color: var(--support); }
+    .gpa-badge.dealer { background: rgba(var(--dealer-rgb), 0.16); color: var(--dealer); }
+    .gpa-badge.on { background: rgba(var(--success-rgb), 0.15); color: var(--success); }
+    .gpa-badge.off { background: rgba(var(--text-faint-rgb), 0.2); color: var(--text-faint); }
+    .gpa-badge.normal { background: rgba(var(--tank-rgb), 0.15); color: var(--tank); }
+    .gpa-badge.supportApp { background: rgba(var(--warn-rgb), 0.15); color: var(--warn); }
+    .gpa-badge.combo { background: linear-gradient(90deg, rgba(var(--tank-rgb), 0.18), rgba(var(--warn-rgb), 0.18)); color: var(--text); }
 
     .gpa-empty { text-align: center; padding: 40px 16px; color: var(--text-faint); font-size: 14.5px; }
 
@@ -389,12 +411,12 @@
     .gpa-party-card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: var(--rounded-xl); padding: var(--space-lg); }
     .gpa-party-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-md); font-size: 16px; font-weight: 800; color: var(--text); font-family: var(--font-display); }
     .gpa-party-delete-btn { background: transparent; border: none; color: var(--text-faint); font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: var(--rounded-sm); cursor: pointer; transition: color .2s ease-out, background .2s ease-out; }
-    .gpa-party-delete-btn:hover { color: var(--danger); background: color-mix(in oklch, var(--danger) 10%, transparent); }
+    .gpa-party-delete-btn:hover { color: var(--danger); background: rgba(var(--danger-rgb), 0.1); }
     .gpa-party-delete-btn:focus-visible { outline: 2px solid var(--danger); }
     .gpa-slot { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--rounded-lg); font-size: 14.5px; cursor: pointer; border: 1px dashed transparent; margin-bottom: 6px; transition: filter 0.1s; }
-    .gpa-slot.tank { background: color-mix(in oklch, var(--tank) 18%, transparent); border-style: solid; }
-    .gpa-slot.support { background: color-mix(in oklch, var(--support) 18%, transparent); border-style: solid; }
-    .gpa-slot.dealer { background: color-mix(in oklch, var(--dealer) 18%, transparent); border-style: solid; }
+    .gpa-slot.tank { background: rgba(var(--tank-rgb), 0.18); border-style: solid; }
+    .gpa-slot.support { background: rgba(var(--support-rgb), 0.18); border-style: solid; }
+    .gpa-slot.dealer { background: rgba(var(--dealer-rgb), 0.18); border-style: solid; }
     .gpa-slot.empty { border-color: var(--border-soft); background: transparent; }
     .gpa-slot:hover { filter: brightness(0.95); border-color: var(--accent); }
     .gpa-slot.dragging { opacity: 0.4; }
@@ -419,5 +441,5 @@
 
     .gpa-content-pick { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
     .gpa-content-chip { padding: 8px 14px; border-radius: var(--rounded-pill); border: 1px solid var(--border); background: var(--bg-elev); color: var(--text-dim); font-size: 14px; }
-    .gpa-content-chip.active { border-color: var(--accent); color: var(--accent); background: color-mix(in oklch, var(--accent) 10%, transparent); }
+    .gpa-content-chip.active { border-color: var(--accent); color: var(--accent); background: rgba(var(--accent-rgb), 0.1); }
   
